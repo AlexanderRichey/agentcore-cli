@@ -1,0 +1,41 @@
+{
+  "name": "agentcore",
+  "version": "1.0.0",
+  "module": "src/index.ts",
+  "type": "module",
+  "bin": {
+    "agentcore": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun build ./src/index.ts --target node --outdir ./dist --minify",
+    "compile": "bun run compile:darwin-x64 && bun run compile:darwin-arm64 && bun run compile:linux-x64 && bun run compile:linux-arm64 && bun run compile:windows-x64 && bun run compile:windows-arm64",
+    "compile:darwin-x64": "bun build --compile --minify --target=bun-darwin-x64 ./src/index.ts --outfile dist/bin/agentcore-darwin-x64",
+    "compile:darwin-arm64": "bun build --compile --minify --target=bun-darwin-arm64 ./src/index.ts --outfile dist/bin/agentcore-darwin-arm64",
+    "compile:linux-x64": "bun build --compile --minify --target=bun-linux-x64 ./src/index.ts --outfile dist/bin/agentcore-linux-x64",
+    "compile:linux-arm64": "bun build --compile --minify --target=bun-linux-arm64 ./src/index.ts --outfile dist/bin/agentcore-linux-arm64",
+    "compile:windows-x64": "bun build --compile --minify --target=bun-windows-x64 ./src/index.ts --outfile dist/bin/agentcore-windows-x64",
+    "compile:windows-arm64": "bun build --compile --minify --target=bun-windows-arm64 ./src/index.ts --outfile dist/bin/agentcore-windows-arm64",
+    "start": "bun run src/index.ts",
+    "test": "bun test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "bun run build",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,js,json,md}": "prettier --write"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8",
+    "prettier": "^3.8.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
