@@ -6,20 +6,20 @@ export enum ExitCode {
 
 // Runnable can be implemented by any application's main entrypoint.
 export interface Runnable {
-  run(argv: string[]): void;
+  run(argv: string[]): Promise<void>;
 }
 
 // runRunnable creates and runs any instance of Runnable with proper exit code handling.
-export function runRunnable(createRunnable: () => Runnable, argv: string[] = process.argv): ExitCode {
-  return runWithExitCode(() => {
-    createRunnable().run(argv)
+export function runRunnable(createRunnable: () => Runnable, argv: string[] = process.argv): Promise<ExitCode> {
+  return runWithExitCode(async () => {
+    await createRunnable().run(argv)
   })
 }
 
 // runWithExitCode safely runs the given function with exit code handling.
-export function runWithExitCode(fn: (argv: string[]) => void, argv: string[] = process.argv): ExitCode {
+export async function runWithExitCode(fn: (argv: string[]) => Promise<void>, argv: string[] = process.argv): Promise<ExitCode> {
   try {
-    fn(argv)
+    await fn(argv)
     return ExitCode.SUCCESS
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

@@ -4,7 +4,15 @@
 // published `bin` directly executable by Node. It's ignored during development
 // when the file is run via `bun run src/index.ts`.
 
+import { HarnessClient } from "./core";
 import { createRootHandler } from "./handlers";
 import { runWithExitCode } from "./runnable";
 
-process.exit(runWithExitCode((argv: string[]) => createRootHandler().route(argv)));
+process.exit(
+  await runWithExitCode(async (argv: string[]) => {
+    await createRootHandler({
+      harness: new HarnessClient(),
+      // Other clients...
+    }).route(argv);
+  }),
+);

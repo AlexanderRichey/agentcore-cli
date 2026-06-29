@@ -1,7 +1,7 @@
 import { createHandler } from "../../router";
-import type { coreHarnessClient } from "./types";
+import type { CoreHarnessClient } from "./types";
 
-export const createListHarnessHandler = (core: coreHarnessClient) => createHandler({
+export const createListHarnessHandler = (core: CoreHarnessClient) => createHandler({
   name: "list",
   description: "List harnesses",
   handle: async (ctx, args) => {

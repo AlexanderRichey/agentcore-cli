@@ -6,8 +6,8 @@ export function withLogging(label: string): Middleware {
   return (h) => ({
     name: () => h.name(),
     description: () => h.description(),
-    // flags: () => h.flags(),
-    // arguments: () => h.arguments(),
+    flags: () => h.flags(),
+    arguments: () => h.arguments(),
     children: () => h.children(),
     handle: async (ctx, args) => {
       console.log(`[${label}]`)
@@ -24,6 +24,7 @@ export function withRegion(): Middleware {
     handle: async (ctx, args) => {
       // TODO: Read context from environment: argument, AWS_REGION, or ~/.aws/config
       const newCtx = ctx.withValue("region", "us-east-1")
+      console.log("here")
       await h.handle(newCtx, args)
     }
   })

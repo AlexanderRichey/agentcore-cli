@@ -1,4 +1,4 @@
-import type { Handler } from "./handler"
+import type { Argument, Flag, Handler } from "./handler"
 import { type Middleware, type MiddlewareProvider, isMiddlewareProvider } from "./middleware"
 import { type Context, ValueContext } from "./context"
 
@@ -30,7 +30,7 @@ function compile(node: Handler, ctx: Context, stack: Middleware[] = []): Command
   } else {
     // Middleware wraps the node here; the wrapper's logic runs at leaf execution.
     const wrapped = nextStack.reduceRight((h, mw) => mw(h), node)
-    c.action((...args) => wrapped.handle(ctx, args))
+    c.action(async (...args) => await wrapped.handle(ctx, args))
   }
 
   return c
@@ -43,6 +43,8 @@ export class Router implements Handler, MiddlewareProvider {
   constructor(
     private readonly cmdName: string,
     private readonly cmdDescription: string = "",
+    private readonly cmdFlags: Flag[] = [],
+    private readonly cmdArguments: Argument[] = [],
   ) {}
 
   // --- Router authoring API ---
@@ -67,13 +69,13 @@ export class Router implements Handler, MiddlewareProvider {
     return this.cmdDescription
   }
 
-  // flags(): Record<string, Flag> {
-  //   return {}
-  // }
-  //
-  // arguments(): Record<string, Argument> {
-  //   return {}
-  // }
+  flags(): Flag[] {
+    return this.cmdFlags
+  }
+
+  arguments(): Argument[] {
+    return this.cmdArguments
+  }
 
   // A group/branch never executes directly; it just hosts subcommands.
   async handle(_ctx: Context, _args: any[]): Promise<void> {}
@@ -90,7 +92,7 @@ export class Router implements Handler, MiddlewareProvider {
 
   // --- Router execution ---
 
-  route(argv: string[], ctx: Context = ValueContext.EmptyContext()): void {
-    compile(this, ctx).parse(argv)
+  async route(argv: string[], ctx: Context = ValueContext.EmptyContext()): Promise<void> {
+    await compile(this, ctx).parseAsync(argv)
   }
 }
