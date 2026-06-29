@@ -4,7 +4,7 @@
 // published `bin` directly executable by Node. It's ignored during development
 // when the file is run via `bun run src/index.ts`.
 
-import { App } from "./app";
-import { runRunnable } from "./runnable";
+import { createRootHandler } from "./handlers";
+import { runWithExitCode } from "./runnable";
 
-process.exit(runRunnable(() => new App()));
+process.exit(runWithExitCode((argv: string[]) => createRootHandler().route(argv)));

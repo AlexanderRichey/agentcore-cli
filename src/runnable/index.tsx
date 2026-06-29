@@ -4,18 +4,22 @@ export enum ExitCode {
   FAILURE = 1
 }
 
-// Runnable is intended to be implemented by any application's main entrypoint.
-// Implementations should throw errors to fit the JavaScript idiom. Exit codes
-// are handled properly when using runRunnable.
+// Runnable can be implemented by any application's main entrypoint.
 export interface Runnable {
   run(argv: string[]): void;
 }
 
 // runRunnable creates and runs any instance of Runnable with proper exit code handling.
 export function runRunnable(createRunnable: () => Runnable, argv: string[] = process.argv): ExitCode {
+  return runWithExitCode(() => {
+    createRunnable().run(argv)
+  })
+}
+
+// runWithExitCode safely runs the given function with exit code handling.
+export function runWithExitCode(fn: (argv: string[]) => void, argv: string[] = process.argv): ExitCode {
   try {
-    const runnable = createRunnable()
-    runnable.run(argv);
+    fn(argv)
     return ExitCode.SUCCESS
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
