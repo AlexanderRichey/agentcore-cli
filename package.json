@@ -27,7 +27,7 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,js,json,md}": "prettier --write"
+    "*.{ts,tsx,json,md}": "prettier --write"
   },
   "devDependencies": {
     "@types/bun": "latest",
