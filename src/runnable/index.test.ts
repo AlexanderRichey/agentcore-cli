@@ -1,11 +1,6 @@
 import { test, expect } from "bun:test";
 
-import {
-  runRunnable,
-  runWithExitCode,
-  ExitCode,
-  type Runnable,
-} from "../../src/runnable/index.tsx";
+import { runRunnable, runWithExitCode, ExitCode, type Runnable } from "./index.tsx";
 
 test("returns SUCCESS and forwards argv when run completes", async () => {
   let receivedArgv: string[] | undefined;

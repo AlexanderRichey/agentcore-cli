@@ -13,7 +13,7 @@ import {
   type Context,
   type Handler,
   type Middleware,
-} from "../../src/router";
+} from "./index";
 
 // --- helpers ---------------------------------------------------------------
 
@@ -24,6 +24,7 @@ function record(log: string[], label: string): Middleware {
     name: () => h.name(),
     description: () => h.description(),
     flags: () => h.flags(),
+    arguments: () => h.arguments(),
     children: () => h.children(),
     handle: async (ctx: Context, flags: any) => {
       log.push(label);
