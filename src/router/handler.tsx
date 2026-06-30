@@ -1,53 +1,67 @@
 import type z from "zod"
 import type { Context } from "./context"
 
-export interface Flag {
-  name: string
+// Flag is generic over its literal name `N` and its inferred value type `T`, so a
+// tuple of flags can be mapped to a typed object at the authoring boundary (see
+// FlagsOf / createHandler). The runtime tree only ever sees the erased
+// Flag<string, unknown>.
+export interface Flag<N extends string = string, T = unknown> {
+  name: N
   description: string
-  schema: z.ZodType
+  schema: z.ZodType<T>
 }
 
-export interface Argument {
-  name: string
-  description: string
-  schema: z.ZodType
+// flag constructs a Flag while preserving the literal name and the type inferred
+// from the zod schema. Prefer this over an object literal so that createHandler
+// can infer a precise object for `handle`.
+export function flag<N extends string, T>(
+  name: N,
+  description: string,
+  schema: z.ZodType<T>,
+): Flag<N, T> {
+  return { name, description, schema }
+}
+
+// FlagsOf maps a tuple of Flags to a typed object keyed by each flag's literal
+// name, with values typed by z.infer of each schema.
+export type FlagsOf<F extends readonly Flag<string, any>[]> = {
+  [E in F[number] as E["name"]]: E extends Flag<string, infer T> ? T : never
 }
 
 export interface Handler {
   name(): string
   description(): string
   flags(): Flag[]
-  arguments(): Argument[]
-  handle(ctx: Context, args: any[]): Promise<void>
+  // At runtime `handle` receives the validated, coerced flags object. The precise
+  // shape is supplied to authors via createHandler's generic; the interface keeps
+  // it erased so middleware can forward it uniformly.
+  handle(ctx: Context, flags: any): Promise<void>
   children(): Handler[]
 }
 
-type CreateHandlerInput = {
-  name: string;
-  description: string;
-  flags?: Flag[];
-  arguments?: Argument[];
-  handle?: (ctx: Context, args: any[]) => Promise<void>
+type CreateHandlerInput<F extends readonly Flag<string, any>[]> = {
+  name: string
+  description: string
+  flags?: F
+  handle?: (ctx: Context, flags: FlagsOf<F>) => Promise<void>
   children?: Handler[]
 }
 
-const noOpHandler = async (ctx: Context, args: any[]): Promise<void> => {}
+const noOpHandler = async (_ctx: Context, _flags: any): Promise<void> => {}
 
 class BaseHandler implements Handler {
   _name: string
   _description: string
   _flags: Flag[]
-  _arguments: Argument[]
-  _handle: (ctx: Context, args: any[]) => Promise<void>
+  _handle: (ctx: Context, flags: any) => Promise<void>
   _children: Handler[]
 
-  constructor(input: CreateHandlerInput) {
+  constructor(input: CreateHandlerInput<readonly Flag<string, any>[]>) {
     this._name = input.name
     this._description = input.description
-    this._flags = input.flags ?? []
-    this._arguments = input.arguments ?? []
-    this._handle = input.handle ?? noOpHandler
-    this._children = []
+    this._flags = (input.flags ?? []) as Flag[]
+    this._handle = (input.handle ?? noOpHandler) as (ctx: Context, flags: any) => Promise<void>
+    this._children = input.children ?? []
   }
 
   name(): string {
@@ -62,12 +76,8 @@ class BaseHandler implements Handler {
     return this._flags
   }
 
-  arguments(): Argument[] {
-    return this._arguments
-  }
-
-  async handle(ctx: Context, args: any[]): Promise<void> {
-    await this._handle(ctx, args)
+  async handle(ctx: Context, flags: any): Promise<void> {
+    await this._handle(ctx, flags)
   }
 
   children(): Handler[] {
@@ -75,6 +85,11 @@ class BaseHandler implements Handler {
   }
 }
 
-export function createHandler(input: CreateHandlerInput): Handler {
-  return new BaseHandler(input)
+// createHandler infers the flags tuple from `flags` (the `const` type parameter
+// captures literal names), giving `handle` a precisely typed object derived from
+// the zod schemas.
+export function createHandler<const F extends readonly Flag<string, any>[] = readonly []>(
+  input: CreateHandlerInput<F>,
+): Handler {
+  return new BaseHandler(input as CreateHandlerInput<readonly Flag<string, any>[]>)
 }

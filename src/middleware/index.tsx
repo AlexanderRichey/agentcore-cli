@@ -7,7 +7,6 @@ export function withLogging(label: string): Middleware {
     name: () => h.name(),
     description: () => h.description(),
     flags: () => h.flags(),
-    arguments: () => h.arguments(),
     children: () => h.children(),
     handle: async (ctx, args) => {
       console.log(`[${label}]`)

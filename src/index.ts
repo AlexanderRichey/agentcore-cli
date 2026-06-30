@@ -10,9 +10,15 @@ import { runWithExitCode } from "./runnable";
 
 process.exit(
   await runWithExitCode(async (argv: string[]) => {
-    await createRootHandler({
-      harness: new HarnessClient(),
-      // Other clients...
-    }).route(argv);
+    // Create clients
+    const harnessClient = new HarnessClient();
+
+    // Pass them to the root handler
+    const rootHandler = createRootHandler({
+      harness: harnessClient,
+    });
+
+    // Handle the request
+    await rootHandler.route(argv);
   }),
 );

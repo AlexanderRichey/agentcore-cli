@@ -1,39 +1,43 @@
 import { test, expect } from "bun:test";
 
-import { runRunnable, ExitCode } from "../../src/runnable";
-import type { Runnable } from "../../src/runnable";
+import { runRunnable, runWithExitCode, ExitCode, type Runnable } from "../../src/runnable/index.tsx";
 
-test("runRunnable returns SUCCESS and forwards argv when run completes", () => {
+test("returns SUCCESS and forwards argv when run completes", async () => {
   let receivedArgv: string[] | undefined;
   const runnable: Runnable = {
-    run(argv: string[]) {
+    run: async (argv: string[]) => {
       receivedArgv = argv;
     }
   };
 
   const argv = ["node", "script", "--flag"];
-  const code = runRunnable(() => runnable, argv);
+  const code = await runRunnable(() => runnable, argv);
 
   expect(code).toBe(ExitCode.SUCCESS);
   expect(receivedArgv).toEqual(argv);
 });
 
-test("returns FAILURE when run throws an Error", () => {
+test("returns FAILURE when run rejects with an Error", async () => {
   const runnable: Runnable = {
-    run() {
+    run: async () => {
       throw new Error("boom");
     }
   };
 
-  const code = runRunnable(() => runnable, []);
+  const code = await runRunnable(() => runnable, []);
 
   expect(code).toBe(ExitCode.FAILURE);
 });
 
-test("returns FAILURE when a non-Error value is thrown", () => {
-  const code = runRunnable(() => {
+test("returns FAILURE when the factory throws a non-Error value", async () => {
+  const code = await runRunnable(() => {
     throw "kaboom";
   }, []);
 
   expect(code).toBe(ExitCode.FAILURE);
+});
+
+test("runWithExitCode returns SUCCESS for a resolving function", async () => {
+  const code = await runWithExitCode(async () => {});
+  expect(code).toBe(ExitCode.SUCCESS);
 });
