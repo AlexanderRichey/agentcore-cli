@@ -1,5 +1,5 @@
 import type z from "zod"
-import type { Context } from "./context"
+import type { Context, ContextKey } from "./context"
 
 // Flag is generic over its literal name `N` and its inferred value type `T`, so a
 // tuple of flags can be mapped to a typed object at the authoring boundary (see
@@ -11,6 +11,16 @@ export interface Flag<N extends string = string, T = unknown> {
   schema: z.ZodType<T>
 }
 
+// GlobalFlag is a group-level flag that is *also* a typed ContextKey: declared on
+// a Router, its validated value is injected into the context under itself, so any
+// descendant handler can retrieve it type-safely via `ctx.value(theGlobalFlag)`.
+export interface GlobalFlag<N extends string = string, T = unknown>
+  extends ContextKey<T>,
+    Flag<N, T> {
+  // Reconcile ContextKey's `name: string` with Flag's `name: N`.
+  name: N
+}
+
 // flag constructs a Flag while preserving the literal name and the type inferred
 // from the zod schema. Prefer this over an object literal so that createHandler
 // can infer a precise object for `handle`.
@@ -20,6 +30,16 @@ export function flag<N extends string, T>(
   schema: z.ZodType<T>,
 ): Flag<N, T> {
   return { name, description, schema }
+}
+
+// globalFlag constructs a GlobalFlag. The returned value doubles as the typed
+// ContextKey used to read the flag back out of the context.
+export function globalFlag<N extends string, T>(
+  name: N,
+  description: string,
+  schema: z.ZodType<T>,
+): GlobalFlag<N, T> {
+  return { id: Symbol(name), name, description, schema }
 }
 
 // FlagsOf maps a tuple of Flags to a typed object keyed by each flag's literal

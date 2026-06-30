@@ -6,8 +6,10 @@ import {
   Router,
   ValueContext,
   compile,
+  contextKey,
   createHandler,
   flag,
+  globalFlag,
   type Context,
   type Handler,
   type Middleware
@@ -196,4 +198,88 @@ test("a required (non-optional) flag is mandatory", async () => {
 
   // Omitting the mandatory option makes Commander reject before the handler runs.
   await expect(cmd.parseAsync(["node", "app", "get"])).rejects.toThrow();
+});
+
+// --- flag inheritance (group-level / global flags) -------------------------
+
+test("a group-level flag is validated and exposed to descendants via typed context key", async () => {
+  const RegionKey = globalFlag("region", "AWS region", z.string().default("us-east-1"));
+  let region: string | undefined;
+  let ownFlags: { id: string } | undefined;
+
+  const get = createHandler({
+    name: "get",
+    description: "",
+    flags: [flag("id", "id", z.string())],
+    handle: async (ctx, flags) => {
+      region = ctx.value(RegionKey); // typed string | undefined
+      ownFlags = flags; // only the leaf's own flags
+    }
+  });
+
+  // RegionKey declared as a global flag on the root group; `--id` on the leaf.
+  const root = new Router("app", "", [RegionKey]);
+  const harness = new Router("harness");
+  harness.handler(get);
+  root.handler(harness);
+
+  await root.route(["node", "app", "harness", "get", "--id", "x", "--region", "us-west-2"]);
+
+  expect(region).toBe("us-west-2");
+  expect(ownFlags).toEqual({ id: "x" }); // inherited flag is NOT in the typed object
+});
+
+test("a group-level flag falls back to its schema default when omitted", async () => {
+  const RegionKey = globalFlag("region", "AWS region", z.string().default("us-east-1"));
+  let region: string | undefined;
+
+  const get = createHandler({
+    name: "get",
+    description: "",
+    handle: async (ctx) => {
+      region = ctx.value(RegionKey);
+    }
+  });
+
+  const root = new Router("app", "", [RegionKey]);
+  root.handler(get);
+
+  await root.route(["node", "app", "get"]);
+
+  expect(region).toBe("us-east-1");
+});
+
+test("an invalid group-level flag is reported via command.error", async () => {
+  const LevelKey = globalFlag("level", "log level", z.enum(["debug", "info"]));
+
+  const get = createHandler({
+    name: "get",
+    description: "",
+    handle: async () => {
+      throw new Error("handle should not run on invalid input");
+    }
+  });
+
+  const root = new Router("app", "", [LevelKey]);
+  root.handler(get);
+
+  const cmd = exitOverrideAll(compile(root, ValueContext.EmptyContext()));
+
+  await expect(
+    cmd.parseAsync(["node", "app", "get", "--level", "nope"])
+  ).rejects.toThrow(/Invalid value for option '--level'/);
+});
+
+test("ContextKey identity is by symbol, not name", () => {
+  const a = contextKey<string>("dup");
+  const b = contextKey<number>("dup"); // same name, distinct key
+  const ctx = ValueContext.EmptyContext().withValue(a, "x").withValue(b, 7);
+
+  expect(ctx.value(a)).toBe("x");
+  expect(ctx.value(b)).toBe(7);
+});
+
+test("context.require throws when a key is absent", () => {
+  const Missing = contextKey<string>("missing");
+  expect(() => ValueContext.EmptyContext().require(Missing)).toThrow(/missing a required value/);
 });

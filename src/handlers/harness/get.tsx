@@ -1,5 +1,6 @@
 import z from "zod";
 import { createHandler, flag } from "../../router";
+import { RegionKey } from "../keys.tsx";
 import type { CoreHarnessClient } from "./types";
 
 export const createGetHarnessHandler = (core: CoreHarnessClient) =>
@@ -8,8 +9,8 @@ export const createGetHarnessHandler = (core: CoreHarnessClient) =>
     description: "Get a harness",
     flags: [flag("id", "The ID of the harness", z.string().max(48))],
     handle: async (ctx, flags) => {
-      const region = ctx.value("region");
-      // `flags` is typed as { "id": string } and already validated.
+      // RegionKey resolves to a typed `string`; `flags.id` is validated `string`.
+      const region = ctx.require(RegionKey);
       const harness = await core.getHarness(region, flags["id"]);
       console.log(harness);
     },

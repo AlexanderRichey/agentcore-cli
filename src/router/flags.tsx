@@ -1,6 +1,7 @@
 import { type Command, Option } from "commander"
 import type z from "zod"
-import type { Flag } from "./handler"
+import type { Context } from "./context"
+import type { Flag, GlobalFlag } from "./handler"
 
 // Inspection describes how a zod schema maps onto a Commander option: whether a
 // value must be supplied (required), whether it is variadic (an array), whether
@@ -131,10 +132,21 @@ export function coerce(schema: z.ZodType, raw: unknown): unknown {
   return coerceScalar(type, String(raw))
 }
 
-// parseFlags coerces and validates each flag value (read from Commander's parsed
-// options) against its schema, returning a typed-by-name object. On failure it
-// reports via Commander's `command.error`, which prints a message and exits (or,
-// with exitOverride, throws) — so this returns only on success.
+// validate coerces and validates a single flag's raw value (read from Commander's
+// parsed options) against its schema. On failure it reports via Commander's
+// `command.error`, which prints a message and exits (or, with exitOverride,
+// throws) — so this returns only on success.
+function validate(flag: Flag, opts: Record<string, unknown>, command: Command): unknown {
+  const result = flag.schema.safeParse(coerce(flag.schema, opts[attributeName(flag.name)]))
+  if (!result.success) {
+    const detail = result.error.issues.map((issue) => issue.message).join("; ")
+    command.error(`Invalid value for option '--${flag.name}': ${detail}`)
+  }
+  return result.data
+}
+
+// parseFlags validates a leaf's own flags into a typed-by-name object handed to
+// the handler.
 export function parseFlags(
   flags: Flag[],
   opts: Record<string, unknown>,
@@ -142,13 +154,23 @@ export function parseFlags(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   for (const flag of flags) {
-    const raw = opts[attributeName(flag.name)]
-    const result = flag.schema.safeParse(coerce(flag.schema, raw))
-    if (!result.success) {
-      const detail = result.error.issues.map((issue) => issue.message).join("; ")
-      command.error(`Invalid value for option '--${flag.name}': ${detail}`)
-    }
-    out[flag.name] = result.data
+    out[flag.name] = validate(flag, opts, command)
   }
   return out
+}
+
+// applyGlobalFlags validates each inherited group-level flag and stores it on the
+// context under its own key (a GlobalFlag is its own ContextKey), returning the
+// extended context. Descendants read these via `ctx.value(theGlobalFlag)`.
+export function applyGlobalFlags(
+  globalFlags: GlobalFlag[],
+  opts: Record<string, unknown>,
+  command: Command,
+  ctx: Context,
+): Context {
+  let next = ctx
+  for (const globalFlag of globalFlags) {
+    next = next.withValue(globalFlag, validate(globalFlag, opts, command))
+  }
+  return next
 }
