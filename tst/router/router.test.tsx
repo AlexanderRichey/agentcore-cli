@@ -12,7 +12,7 @@ import {
   globalFlag,
   type Context,
   type Handler,
-  type Middleware
+  type Middleware,
 } from "../../src/router";
 
 // --- helpers ---------------------------------------------------------------
@@ -28,7 +28,7 @@ function record(log: string[], label: string): Middleware {
     handle: async (ctx: Context, flags: any) => {
       log.push(label);
       await h.handle(ctx, flags);
-    }
+    },
   });
 }
 
@@ -36,7 +36,7 @@ function leaf(name: string, onHandle: () => void): Handler {
   return createHandler({
     name,
     description: "",
-    handle: async () => onHandle()
+    handle: async () => onHandle(),
   });
 }
 
@@ -92,7 +92,7 @@ test("validates and passes a typed-by-name object to handle", async () => {
     flags: [flag("harness-id", "id", z.string().max(5))],
     handle: async (_ctx, flags) => {
       seen = flags; // flags is typed { "harness-id": string }
-    }
+    },
   });
 
   const root = new Router("app");
@@ -112,7 +112,7 @@ test("auto-coerces raw string flag values to the schema's type", async () => {
     flags: [flag("count", "n", z.number().int()), flag("verbose", "v", z.boolean())],
     handle: async (_ctx, flags) => {
       seen = flags; // { count: number; verbose: boolean }
-    }
+    },
   });
 
   const root = new Router("app");
@@ -132,7 +132,7 @@ test("boolean flags default to false when omitted", async () => {
     flags: [flag("verbose", "v", z.boolean())],
     handle: async (_ctx, flags) => {
       seen = flags;
-    }
+    },
   });
 
   const root = new Router("app");
@@ -152,7 +152,7 @@ test("applies a schema default for an omitted flag", async () => {
     flags: [flag("count", "n", z.coerce.number().default(7))],
     handle: async (_ctx, flags) => {
       seen = flags;
-    }
+    },
   });
 
   const root = new Router("app");
@@ -170,7 +170,7 @@ test("reports invalid input via command.error (throws under exitOverride)", asyn
     flags: [flag("harness-id", "id", z.string().max(3))],
     handle: async () => {
       throw new Error("handle should not run on invalid input");
-    }
+    },
   });
 
   const root = new Router("app");
@@ -179,7 +179,7 @@ test("reports invalid input via command.error (throws under exitOverride)", asyn
   const cmd = exitOverrideAll(compile(root, ValueContext.EmptyContext()));
 
   await expect(
-    cmd.parseAsync(["node", "app", "get", "--harness-id", "toolong"]) // exceeds max(3)
+    cmd.parseAsync(["node", "app", "get", "--harness-id", "toolong"]), // exceeds max(3)
   ).rejects.toThrow(/Invalid value for option '--harness-id'/);
 });
 
@@ -188,7 +188,7 @@ test("a required (non-optional) flag is mandatory", async () => {
     name: "get",
     description: "",
     flags: [flag("harness-id", "id", z.string())],
-    handle: async () => {}
+    handle: async () => {},
   });
 
   const root = new Router("app");
@@ -214,7 +214,7 @@ test("a group-level flag is validated and exposed to descendants via typed conte
     handle: async (ctx, flags) => {
       region = ctx.value(RegionKey); // typed string | undefined
       ownFlags = flags; // only the leaf's own flags
-    }
+    },
   });
 
   // RegionKey declared as a global flag on the root group; `--id` on the leaf.
@@ -238,7 +238,7 @@ test("a group-level flag falls back to its schema default when omitted", async (
     description: "",
     handle: async (ctx) => {
       region = ctx.value(RegionKey);
-    }
+    },
   });
 
   const root = new Router("app", "", [RegionKey]);
@@ -257,7 +257,7 @@ test("an invalid group-level flag is reported via command.error", async () => {
     description: "",
     handle: async () => {
       throw new Error("handle should not run on invalid input");
-    }
+    },
   });
 
   const root = new Router("app", "", [LevelKey]);
@@ -265,9 +265,9 @@ test("an invalid group-level flag is reported via command.error", async () => {
 
   const cmd = exitOverrideAll(compile(root, ValueContext.EmptyContext()));
 
-  await expect(
-    cmd.parseAsync(["node", "app", "get", "--level", "nope"])
-  ).rejects.toThrow(/Invalid value for option '--level'/);
+  await expect(cmd.parseAsync(["node", "app", "get", "--level", "nope"])).rejects.toThrow(
+    /Invalid value for option '--level'/,
+  );
 });
 
 test("ContextKey identity is by symbol, not name", () => {
