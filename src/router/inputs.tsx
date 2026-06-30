@@ -1,7 +1,7 @@
-import { type Command, Option } from "commander";
+import { type Command, Option, Argument as CommanderArgument } from "commander";
 import type z from "zod";
 import type { Context } from "./context";
-import type { Flag, GlobalFlag } from "./handler";
+import type { Argument, CommandInput, Flag, GlobalFlag } from "./handler";
 
 // Inspection describes how a zod schema maps onto a Commander option: whether a
 // value must be supplied (required), whether it is variadic (an array), whether
@@ -91,6 +91,19 @@ export function toOption(flag: Flag): Option {
   return option;
 }
 
+export function toCommanderArgument(arg: Argument): CommanderArgument {
+  const info = inspect(arg.schema);
+  // Commander treats <> as required and [] as optional: https://github.com/tj/commander.js#more-configuration-1
+  const name = info.required ? `<${arg.name}>` : `[${arg.name}]`;
+  const commanderArg = new CommanderArgument(name, arg.description);
+
+  if (info.hasDefault) {
+    commanderArg.default(info.defaultValue);
+  }
+
+  return commanderArg;
+}
+
 // attributeName mirrors how Commander camelCases an option name into the key it
 // stores on the parsed options object (e.g. "harness-id" -> "harnessId").
 function attributeName(name: string): string {
@@ -132,17 +145,8 @@ export function coerce(schema: z.ZodType, raw: unknown): unknown {
   return coerceScalar(type, String(raw));
 }
 
-// validate coerces and validates a single flag's raw value (read from Commander's
-// parsed options) against its schema. On failure it reports via Commander's
-// `command.error`, which prints a message and exits (or, with exitOverride,
-// throws) — so this returns only on success.
-function validate(flag: Flag, opts: Record<string, unknown>, command: Command): unknown {
-  const result = flag.schema.safeParse(coerce(flag.schema, opts[attributeName(flag.name)]));
-  if (!result.success) {
-    const detail = result.error.issues.map((issue) => issue.message).join("; ");
-    command.error(`Invalid value for option '--${flag.name}': ${detail}`);
-  }
-  return result.data;
+function validateFlag(flag: Flag, opts: Record<string, unknown>, command: Command): unknown {
+  return validateInput(flag, command, opts[attributeName(flag.name)]);
 }
 
 // parseFlags validates a leaf's own flags into a typed-by-name object handed to
@@ -154,7 +158,7 @@ export function parseFlags(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const flag of flags) {
-    out[flag.name] = validate(flag, opts, command);
+    out[flag.name] = validateFlag(flag, opts, command);
   }
   return out;
 }
@@ -170,7 +174,49 @@ export function applyGlobalFlags(
 ): Context {
   let next = ctx;
   for (const globalFlag of globalFlags) {
-    next = next.withValue(globalFlag, validate(globalFlag, opts, command));
+    next = next.withValue(globalFlag, validateFlag(globalFlag, opts, command));
   }
   return next;
+}
+
+// validate coerces and validates a single input's raw value (read from Commander's
+// parsed options) against its schema. On failure it reports via Commander's
+// `command.error`, which prints a message and exits (or, with exitOverride,
+// throws) — so this returns only on success.
+function validateInput(
+  expectedInput: CommandInput,
+  command: Command,
+  actualInput?: unknown,
+): unknown {
+  const result = expectedInput.schema.safeParse(coerce(expectedInput.schema, actualInput));
+  if (!result.success) {
+    const detail = result.error.issues.map((issue) => issue.message).join("; ");
+    command.error(
+      `Invalid input for ${expectedInput.inputKind} '${expectedInput.name}': ${detail}`,
+    );
+  }
+  return result.data;
+}
+
+export function parseArguments(
+  expectedArguments: Argument[],
+  inputArguments: string[],
+  command: Command,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+
+  // Note: commander rejects this for us, but we add a guard here to be defensive.
+  if (inputArguments.length > expectedArguments.length) {
+    command.error(`Received unexpected argument '${inputArguments[expectedArguments.length]}'`);
+  }
+
+  for (let index = 0; index < expectedArguments.length; index++) {
+    const currentArg = inputArguments[index];
+    // should never be undefined based on loop bound
+    const expectedArg = expectedArguments[index]!;
+
+    out[expectedArg.name] = validateInput(expectedArg, command, currentArg);
+  }
+
+  return out;
 }

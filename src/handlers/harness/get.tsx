@@ -8,10 +8,10 @@ export const createGetHarnessHandler = (core: CoreHarnessClient) =>
     name: "get",
     description: "Get a harness",
     flags: [flag("id", "The ID of the harness", z.string().max(48))],
-    handle: async (ctx, flags) => {
+    handle: async (ctx, inputs) => {
       // RegionKey resolves to a typed `string`; `flags.id` is validated `string`.
       const region = ctx.require(RegionKey);
-      const harness = await core.getHarness(region, flags["id"]);
+      const harness = await core.getHarness(region, inputs["id"]);
       console.log(harness);
     },
   });

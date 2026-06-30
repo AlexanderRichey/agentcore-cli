@@ -181,7 +181,7 @@ test("reports invalid input via command.error (throws under exitOverride)", asyn
 
   await expect(
     cmd.parseAsync(["node", "app", "get", "--harness-id", "toolong"]), // exceeds max(3)
-  ).rejects.toThrow(/Invalid value for option '--harness-id'/);
+  ).rejects.toThrow(/Invalid input for flag 'harness-id'/);
 });
 
 test("a required (non-optional) flag is mandatory", async () => {
@@ -267,7 +267,7 @@ test("an invalid group-level flag is reported via command.error", async () => {
   const cmd = exitOverrideAll(compile(root, ValueContext.EmptyContext()));
 
   await expect(cmd.parseAsync(["node", "app", "get", "--level", "nope"])).rejects.toThrow(
-    /Invalid value for option '--level'/,
+    /Invalid input for flag 'level'/,
   );
 });
 
@@ -283,4 +283,28 @@ test("ContextKey identity is by symbol, not name", () => {
 test("context.require throws when a key is absent", () => {
   const Missing = contextKey<string>("missing");
   expect(() => ValueContext.EmptyContext().require(Missing)).toThrow(/missing a required value/);
+});
+
+test("compile rejects a handler with both subcommands and positional arguments", () => {
+  const child = createHandler({
+    name: "child",
+    description: "",
+    handle: async () => {},
+  });
+
+  // A parent that has both a child handler and positional arguments is invalid.
+  const parent = createHandler({
+    name: "parent",
+    description: "",
+    arguments: [{ name: "id", inputKind: "argument", description: "an id", schema: z.string() }],
+    children: [child],
+    handle: async () => {},
+  });
+
+  const root = new Router("app");
+  root.handler(parent);
+
+  expect(() => compile(root, ValueContext.EmptyContext())).toThrow(
+    /contains both subcommands and positional arguments/,
+  );
 });
