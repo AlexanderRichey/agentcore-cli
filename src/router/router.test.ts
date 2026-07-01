@@ -312,15 +312,16 @@ test("compile rejects a handler with both subcommands and positional arguments",
 
 // --- positional arguments: typing + validation + coercion --------------------
 
-test("validates and passes typed positional arguments to handle", async () => {
-  let seen: { key: string; value: string } | undefined;
+test("validates, coerces, and passes typed positional arguments to handle", async () => {
+  let seen: { name: string; port: number; verbose: boolean } | undefined;
 
-  const config = createHandler({
-    name: "config",
+  const serve = createHandler({
+    name: "serve",
     description: "",
     arguments: [
-      argument("key", "config key", z.string()),
-      argument("value", "config value", z.string()),
+      argument("name", "service name", z.string()),
+      argument("port", "port number", z.coerce.number()),
+      argument("verbose", "enable verbose mode", z.coerce.boolean()),
     ],
     handle: async (_ctx, _flags, args) => {
       seen = args;
@@ -328,11 +329,11 @@ test("validates and passes typed positional arguments to handle", async () => {
   });
 
   const root = new Router("app");
-  root.handler(config);
+  root.handler(serve);
 
-  await root.route(["node", "app", "config", "region", "us-west-2"]);
+  await root.route(["node", "app", "serve", "api", "8080", "true"]);
 
-  expect(seen).toEqual({ key: "region", value: "us-west-2" });
+  expect(seen).toEqual({ name: "api", port: 8080, verbose: true });
 });
 
 test("optional arguments resolve to undefined when omitted", async () => {
@@ -373,29 +374,6 @@ test("arguments with schema defaults use the default when omitted", async () => 
   await root.route(["node", "app", "deploy"]);
 
   expect(seen).toEqual({ env: "prod" });
-});
-
-test("auto-coerces argument values to the schema's type", async () => {
-  let seen: { port: number; verbose: boolean } | undefined;
-
-  const serve = createHandler({
-    name: "serve",
-    description: "",
-    arguments: [
-      argument("port", "port number", z.coerce.number()),
-      argument("verbose", "enable verbose mode", z.coerce.boolean()),
-    ],
-    handle: async (_ctx, _flags, args) => {
-      seen = args;
-    },
-  });
-
-  const root = new Router("app");
-  root.handler(serve);
-
-  await root.route(["node", "app", "serve", "8080", "true"]);
-
-  expect(seen).toEqual({ port: 8080, verbose: true });
 });
 
 test("variadic argument collects multiple values into an array", async () => {
