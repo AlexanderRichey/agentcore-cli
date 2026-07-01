@@ -63,7 +63,7 @@ export function compile(
     // attaching both children and subcommands leads to ambiguity.
     if (node.arguments().length > 0) {
       throw new Error(
-        `Invalid command '${node.name}' contains both subcommands and positional arguments.`,
+        `Invalid command '${node.name()}' contains both subcommands and positional arguments.`,
       );
     }
     // A group's own global flags become inherited flags for everything beneath it.
