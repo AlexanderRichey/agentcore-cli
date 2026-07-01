@@ -7,6 +7,8 @@ import { Command } from "commander";
 
 // CommandKey exposes the Commander Command for the executing leaf via context.
 export const CommandKey: ContextKey<Command> = contextKey<Command>("commander.command");
+// PathKey exposes the path to the executing leaf via context.
+export const PathKey: ContextKey<string> = contextKey<string>("path");
 
 // declareFlags wires a node's zod-typed flags onto a Commander command. Each
 // flag's option shape (value/toggle, variadic, required, default) is derived
@@ -49,6 +51,10 @@ export function compile(
 
   const own = isMiddlewareProvider(node) ? node.middlewares() : [];
   const nextStack = [...stack, ...own];
+
+  const path = ctx.value(PathKey) || "";
+  const newPath = `${path}/${node.name()}`;
+  ctx = ctx.withValue(PathKey, newPath);
 
   const children = node.children();
   if (children.length > 0) {
