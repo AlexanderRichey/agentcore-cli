@@ -20,8 +20,8 @@ export const createConfigHandler = () =>
       ),
       argument("value", "value to set for the key", z.string().optional()),
     ],
-    handle: async (_ctx, inputs) => {
+    handle: async (_ctx, _flags, args) => {
       // TODO: implment a real handler that update the global config via injected config accessor.
-      console.log(`updating config key=${inputs.key}, value=${inputs.value}`);
+      console.log(`updating config key=${args.key}, value=${args.value}`);
     },
   });

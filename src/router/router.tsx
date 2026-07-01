@@ -7,7 +7,7 @@ import {
   parseFlags,
   toCommanderArgument,
   toOption,
-} from "./inputs";
+} from "./parsing";
 
 import { Command } from "commander";
 
@@ -33,19 +33,6 @@ function declareArguments(c: Command, args: Argument[]): void {
 // node's declared flags. Only group flags created via globalFlag() carry a key.
 function globalFlagsOf(node: Handler): GlobalFlag[] {
   return node.flags().filter((f): f is GlobalFlag => "id" in f);
-}
-
-/**
- * Validates that names are not duplicated among command input types.
- * Throws if a duplicate is found
- */
-function validateUniqueInputNames(node: Handler): void {
-  const flagNames = new Set(node.flags().map((f) => f.name));
-  const duplicate = node.arguments().find((a) => flagNames.has(a.name));
-
-  if (duplicate?.name) {
-    throw new Error(`Found duplicate for command input with name '${duplicate.name}'`);
-  }
 }
 
 // compile walks the Handler tree into a Commander Command tree.
@@ -90,8 +77,6 @@ export function compile(
       c.addCommand(compile(child, ctx, nextStack, childGlobals));
     }
   } else {
-    validateUniqueInputNames(node);
-
     // Middleware wraps the node here; the wrapper's logic runs at leaf execution.
     const wrapped = nextStack.reduceRight((h, mw) => mw(h), node);
     // `optsWithGlobals()` merges this command's options with all ancestors', so
@@ -107,11 +92,9 @@ export function compile(
 
       // Own flags -> the statically-typed object passed to handle.
       const parsedFlags = parseFlags(ownFlags, globals, command);
-      const parsedArguments = parseArguments(node.arguments(), command.args, command);
+      const parsedArguments = parseArguments(node.arguments(), command);
 
-      // merging is safe based on validateUniqueInputNames call above
-      const inputs = { ...parsedFlags, ...parsedArguments };
-      await wrapped.handle(leafCtx, inputs);
+      await wrapped.handle(leafCtx, parsedFlags, parsedArguments);
     });
   }
 

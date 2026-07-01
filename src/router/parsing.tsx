@@ -1,7 +1,7 @@
 import { type Command, Option, Argument as CommanderArgument } from "commander";
 import type z from "zod";
 import type { Context } from "./context";
-import type { Argument, CommandInput, Flag, GlobalFlag } from "./handler";
+import type { Argument, Flag, GlobalFlag } from "./handler";
 
 // Inspection describes how a zod schema maps onto a Commander option: whether a
 // value must be supplied (required), whether it is variadic (an array), whether
@@ -145,8 +145,17 @@ export function coerce(schema: z.ZodType, raw: unknown): unknown {
   return coerceScalar(type, String(raw));
 }
 
+// validate coerces and validates a single flag's raw value (read from Commander's
+// parsed options) against its schema. On failure it reports via Commander's
+// `command.error`, which prints a message and exits (or, with exitOverride,
+// throws) — so this returns only on success.
 function validateFlag(flag: Flag, opts: Record<string, unknown>, command: Command): unknown {
-  return validateInput(flag, command, opts[attributeName(flag.name)]);
+  const result = flag.schema.safeParse(coerce(flag.schema, opts[attributeName(flag.name)]));
+  if (!result.success) {
+    const detail = result.error.issues.map((issue) => issue.message).join("; ");
+    command.error(`Invalid value for option '--${flag.name}': ${detail}`);
+  }
+  return result.data;
 }
 
 // parseFlags validates a leaf's own flags into a typed-by-name object handed to
@@ -179,21 +188,15 @@ export function applyGlobalFlags(
   return next;
 }
 
-// validate coerces and validates a single input's raw value (read from Commander's
-// parsed options) against its schema. On failure it reports via Commander's
-// `command.error`, which prints a message and exits (or, with exitOverride,
-// throws) — so this returns only on success.
-function validateInput(
-  expectedInput: CommandInput,
+function validateArgument(
+  argument: Argument,
+  input: unknown | undefined,
   command: Command,
-  actualInput?: unknown,
 ): unknown {
-  const result = expectedInput.schema.safeParse(coerce(expectedInput.schema, actualInput));
+  const result = argument.schema.safeParse(coerce(argument.schema, input));
   if (!result.success) {
     const detail = result.error.issues.map((issue) => issue.message).join("; ");
-    command.error(
-      `Invalid input for ${expectedInput.inputKind} '${expectedInput.name}': ${detail}`,
-    );
+    command.error(`Invalid value for argument '${argument.name}': ${detail}`);
   }
   return result.data;
 }
@@ -215,7 +218,7 @@ export function parseArguments(
     // should never be undefined based on loop bound
     const expectedArg = expectedArguments[index]!;
 
-    out[expectedArg.name] = validateInput(expectedArg, command, currentArg);
+    out[expectedArg.name] = validateArgument(expectedArg, currentArg, command);
   }
 
   return out;

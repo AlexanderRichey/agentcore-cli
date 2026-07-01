@@ -26,9 +26,9 @@ function record(log: string[], label: string): Middleware {
     flags: () => h.flags(),
     arguments: () => h.arguments(),
     children: () => h.children(),
-    handle: async (ctx: Context, flags: any) => {
+    handle: async (ctx: Context, flags: any, args: any) => {
       log.push(label);
-      await h.handle(ctx, flags);
+      await h.handle(ctx, flags, args);
     },
   });
 }
@@ -181,7 +181,7 @@ test("reports invalid input via command.error (throws under exitOverride)", asyn
 
   await expect(
     cmd.parseAsync(["node", "app", "get", "--harness-id", "toolong"]), // exceeds max(3)
-  ).rejects.toThrow(/Invalid input for flag 'harness-id'/);
+  ).rejects.toThrow(/Invalid value for option '--harness-id'/);
 });
 
 test("a required (non-optional) flag is mandatory", async () => {
@@ -267,7 +267,7 @@ test("an invalid group-level flag is reported via command.error", async () => {
   const cmd = exitOverrideAll(compile(root, ValueContext.EmptyContext()));
 
   await expect(cmd.parseAsync(["node", "app", "get", "--level", "nope"])).rejects.toThrow(
-    /Invalid input for flag 'level'/,
+    /Invalid value for option '--level'/,
   );
 });
 
@@ -307,19 +307,4 @@ test("compile rejects a handler with both subcommands and positional arguments",
   expect(() => compile(root, ValueContext.EmptyContext())).toThrow(
     /contains both subcommands and positional arguments/,
   );
-});
-
-test("compile rejects a handler with a flag and argument of the same name", () => {
-  const handler = createHandler({
-    name: "set",
-    description: "",
-    flags: [flag("id", "the id", z.string())],
-    arguments: [{ name: "id", inputKind: "argument", description: "the id", schema: z.string() }],
-    handle: async () => {},
-  });
-
-  const root = new Router("app");
-  root.handler(handler);
-
-  expect(() => compile(root, ValueContext.EmptyContext())).toThrow(/duplicate.*'id'/i);
 });
