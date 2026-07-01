@@ -89,11 +89,11 @@ export function compile(
 export class Router implements Handler, MiddlewareProvider {
   private mws: Middleware[] = [];
   private handlers: Handler[] = [];
+  private globalFlags: GlobalFlag[] = [];
 
   constructor(
     private readonly cmdName: string,
     private readonly cmdDescription: string = "",
-    private readonly globalFlags: GlobalFlag[] = [],
   ) {}
 
   // --- Router authoring API ---
@@ -105,6 +105,11 @@ export class Router implements Handler, MiddlewareProvider {
 
   handler(handler: Handler): this {
     this.handlers.push(handler);
+    return this;
+  }
+
+  groupFlags(...flags: GlobalFlag[]): this {
+    this.globalFlags.push(...flags);
     return this;
   }
 

@@ -11,4 +11,8 @@ export const DebugKey = globalFlag("debug", "debug logging", z.boolean().default
 
 export const JsonKey = globalFlag("json", "JSON output", z.boolean().default(false));
 
-export const EndpointKey = globalFlag("endpoint-url", "endpoint URL override", z.string());
+export const EndpointKey = globalFlag(
+  "endpoint-url",
+  "endpoint URL override",
+  z.string().optional(),
+);

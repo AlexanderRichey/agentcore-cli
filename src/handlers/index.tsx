@@ -8,13 +8,12 @@ export interface Core {
 }
 
 export function createRootHandler(core: Core): Router {
-  const root = new Router("agentcore", "Do fun things with AgentCore", [
-    RegionKey,
-    DebugKey,
-    JsonKey,
-    EndpointKey,
-  ]);
+  const root = new Router("agentcore", "Do fun things with AgentCore");
 
+  // Add global flags
+  root.groupFlags(RegionKey, DebugKey, JsonKey, EndpointKey);
+
+  // Install sub handlers
   root.handler(createHarnessHandler(core.harness));
 
   return root;
