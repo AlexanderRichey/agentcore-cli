@@ -200,9 +200,9 @@ function validateInput(
 
 export function parseArguments(
   expectedArguments: Argument[],
-  inputArguments: string[],
   command: Command,
 ): Record<string, unknown> {
+  const inputArguments = command.args;
   const out: Record<string, unknown> = {};
 
   // Note: commander rejects this for us, but we add a guard here to be defensive.

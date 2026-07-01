@@ -308,3 +308,18 @@ test("compile rejects a handler with both subcommands and positional arguments",
     /contains both subcommands and positional arguments/,
   );
 });
+
+test("compile rejects a handler with a flag and argument of the same name", () => {
+  const handler = createHandler({
+    name: "set",
+    description: "",
+    flags: [flag("id", "the id", z.string())],
+    arguments: [{ name: "id", inputKind: "argument", description: "the id", schema: z.string() }],
+    handle: async () => {},
+  });
+
+  const root = new Router("app");
+  root.handler(handler);
+
+  expect(() => compile(root, ValueContext.EmptyContext())).toThrow(/duplicate.*'id'/i);
+});
