@@ -145,7 +145,7 @@ export class Router implements Handler, MiddlewareProvider {
   }
 
   // A group/branch never executes directly; it just hosts subcommands.
-  async handle(_ctx: Context, _flags: any): Promise<void> {}
+  async handle(_ctx: Context, _flags: any, _args: any): Promise<void> {}
 
   children(): Handler[] {
     return this.handlers;

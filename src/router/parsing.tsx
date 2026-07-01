@@ -94,12 +94,9 @@ export function toOption(flag: Flag): Option {
 export function toCommanderArgument(arg: Argument): CommanderArgument {
   const info = inspect(arg.schema);
   // Commander treats <> as required and [] as optional: https://github.com/tj/commander.js#more-configuration-1
-  let name: string;
-  if (info.variadic) {
-    name = info.required ? `<${arg.name}...>` : `[${arg.name}...]`;
-  } else {
-    name = info.required ? `<${arg.name}>` : `[${arg.name}]`;
-  }
+  // Variadic arguments use trailing ... syntax: https://github.com/tj/commander.js#command-arguments
+  const inner = info.variadic ? `${arg.name}...` : arg.name;
+  const name = info.required ? `<${inner}>` : `[${inner}]`;
   const commanderArg = new CommanderArgument(name, arg.description);
 
   if (info.hasDefault) {
@@ -150,6 +147,10 @@ export function coerce(schema: z.ZodType, raw: unknown): unknown {
   return coerceScalar(type, String(raw));
 }
 
+function formatZodError(error: z.ZodError): string {
+  return error.issues.map((issue) => issue.message).join("; ");
+}
+
 // validate coerces and validates a single flag's raw value (read from Commander's
 // parsed options) against its schema. On failure it reports via Commander's
 // `command.error`, which prints a message and exits (or, with exitOverride,
@@ -157,8 +158,7 @@ export function coerce(schema: z.ZodType, raw: unknown): unknown {
 function validateFlag(flag: Flag, opts: Record<string, unknown>, command: Command): unknown {
   const result = flag.schema.safeParse(coerce(flag.schema, opts[attributeName(flag.name)]));
   if (!result.success) {
-    const detail = result.error.issues.map((issue) => issue.message).join("; ");
-    command.error(`Invalid value for option '--${flag.name}': ${detail}`);
+    command.error(`Invalid value for option '--${flag.name}': ${formatZodError(result.error)}`);
   }
   return result.data;
 }
@@ -200,8 +200,7 @@ function validateArgument(
 ): unknown {
   const result = argument.schema.safeParse(coerce(argument.schema, input));
   if (!result.success) {
-    const detail = result.error.issues.map((issue) => issue.message).join("; ");
-    command.error(`Invalid value for argument '${argument.name}': ${detail}`);
+    command.error(`Invalid value for argument '${argument.name}': ${formatZodError(result.error)}`);
   }
   return result.data;
 }

@@ -90,7 +90,7 @@ type CreateHandlerInput<
   description: string;
   flags?: F;
   arguments?: A;
-  handle?: (ctx: Context, flags: FlagsOf<F>, args: ArgumentsOf<A>) => Promise<void>;
+  handle?: HandleFn<F, A>;
   children?: Handler[];
 };
 

@@ -434,7 +434,7 @@ test("a required positional argument is mandatory", async () => {
   await expect(cmd.parseAsync(["node", "app", "get"])).rejects.toThrow();
 });
 
-test("rejects an argument that fails schema validation (throws under exitOverride)", async () => {
+test("rejects an argument that fails schema validation", async () => {
   const config = createHandler({
     name: "config",
     description: "",
