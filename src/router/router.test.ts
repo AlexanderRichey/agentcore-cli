@@ -5,6 +5,7 @@ import z from "zod";
 import {
   Router,
   ValueContext,
+  argument,
   compile,
   contextKey,
   createHandler,
@@ -296,7 +297,7 @@ test("compile rejects a handler with both subcommands and positional arguments",
   const parent = createHandler({
     name: "parent",
     description: "",
-    arguments: [{ name: "id", inputKind: "argument", description: "an id", schema: z.string() }],
+    arguments: [argument("id", "an id", z.string())],
     children: [child],
     handle: async () => {},
   });
@@ -307,4 +308,220 @@ test("compile rejects a handler with both subcommands and positional arguments",
   expect(() => compile(root, ValueContext.EmptyContext())).toThrow(
     /contains both subcommands and positional arguments/,
   );
+});
+
+// --- positional arguments: typing + validation + coercion --------------------
+
+test("validates and passes typed positional arguments to handle", async () => {
+  let seen: { key: string; value: string } | undefined;
+
+  const config = createHandler({
+    name: "config",
+    description: "",
+    arguments: [
+      argument("key", "config key", z.string()),
+      argument("value", "config value", z.string()),
+    ],
+    handle: async (_ctx, _flags, args) => {
+      seen = args;
+    },
+  });
+
+  const root = new Router("app");
+  root.handler(config);
+
+  await root.route(["node", "app", "config", "region", "us-west-2"]);
+
+  expect(seen).toEqual({ key: "region", value: "us-west-2" });
+});
+
+test("optional arguments resolve to undefined when omitted", async () => {
+  let seen: { key: string | undefined } | undefined;
+
+  const config = createHandler({
+    name: "config",
+    description: "",
+    arguments: [argument("key", "config key", z.string().optional())],
+    handle: async (_ctx, _flags, args) => {
+      seen = args;
+    },
+  });
+
+  const root = new Router("app");
+  root.handler(config);
+
+  await root.route(["node", "app", "config"]);
+
+  expect(seen).toEqual({ key: undefined });
+});
+
+test("arguments with schema defaults use the default when omitted", async () => {
+  let seen: { env: string } | undefined;
+
+  const deploy = createHandler({
+    name: "deploy",
+    description: "",
+    arguments: [argument("env", "target environment", z.string().default("prod"))],
+    handle: async (_ctx, _flags, args) => {
+      seen = args;
+    },
+  });
+
+  const root = new Router("app");
+  root.handler(deploy);
+
+  await root.route(["node", "app", "deploy"]);
+
+  expect(seen).toEqual({ env: "prod" });
+});
+
+test("auto-coerces argument values to the schema's type", async () => {
+  let seen: { port: number; verbose: boolean } | undefined;
+
+  const serve = createHandler({
+    name: "serve",
+    description: "",
+    arguments: [
+      argument("port", "port number", z.coerce.number()),
+      argument("verbose", "enable verbose mode", z.coerce.boolean()),
+    ],
+    handle: async (_ctx, _flags, args) => {
+      seen = args;
+    },
+  });
+
+  const root = new Router("app");
+  root.handler(serve);
+
+  await root.route(["node", "app", "serve", "8080", "true"]);
+
+  expect(seen).toEqual({ port: 8080, verbose: true });
+});
+
+test("variadic argument collects multiple values into an array", async () => {
+  let seen: { files: string[] } | undefined;
+
+  const lint = createHandler({
+    name: "lint",
+    description: "",
+    arguments: [argument("files", "files to lint", z.array(z.string()))],
+    handle: async (_ctx, _flags, args) => {
+      seen = args;
+    },
+  });
+
+  const root = new Router("app");
+  root.handler(lint);
+
+  await root.route(["node", "app", "lint", "a.ts", "b.ts", "c.ts"]);
+
+  expect(seen).toEqual({ files: ["a.ts", "b.ts", "c.ts"] });
+});
+
+test("a required positional argument is mandatory", async () => {
+  const get = createHandler({
+    name: "get",
+    description: "",
+    arguments: [argument("id", "resource id", z.string())],
+    handle: async () => {},
+  });
+
+  const root = new Router("app");
+  root.handler(get);
+
+  const cmd = exitOverrideAll(compile(root, ValueContext.EmptyContext()));
+
+  await expect(cmd.parseAsync(["node", "app", "get"])).rejects.toThrow();
+});
+
+test("rejects an argument that fails schema validation (throws under exitOverride)", async () => {
+  const config = createHandler({
+    name: "config",
+    description: "",
+    arguments: [argument("key", "config key", z.string().max(3))],
+    handle: async () => {
+      throw new Error("handle should not run on invalid input");
+    },
+  });
+
+  const root = new Router("app");
+  root.handler(config);
+
+  const cmd = exitOverrideAll(compile(root, ValueContext.EmptyContext()));
+
+  await expect(cmd.parseAsync(["node", "app", "config", "toolong"])).rejects.toThrow(
+    /Invalid value for argument 'key'/,
+  );
+});
+
+test("compile rejects a variadic argument that is not the last positional", () => {
+  const handler = createHandler({
+    name: "cp",
+    description: "",
+    arguments: [
+      argument("files", "source files", z.array(z.string())),
+      argument("dest", "destination", z.string()),
+    ],
+    handle: async () => {},
+  });
+
+  const root = new Router("app");
+  root.handler(handler);
+
+  expect(() => compile(root, ValueContext.EmptyContext())).toThrow(
+    /only the last argument can be variadic/,
+  );
+});
+
+// --- flags + arguments together ----------------------------------------------
+
+test("handler receives both flags and arguments separately", async () => {
+  let seenFlags: { format: string } | undefined;
+  let seenArgs: { key: string; value: string } | undefined;
+
+  const set = createHandler({
+    name: "set",
+    description: "",
+    flags: [flag("format", "output format", z.string())],
+    arguments: [
+      argument("key", "config key", z.string()),
+      argument("value", "config value", z.string()),
+    ],
+    handle: async (_ctx, flags, args) => {
+      seenFlags = flags;
+      seenArgs = args;
+    },
+  });
+
+  const root = new Router("app");
+  root.handler(set);
+
+  await root.route(["node", "app", "set", "--format", "json", "region", "us-west-2"]);
+
+  expect(seenFlags).toEqual({ format: "json" });
+  expect(seenArgs).toEqual({ key: "region", value: "us-west-2" });
+});
+
+test("handler with overlapping flag and arg names works independently", async () => {
+  let seenFlags: { id: string } | undefined;
+  let seenArgs: { id: string } | undefined;
+
+  const get = createHandler({
+    name: "get",
+    description: "",
+    flags: [flag("id", "flag id", z.string())],
+    arguments: [argument("id", "arg id", z.string())],
+    handle: async (_ctx, flags, args) => {
+      seenFlags = flags;
+      seenArgs = args;
+    },
+  });
+
+  const root = new Router("app");
+  root.handler(get);
+
+  await root.route(["node", "app", "get", "--id", "flag-value", "arg-value"]);
+
+  expect(seenFlags).toEqual({ id: "flag-value" });
+  expect(seenArgs).toEqual({ id: "arg-value" });
 });

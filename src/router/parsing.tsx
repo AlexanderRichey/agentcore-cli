@@ -94,7 +94,12 @@ export function toOption(flag: Flag): Option {
 export function toCommanderArgument(arg: Argument): CommanderArgument {
   const info = inspect(arg.schema);
   // Commander treats <> as required and [] as optional: https://github.com/tj/commander.js#more-configuration-1
-  const name = info.required ? `<${arg.name}>` : `[${arg.name}]`;
+  let name: string;
+  if (info.variadic) {
+    name = info.required ? `<${arg.name}...>` : `[${arg.name}...]`;
+  } else {
+    name = info.required ? `<${arg.name}>` : `[${arg.name}]`;
+  }
   const commanderArg = new CommanderArgument(name, arg.description);
 
   if (info.hasDefault) {
@@ -205,13 +210,8 @@ export function parseArguments(
   expectedArguments: Argument[],
   command: Command,
 ): Record<string, unknown> {
-  const inputArguments = command.args;
+  const inputArguments = command.processedArgs;
   const out: Record<string, unknown> = {};
-
-  // Note: commander rejects this for us, but we add a guard here to be defensive.
-  if (inputArguments.length > expectedArguments.length) {
-    command.error(`Received unexpected argument '${inputArguments[expectedArguments.length]}'`);
-  }
 
   for (let index = 0; index < expectedArguments.length; index++) {
     const currentArg = inputArguments[index];
