@@ -1,13 +1,8 @@
 import type { Argument, Flag, GlobalFlag, Handler } from "./handler";
 import { type Middleware, type MiddlewareProvider, isMiddlewareProvider } from "./middleware";
 import { type Context, type ContextKey, ValueContext, contextKey } from "./context";
-import {
-  applyGlobalFlags,
-  parseArguments,
-  parseFlags,
-  toCommanderArgument,
-  toOption,
-} from "./parsing";
+import { applyGlobalFlags, parseFlags, toOption } from "./flags";
+import { parseArguments, toCommanderArgument } from "./args";
 
 import { Command } from "commander";
 
