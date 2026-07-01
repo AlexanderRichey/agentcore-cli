@@ -1,13 +1,13 @@
 import { test, expect } from "bun:test";
 
-import { runRunnable, runWithExitCode, ExitCode, type Runnable } from "../../src/runnable/index.tsx";
+import { runRunnable, runWithExitCode, ExitCode, type Runnable } from "./index.tsx";
 
 test("returns SUCCESS and forwards argv when run completes", async () => {
   let receivedArgv: string[] | undefined;
   const runnable: Runnable = {
     run: async (argv: string[]) => {
       receivedArgv = argv;
-    }
+    },
   };
 
   const argv = ["node", "script", "--flag"];
@@ -21,7 +21,7 @@ test("returns FAILURE when run rejects with an Error", async () => {
   const runnable: Runnable = {
     run: async () => {
       throw new Error("boom");
-    }
+    },
   };
 
   const code = await runRunnable(() => runnable, []);
