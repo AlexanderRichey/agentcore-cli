@@ -43,43 +43,75 @@ export function globalFlag<N extends string, T>(
 
 // FlagsOf maps a tuple of Flags to a typed object keyed by each flag's literal
 // name, with values typed by z.infer of each schema.
-export type FlagsOf<F extends readonly Flag<string, any>[]> = {
+type FlagsOf<F extends readonly Flag<string, any>[]> = {
   [E in F[number] as E["name"]]: E extends Flag<string, infer T> ? T : never;
 };
+
+export interface Argument<N extends string = string, T = unknown> {
+  name: N;
+  description: string;
+  schema: z.ZodType<T>;
+}
+
+export function argument<N extends string, T>(
+  name: N,
+  description: string,
+  schema: z.ZodType<T>,
+): Argument<N, T> {
+  return { name, description, schema };
+}
+
+type ArgumentsOf<A extends readonly Argument<string, any>[]> = {
+  [E in A[number] as E["name"]]: E extends Argument<string, infer T> ? T : never;
+};
+
+type HandleFn<
+  F extends readonly Flag<string, any>[],
+  A extends readonly Argument<string, any>[],
+> = (ctx: Context, flags: FlagsOf<F>, args: ArgumentsOf<A>) => Promise<void>;
 
 export interface Handler {
   name(): string;
   description(): string;
   flags(): Flag[];
+  arguments(): Argument[];
   // At runtime `handle` receives the validated, coerced flags object. The precise
   // shape is supplied to authors via createHandler's generic; the interface keeps
   // it erased so middleware can forward it uniformly.
-  handle(ctx: Context, flags: any): Promise<void>;
+  handle: HandleFn<any, any>;
   children(): Handler[];
 }
 
-type CreateHandlerInput<F extends readonly Flag<string, any>[]> = {
+type CreateHandlerInput<
+  F extends readonly Flag<string, any>[],
+  A extends readonly Argument<string, any>[],
+> = {
   name: string;
   description: string;
   flags?: F;
-  handle?: (ctx: Context, flags: FlagsOf<F>) => Promise<void>;
+  arguments?: A;
+  handle?: HandleFn<F, A>;
   children?: Handler[];
 };
 
-const noOpHandler = async (_ctx: Context, _flags: any): Promise<void> => {};
+const noOpHandler = async (_ctx: Context, _flags: any, _args: any): Promise<void> => {};
 
 class BaseHandler implements Handler {
   _name: string;
   _description: string;
   _flags: Flag[];
-  _handle: (ctx: Context, flags: any) => Promise<void>;
+  _arguments: Argument[];
+  _handle: HandleFn<any, any>;
   _children: Handler[];
 
-  constructor(input: CreateHandlerInput<readonly Flag<string, any>[]>) {
+  constructor(
+    input: CreateHandlerInput<readonly Flag<string, any>[], readonly Argument<string, any>[]>,
+  ) {
     this._name = input.name;
     this._description = input.description;
     this._flags = (input.flags ?? []) as Flag[];
-    this._handle = (input.handle ?? noOpHandler) as (ctx: Context, flags: any) => Promise<void>;
+    this._arguments = (input.arguments ?? []) as Argument[];
+    this._handle = (input.handle ?? noOpHandler) as HandleFn<any, any>;
     this._children = input.children ?? [];
   }
 
@@ -95,8 +127,12 @@ class BaseHandler implements Handler {
     return this._flags;
   }
 
-  async handle(ctx: Context, flags: any): Promise<void> {
-    await this._handle(ctx, flags);
+  arguments(): Argument[] {
+    return this._arguments;
+  }
+
+  async handle(ctx: Context, flags: any, args: any): Promise<void> {
+    await this._handle(ctx, flags, args);
   }
 
   children(): Handler[] {
@@ -107,8 +143,11 @@ class BaseHandler implements Handler {
 // createHandler infers the flags tuple from `flags` (the `const` type parameter
 // captures literal names), giving `handle` a precisely typed object derived from
 // the zod schemas.
-export function createHandler<const F extends readonly Flag<string, any>[] = readonly []>(
-  input: CreateHandlerInput<F>,
-): Handler {
-  return new BaseHandler(input as CreateHandlerInput<readonly Flag<string, any>[]>);
+export function createHandler<
+  const F extends readonly Flag<string, any>[] = readonly [],
+  const A extends readonly Argument<string, any>[] = readonly [],
+>(input: CreateHandlerInput<F, A>): Handler {
+  return new BaseHandler(
+    input as CreateHandlerInput<readonly Flag<string, any>[], readonly Argument<string, any>[]>,
+  );
 }

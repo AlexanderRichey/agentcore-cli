@@ -1,7 +1,8 @@
-import type { Flag, GlobalFlag, Handler } from "./handler";
+import type { Argument, Flag, GlobalFlag, Handler } from "./handler";
 import { type Middleware, type MiddlewareProvider, isMiddlewareProvider } from "./middleware";
 import { type Context, type ContextKey, ValueContext, contextKey } from "./context";
 import { applyGlobalFlags, parseFlags, toOption } from "./flags";
+import { parseArguments, toCommanderArgument } from "./args";
 
 import { Command } from "commander";
 
@@ -16,6 +17,12 @@ export const PathKey: ContextKey<string> = contextKey<string>("path");
 function declareFlags(c: Command, flags: Flag[]): void {
   for (const flag of flags) {
     c.addOption(toOption(flag));
+  }
+}
+
+function declareArguments(c: Command, args: Argument[]): void {
+  for (const arg of args) {
+    c.addArgument(toCommanderArgument(arg));
   }
 }
 
@@ -48,6 +55,7 @@ export function compile(
 
   const ownFlags = node.flags();
   declareFlags(c, ownFlags);
+  declareArguments(c, node.arguments());
 
   const own = isMiddlewareProvider(node) ? node.middlewares() : [];
   const nextStack = [...stack, ...own];
@@ -58,6 +66,12 @@ export function compile(
 
   const children = node.children();
   if (children.length > 0) {
+    // attaching both children and subcommands leads to ambiguity.
+    if (node.arguments().length > 0) {
+      throw new Error(
+        `Invalid command '${node.name()}' contains both subcommands and positional arguments.`,
+      );
+    }
     // A group's own global flags become inherited flags for everything beneath it.
     const childGlobals = [...inheritedGlobals, ...globalFlagsOf(node)];
     for (const child of children) {
@@ -78,8 +92,10 @@ export function compile(
       leafCtx = applyGlobalFlags(inheritedGlobals, globals, command, leafCtx);
 
       // Own flags -> the statically-typed object passed to handle.
-      const parsed = parseFlags(ownFlags, globals, command);
-      await wrapped.handle(leafCtx, parsed);
+      const parsedFlags = parseFlags(ownFlags, globals, command);
+      const parsedArguments = parseArguments(node.arguments(), command);
+
+      await wrapped.handle(leafCtx, parsedFlags, parsedArguments);
     });
   }
 
@@ -129,8 +145,13 @@ export class Router implements Handler, MiddlewareProvider {
     return this.globalFlags;
   }
 
+  // global arguments are not supported.
+  arguments(): Argument[] {
+    return [];
+  }
+
   // A group/branch never executes directly; it just hosts subcommands.
-  async handle(_ctx: Context, _flags: any): Promise<void> {}
+  async handle(_ctx: Context, _flags: any, _args: any): Promise<void> {}
 
   children(): Handler[] {
     return this.handlers;

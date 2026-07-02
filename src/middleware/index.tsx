@@ -7,10 +7,11 @@ export function withLogging(label: string): Middleware {
     name: () => h.name(),
     description: () => h.description(),
     flags: () => h.flags(),
+    arguments: () => h.arguments(),
     children: () => h.children(),
-    handle: async (ctx, flags) => {
+    handle: async (ctx, flags, args) => {
       console.log(`[${label}]`);
-      await h.handle(ctx, flags);
+      await h.handle(ctx, flags, args);
     },
   });
 }
@@ -21,10 +22,11 @@ export function provide<V>(key: ContextKey<V>, value: V): Middleware {
   return (h) => ({
     name: () => h.name(),
     description: () => h.description(),
+    arguments: () => h.arguments(),
     flags: () => h.flags(),
     children: () => h.children(),
-    handle: async (ctx, flags) => {
-      await h.handle(ctx.withValue(key, value), flags);
+    handle: async (ctx, flags, args) => {
+      await h.handle(ctx.withValue(key, value), flags, args);
     },
   });
 }

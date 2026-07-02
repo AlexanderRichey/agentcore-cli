@@ -1,67 +1,7 @@
 import { type Command, Option } from "commander";
-import type z from "zod";
 import type { Context } from "./context";
 import type { Flag, GlobalFlag } from "./handler";
-
-// Inspection describes how a zod schema maps onto a Commander option: whether a
-// value must be supplied (required), whether it is variadic (an array), whether
-// it is a boolean toggle, and any default value.
-export interface Inspection {
-  required: boolean;
-  variadic: boolean;
-  boolean: boolean;
-  hasDefault: boolean;
-  defaultValue: unknown;
-}
-
-// zod v4 exposes a `.def` with a `type` discriminant and wrapper-specific fields
-// (`innerType` for optional/default/nullable, `element` for array). We read
-// those structurally; this narrow `any` view keeps the access localized.
-type AnyDef = { def?: { type?: string; innerType?: any; element?: any; defaultValue?: unknown } };
-
-// baseType finds the innermost zod type name, descending through wrappers and
-// array elements, so we know how to coerce the raw string(s) from Commander.
-export function baseType(schema: z.ZodType): string | undefined {
-  let s: AnyDef = schema as unknown as AnyDef;
-  for (;;) {
-    const t = s.def?.type;
-    if (t === "default" || t === "optional" || t === "nullable" || t === "readonly") {
-      s = s.def?.innerType;
-    } else if (t === "array") {
-      s = s.def?.element;
-    } else {
-      return t;
-    }
-  }
-}
-
-// inspect peels optional/default/nullable/readonly wrappers off a schema to
-// determine the option shape and any default.
-export function inspect(schema: z.ZodType): Inspection {
-  const required = !schema.isOptional();
-  let hasDefault = false;
-  let defaultValue: unknown = undefined;
-  let variadic = false;
-
-  let s: AnyDef = schema as unknown as AnyDef;
-  for (;;) {
-    const t = s.def?.type;
-    if (t === "default") {
-      hasDefault = true;
-      defaultValue = s.def?.defaultValue;
-      s = s.def?.innerType;
-    } else if (t === "optional" || t === "nullable" || t === "readonly") {
-      s = s.def?.innerType;
-    } else if (t === "array") {
-      variadic = true;
-      break;
-    } else {
-      break;
-    }
-  }
-
-  return { required, variadic, boolean: baseType(schema) === "boolean", hasDefault, defaultValue };
-}
+import { coerce, formatZodError, inspect } from "./schema";
 
 // toOption builds a Commander Option from a flag's schema. Booleans become value-less
 // toggles; everything else takes a value (`<name>` / variadic `<name...>`). A
@@ -97,50 +37,14 @@ function attributeName(name: string): string {
   return new Option(`--${name}`).attributeName();
 }
 
-function coerceScalar(type: string | undefined, raw: string): unknown {
-  switch (type) {
-    case "number":
-      return Number(raw);
-    case "bigint":
-      try {
-        return BigInt(raw);
-      } catch {
-        return raw; // let zod produce the validation error
-      }
-    case "boolean": {
-      const v = raw.toLowerCase();
-      if (v === "true" || v === "1" || v === "yes") return true;
-      if (v === "false" || v === "0" || v === "no") return false;
-      return raw;
-    }
-    case "date":
-      return new Date(raw);
-    default:
-      return raw;
-  }
-}
-
-// coerce converts the raw Commander value (a string, string[] for variadic
-// options, or a boolean for toggles) into the type the schema expects.
-export function coerce(schema: z.ZodType, raw: unknown): unknown {
-  if (raw === undefined) return raw; // defer to schema default / optionality
-  if (typeof raw === "boolean") return raw; // boolean toggles are already parsed
-  const type = baseType(schema);
-  if (Array.isArray(raw)) {
-    return raw.map((r) => coerceScalar(type, String(r)));
-  }
-  return coerceScalar(type, String(raw));
-}
-
-// validate coerces and validates a single flag's raw value (read from Commander's
+// validateFlag coerces and validates a single flag's raw value (read from Commander's
 // parsed options) against its schema. On failure it reports via Commander's
 // `command.error`, which prints a message and exits (or, with exitOverride,
 // throws) — so this returns only on success.
-function validate(flag: Flag, opts: Record<string, unknown>, command: Command): unknown {
+function validateFlag(flag: Flag, opts: Record<string, unknown>, command: Command): unknown {
   const result = flag.schema.safeParse(coerce(flag.schema, opts[attributeName(flag.name)]));
   if (!result.success) {
-    const detail = result.error.issues.map((issue) => issue.message).join("; ");
-    command.error(`Invalid value for option '--${flag.name}': ${detail}`);
+    command.error(`Invalid value for option '--${flag.name}': ${formatZodError(result.error)}`);
   }
   return result.data;
 }
@@ -154,7 +58,7 @@ export function parseFlags(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const flag of flags) {
-    out[flag.name] = validate(flag, opts, command);
+    out[flag.name] = validateFlag(flag, opts, command);
   }
   return out;
 }
@@ -170,7 +74,7 @@ export function applyGlobalFlags(
 ): Context {
   let next = ctx;
   for (const globalFlag of globalFlags) {
-    next = next.withValue(globalFlag, validate(globalFlag, opts, command));
+    next = next.withValue(globalFlag, validateFlag(globalFlag, opts, command));
   }
   return next;
 }
