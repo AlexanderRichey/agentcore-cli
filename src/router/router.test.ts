@@ -319,7 +319,7 @@ test("a group-level flag is validated and exposed to descendants via typed conte
   });
 
   // RegionKey declared as a global flag on the root group; `--id` on the leaf.
-  const root = new Router("app", "", [RegionKey]);
+  const root = new Router("app").groupFlags(RegionKey);
   const harness = new Router("harness");
   harness.handler(get);
   root.handler(harness);
@@ -342,7 +342,7 @@ test("a group-level flag falls back to its schema default when omitted", async (
     },
   });
 
-  const root = new Router("app", "", [RegionKey]);
+  const root = new Router("app").groupFlags(RegionKey);
   root.handler(get);
 
   await root.route(["node", "app", "get"]);
@@ -361,7 +361,7 @@ test("an invalid group-level flag is reported via command.error", async () => {
     },
   });
 
-  const root = new Router("app", "", [LevelKey]);
+  const root = new Router("app").groupFlags(LevelKey);
   root.handler(get);
 
   const cmd = exitOverrideAll(compile(root, ValueContext.EmptyContext()));
