@@ -83,6 +83,105 @@ test("middleware applies only to the subtree where it is declared", async () => 
   expect(log).toEqual(["root", "top-handle"]);
 });
 
+// --- default handler (group invoked without a subcommand) ------------------
+
+test("a group's default handler runs when it is invoked without a subcommand", async () => {
+  let ran = false;
+
+  const harness = new Router("harness").default(async () => {
+    ran = true;
+  });
+  harness.handler(leaf("get", () => {}));
+
+  const root = new Router("app");
+  root.handler(harness);
+
+  await root.route(["node", "app", "harness"]);
+
+  expect(ran).toBe(true);
+});
+
+test("a subcommand still routes past the group's default handler", async () => {
+  const log: string[] = [];
+
+  const harness = new Router("harness").default(async () => {
+    log.push("default");
+  });
+  harness.handler(leaf("get", () => log.push("get")));
+
+  const root = new Router("app");
+  root.handler(harness);
+
+  await root.route(["node", "app", "harness", "get"]);
+
+  expect(log).toEqual(["get"]); // default did NOT fire
+});
+
+test("the root's default handler runs when invoked with no subcommand", async () => {
+  let ran = false;
+
+  const root = new Router("app").default(async () => {
+    ran = true;
+  });
+  root.handler(leaf("get", () => {}));
+
+  await root.route(["node", "app"]);
+
+  expect(ran).toBe(true);
+});
+
+test("middleware wraps the default handler ancestor-first", async () => {
+  const log: string[] = [];
+
+  const harness = new Router("harness").use(record(log, "harness")).default(async () => {
+    log.push("default");
+  });
+  harness.handler(leaf("get", () => {}));
+
+  const root = new Router("app").use(record(log, "root"));
+  root.handler(harness);
+
+  await root.route(["node", "app", "harness"]);
+
+  // root (outermost) runs first, then harness, then the default handle.
+  expect(log).toEqual(["root", "harness", "default"]);
+});
+
+test("the default handler reads group-level flags from the context", async () => {
+  const RegionKey = globalFlag("region", "AWS region", z.string().default("us-east-1"));
+  let region: string | undefined;
+
+  const harness = new Router("harness").default(async (ctx) => {
+    region = ctx.value(RegionKey);
+  });
+  harness.handler(leaf("get", () => {}));
+
+  const root = new Router("app").groupFlags(RegionKey);
+  root.handler(harness);
+
+  await root.route(["node", "app", "harness", "--region", "us-west-2"]);
+
+  expect(region).toBe("us-west-2");
+});
+
+test("a group's default handler reads its OWN group-level flags from the context", async () => {
+  const LevelKey = globalFlag("level", "log level", z.string().default("info"));
+  let level: string | undefined;
+
+  // LevelKey is declared on the harness group itself, not an ancestor.
+  const harness = new Router("harness").groupFlags(LevelKey).default(async (ctx) => {
+    level = ctx.value(LevelKey);
+  });
+  harness.handler(leaf("get", () => {}));
+
+  const root = new Router("app");
+  root.handler(harness);
+
+  await root.route(["node", "app", "harness", "--level", "debug"]);
+
+  expect(level).toBe("debug");
+});
+
 // --- flags: typing + validation + coercion ---------------------------------
 
 test("validates and passes a typed-by-name object to handle", async () => {

@@ -11,6 +11,22 @@ export const CommandKey: ContextKey<Command> = contextKey<Command>("commander.co
 // PathKey exposes the path to the executing leaf via context.
 export const PathKey: ContextKey<string> = contextKey<string>("path");
 
+// DefaultHandle runs when a group is selected without a subcommand (e.g.
+// `agentcore` or `agentcore harness`). It reads group-level/global flags from the
+// context; own flags/arguments are not supported, so it receives empty objects.
+export type DefaultHandle = (ctx: Context, flags: {}, args: {}) => Promise<void>;
+
+// DefaultHandlerProvider is a branch node that also carries a leaf-like handler to
+// execute when the branch is invoked without a subcommand. The returned Handler is
+// adapted from the group's DefaultHandle (see Router.default).
+export interface DefaultHandlerProvider {
+  defaultHandler(): Handler | undefined;
+}
+
+export function isDefaultHandlerProvider(h: Handler): h is Handler & DefaultHandlerProvider {
+  return typeof (h as Partial<DefaultHandlerProvider>).defaultHandler === "function";
+}
+
 // declareFlags wires a node's zod-typed flags onto a Commander command. Each
 // flag's option shape (value/toggle, variadic, required, default) is derived
 // from its schema; see flags.ts/toOption.
@@ -24,6 +40,39 @@ function declareArguments(c: Command, args: Argument[]): void {
   for (const arg of args) {
     c.addArgument(toCommanderArgument(arg));
   }
+}
+
+// attachAction wires `node` as the executing handler for command `c`. The
+// accumulated middleware `stack` wraps the node (ancestor-first, via reduceRight),
+// `globals` are validated and injected into the context under their keys, and the
+// node's own `ownFlags` are parsed into the typed object handed to `handle`. This
+// is shared by leaves and by a group's default handler so both execute uniformly.
+function attachAction(
+  c: Command,
+  node: Handler,
+  ctx: Context,
+  stack: Middleware[],
+  globals: GlobalFlag[],
+  ownFlags: Flag[],
+): void {
+  const wrapped = stack.reduceRight((h, mw) => mw(h), node);
+  // `optsWithGlobals()` merges this command's options with all ancestors', so
+  // group-level flags declared higher in the tree are visible here regardless
+  // of where they appear on the command line.
+  c.action(async (...actionArgs: unknown[]) => {
+    const command = actionArgs[actionArgs.length - 1] as Command;
+    const merged = command.optsWithGlobals();
+
+    // Inherited group/global flags -> context (typed, read via ctx.value(key)).
+    let leafCtx = ctx.withValue(CommandKey, command);
+    leafCtx = applyGlobalFlags(globals, merged, command, leafCtx);
+
+    // Own flags -> the statically-typed object passed to handle.
+    const parsedFlags = parseFlags(ownFlags, merged, command);
+    const parsedArguments = parseArguments(node.arguments(), command);
+
+    await wrapped.handle(leafCtx, parsedFlags, parsedArguments);
+  });
 }
 
 // globalFlagsOf recovers the GlobalFlags (which double as context keys) from a
@@ -77,35 +126,27 @@ export function compile(
     for (const child of children) {
       c.addCommand(compile(child, ctx, nextStack, childGlobals));
     }
+    // A group may also carry a default handler that runs when it is invoked
+    // without a subcommand. It executes with this group's own middleware and can
+    // read this group's own globals (plus inherited ones) from the context; it
+    // has no own flags/arguments (globals-only).
+    const fallback = isDefaultHandlerProvider(node) ? node.defaultHandler() : undefined;
+    if (fallback) {
+      attachAction(c, fallback, ctx, nextStack, childGlobals, []);
+    }
   } else {
     // Middleware wraps the node here; the wrapper's logic runs at leaf execution.
-    const wrapped = nextStack.reduceRight((h, mw) => mw(h), node);
-    // `optsWithGlobals()` merges this command's options with all ancestors', so
-    // group-level flags declared higher in the tree are visible here regardless
-    // of where they appear on the command line.
-    c.action(async (...actionArgs: unknown[]) => {
-      const command = actionArgs[actionArgs.length - 1] as Command;
-      const globals = command.optsWithGlobals();
-
-      // Inherited group/global flags -> context (typed, read via ctx.value(key)).
-      let leafCtx = ctx.withValue(CommandKey, command);
-      leafCtx = applyGlobalFlags(inheritedGlobals, globals, command, leafCtx);
-
-      // Own flags -> the statically-typed object passed to handle.
-      const parsedFlags = parseFlags(ownFlags, globals, command);
-      const parsedArguments = parseArguments(node.arguments(), command);
-
-      await wrapped.handle(leafCtx, parsedFlags, parsedArguments);
-    });
+    attachAction(c, node, ctx, nextStack, inheritedGlobals, ownFlags);
   }
 
   return c;
 }
 
-export class Router implements Handler, MiddlewareProvider {
+export class Router implements Handler, MiddlewareProvider, DefaultHandlerProvider {
   private mws: Middleware[] = [];
   private handlers: Handler[] = [];
   private globalFlags: GlobalFlag[] = [];
+  private defaultHandle?: DefaultHandle;
 
   constructor(
     private readonly cmdName: string,
@@ -126,6 +167,14 @@ export class Router implements Handler, MiddlewareProvider {
 
   groupFlags(...flags: GlobalFlag[]): this {
     this.globalFlags.push(...flags);
+    return this;
+  }
+
+  // default registers a handler that runs when this group is selected without a
+  // subcommand (e.g. `agentcore` or `agentcore harness`). It reads group-level
+  // flags from the context and has no own flags/arguments.
+  default(fn: DefaultHandle): this {
+    this.defaultHandle = fn;
     return this;
   }
 
@@ -161,6 +210,22 @@ export class Router implements Handler, MiddlewareProvider {
 
   middlewares(): Middleware[] {
     return this.mws;
+  }
+
+  // --- DefaultHandlerProvider: adapts the registered DefaultHandle into a leaf-
+  // like Handler so compile() can wrap it in middleware and execute it uniformly.
+
+  defaultHandler(): Handler | undefined {
+    const fn = this.defaultHandle;
+    if (!fn) return undefined;
+    return {
+      name: () => this.cmdName,
+      description: () => this.cmdDescription,
+      flags: () => [],
+      arguments: () => [],
+      handle: fn,
+      children: () => [],
+    };
   }
 
   // --- Router execution ---
