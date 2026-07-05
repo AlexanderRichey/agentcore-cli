@@ -19,7 +19,7 @@ export function renderTui(core: Core): DefaultHandle {
     }
 
     const path = ctx.require(PathKey);
-    const { waitUntilExit } = render(<Root path={path} core={core} />);
+    const { waitUntilExit } = render(<Root path={path} ctx={ctx} core={core} />);
     await waitUntilExit();
   };
 }
