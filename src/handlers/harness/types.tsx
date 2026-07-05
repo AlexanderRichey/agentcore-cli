@@ -1,4 +1,13 @@
+import type {
+  GetHarnessResponse,
+  ListHarnessesResponse,
+} from "@aws-sdk/client-bedrock-agentcore-control";
+import type { CoreOptions } from "../../core/types";
+
 export interface CoreHarnessClient {
-  getHarness(region: string, id: string): any;
-  listHarnesses(region: string, nextToken?: string): any;
+  getHarness(id: string, options: CoreOptions): Promise<GetHarnessResponse>;
+  listHarnesses(
+    nextToken: string | undefined,
+    options: CoreOptions,
+  ): Promise<ListHarnessesResponse>;
 }

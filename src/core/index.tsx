@@ -1,84 +1,53 @@
-import type { CoreHarnessClient } from "../handlers/harness/types";
+import { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
+import { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
+import { HarnessClient } from "./harness";
+import type { AwsClients, ClientConfig, CreateControlClient, CreateDataClient } from "./types";
 
-export class HarnessClient implements CoreHarnessClient {
-  getHarness(region: string, id: string): any {
-    return {
-      harness: {
-        harnessId: "FunTimes-T2MFxkuezh",
-        harnessName: "FunTimes",
-        arn: "arn:aws:bedrock-agentcore:us-east-1:501930284170:harness/FunTimes-T2MFxkuezh",
-        status: "READY",
-        executionRoleArn: "arn:aws:iam::501930284170:role/JustForFun_FunTimes",
-        createdAt: "2026-05-01T18:48:30.822039+00:00",
-        updatedAt: "2026-05-15T20:33:10.968674+00:00",
-        model: {
-          bedrockModelConfig: {
-            modelId: "global.anthropic.claude-sonnet-4-6",
-            apiFormat: "converse_stream",
-          },
-        },
-        systemPrompt: [
-          {
-            text: "You are a helpful assistant",
-          },
-        ],
-        tools: [],
-        skills: [],
-        allowedTools: ["*"],
-        truncation: {
-          strategy: "sliding_window",
-          config: {
-            slidingWindow: {
-              messagesCount: 150,
-            },
-          },
-        },
-        environment: {
-          agentCoreRuntimeEnvironment: {
-            agentRuntimeArn:
-              "arn:aws:bedrock-agentcore:us-east-1:501930284170:runtime/harness_FunTimes-CxH6rgBeIE",
-            agentRuntimeName: "harness_FunTimes",
-            agentRuntimeId: "harness_FunTimes-CxH6rgBeIE",
-            lifecycleConfiguration: {
-              idleRuntimeSessionTimeout: 900,
-              maxLifetime: 28800,
-            },
-            networkConfiguration: {
-              networkMode: "PUBLIC",
-            },
-            filesystemConfigurations: [],
-          },
-        },
-        environmentArtifact: {
-          containerConfiguration: {
-            containerUri: "public.ecr.aws/docker/library/node:22",
-          },
-        },
-        environmentVariables: {},
-        maxIterations: 75,
-        timeoutSeconds: 3600,
-      },
-    };
+export type { AwsClients, ClientConfig, CreateControlClient, CreateDataClient } from "./types";
+
+// CoreClient is the single entry point to the Bedrock AgentCore APIs. It owns the
+// underlying SDK clients (one per config, created on demand from the injected
+// factories) and exposes feature-scoped sub-clients such as `harness`, keeping the
+// surface modular as more features are added.
+export class CoreClient implements AwsClients {
+  private controlClients = new Map<string, BedrockAgentCoreControlClient>();
+  private dataClients = new Map<string, BedrockAgentCoreClient>();
+
+  // Feature-scoped sub-clients. Access as e.g. `coreClient.harness.getHarness(...)`.
+  readonly harness: HarnessClient = new HarnessClient(this);
+
+  constructor(
+    private readonly createControlClient: CreateControlClient,
+    private readonly createDataClient: CreateDataClient,
+  ) {}
+
+  // control returns the control-plane client for `config`, creating and caching it
+  // on first use.
+  control(config: ClientConfig): BedrockAgentCoreControlClient {
+    const key = cacheKey(config);
+    let client = this.controlClients.get(key);
+    if (!client) {
+      client = this.createControlClient(config);
+      this.controlClients.set(key, client);
+    }
+    return client;
   }
 
-  listHarnesses(region: string, nextToken?: string): any {
-    return [
-      {
-        harnessId: "FunTimes-T2MFxkuezh",
-        harnessName: "FunTimes",
-        arn: "arn:aws:bedrock-agentcore:us-east-1:501930284170:harness/FunTimes-T2MFxkuezh",
-        status: "READY",
-        createdAt: "2026-05-01T18:48:30.822039+00:00",
-        updatedAt: "2026-05-15T20:33:10.968674+00:00",
-      },
-      {
-        harnessId: "MyAgentCoreProject_CliHarness-mmIoYJABYC",
-        harnessName: "MyAgentCoreProject_CliHarness",
-        arn: "arn:aws:bedrock-agentcore:us-east-1:501930284170:harness/MyAgentCoreProject_CliHarness-mmIoYJABYC",
-        status: "READY",
-        createdAt: "2026-05-04T15:27:11.514984+00:00",
-        updatedAt: "2026-05-04T15:27:22.489967+00:00",
-      },
-    ];
+  // data returns the data-plane client for `config`, creating and caching it on
+  // first use.
+  data(config: ClientConfig): BedrockAgentCoreClient {
+    const key = cacheKey(config);
+    let client = this.dataClients.get(key);
+    if (!client) {
+      client = this.createDataClient(config);
+      this.dataClients.set(key, client);
+    }
+    return client;
   }
+}
+
+// cacheKey derives a stable cache key from a ClientConfig so that distinct
+// configurations (region, endpoint, ...) map to distinct cached clients.
+function cacheKey(config: ClientConfig): string {
+  return JSON.stringify(config);
 }

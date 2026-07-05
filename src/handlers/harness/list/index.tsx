@@ -1,5 +1,5 @@
 import { createHandler } from "../../../router";
-import { RegionKey } from "../../keys.tsx";
+import { EndpointKey, RegionKey } from "../../keys.tsx";
 import type { Core } from "../../types.tsx";
 import { renderJson } from "../../../tui";
 
@@ -8,8 +8,10 @@ export const createListHarnessHandler = (core: Core) =>
     name: "list",
     description: "List harnesses",
     handle: async (ctx) => {
-      const region = ctx.require(RegionKey);
-      const harnesss = await core.harness.listHarnesses(region, "test");
+      const harnesss = await core.harness.listHarnesses(undefined, {
+        region: ctx.require(RegionKey),
+        endpointUrl: ctx.value(EndpointKey),
+      });
       renderJson(harnesss);
     },
   });

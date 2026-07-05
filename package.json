@@ -40,6 +40,8 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-agentcore": "^3.1079.0",
+    "@aws-sdk/client-bedrock-agentcore-control": "^3.1079.0",
     "commander": "^15.0.0",
     "ink": "^7.1.0",
     "react": "^19.2.7",

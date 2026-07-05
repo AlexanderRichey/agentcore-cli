@@ -1,0 +1,35 @@
+import type { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
+import type { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
+
+// CoreOptions is the standard trailing argument for Core operations. It carries
+// the per-call settings a handler resolves from context (the AWS region and an
+// optional endpoint URL override) and is translated into a ClientConfig by the
+// sub-clients.
+export interface CoreOptions {
+  region: string;
+  endpointUrl?: string;
+}
+
+// ClientConfig is the per-request configuration handed to the client factories. It
+// is spread directly into the SDK client constructor, so its fields mirror the
+// SDK's own option names (e.g. `endpoint` for a custom endpoint URL).
+export interface ClientConfig {
+  region: string;
+  endpoint?: string;
+}
+
+// Factories construct an SDK client from a ClientConfig. Injecting these (rather
+// than the clients themselves) lets CoreClient create/cache one client per config
+// while keeping construction swappable for unit tests.
+export type CreateControlClient = (config: ClientConfig) => BedrockAgentCoreControlClient;
+export type CreateDataClient = (config: ClientConfig) => BedrockAgentCoreClient;
+
+// AwsClients hands out configured SDK clients. CoreClient implements it and its
+// sub-clients (HarnessClient, etc.) consume it, so they all share the same
+// cached connections rather than constructing their own. Both accessors take a
+// full ClientConfig so callers can request any client customization (region,
+// endpoint, ...).
+export interface AwsClients {
+  control(config: ClientConfig): BedrockAgentCoreControlClient;
+  data(config: ClientConfig): BedrockAgentCoreClient;
+}
