@@ -5,7 +5,9 @@ import { globalFlag } from "../router";
 // GlobalFlag is also a typed ContextKey, handlers read its validated value back
 // out of the context via `ctx.value(Key)`.
 
-export const RegionKey = globalFlag("region", "AWS region", z.string().default("us-east-1"));
+// RegionKey has no default: an omitted --region must resolve to undefined so the
+// withRegion middleware can fall back to AWS_REGION / the shared config file.
+export const RegionKey = globalFlag("region", "AWS region", z.string().optional());
 
 export const DebugKey = globalFlag("debug", "debug logging", z.boolean().default(false));
 

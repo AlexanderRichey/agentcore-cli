@@ -3,6 +3,7 @@ import { createHarnessHandler } from "./harness/index.tsx";
 import { DebugKey, EndpointKey, JsonKey, RegionKey } from "./keys.tsx";
 import { createConfigHandler } from "./config/";
 import { renderTui } from "../tui";
+import { withRegion } from "../middleware";
 import type { Core } from "./types.tsx";
 
 export function createRootHandler(core: Core): Router {
@@ -10,6 +11,10 @@ export function createRootHandler(core: Core): Router {
 
   // Add global flags
   root.groupFlags(RegionKey, DebugKey, JsonKey, EndpointKey);
+
+  // Resolve the effective AWS region (flag -> env -> config file) and pin it on
+  // the context for every command beneath the root.
+  root.use(withRegion());
 
   // Install sub handlers
   root.handler(createHarnessHandler(core));
