@@ -5,6 +5,13 @@ import { type DefaultHandle, PathKey, CommandKey } from "../router";
 import type { Core } from "../handlers/types";
 import { JsonKey } from "../handlers/keys";
 
+// renderJson pretty-prints a value as indented JSON to stdout. It is the output
+// counterpart to renderTui: handlers call it to emit machine-readable results
+// (e.g. when --json is set) rather than rendering the interactive TUI.
+export function renderJson(data: unknown): void {
+  console.log(JSON.stringify(data, null, 2));
+}
+
 // renderTui builds the root DefaultHandle that mounts the Ink React tree. It
 // reads the command path from the context and passes it, along with the injected
 // `core` clients, into the Root component. The handler resolves once the Ink app

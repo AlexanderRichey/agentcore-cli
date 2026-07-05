@@ -1,6 +1,7 @@
 import { createHandler } from "../../../router";
 import { RegionKey } from "../../keys.tsx";
 import type { Core } from "../../types.tsx";
+import { renderJson } from "../../../tui";
 
 export const createListHarnessHandler = (core: Core) =>
   createHandler({
@@ -9,7 +10,7 @@ export const createListHarnessHandler = (core: Core) =>
     handle: async (ctx) => {
       const region = ctx.require(RegionKey);
       const harnesss = await core.harness.listHarnesses(region, "test");
-      console.log(harnesss);
+      renderJson(harnesss);
     },
   });
 

@@ -2,6 +2,7 @@ import z from "zod";
 import { createHandler, flag } from "../../../router";
 import { RegionKey } from "../../keys.tsx";
 import type { Core } from "../../types.tsx";
+import { renderJson } from "../../../tui";
 
 export const createGetHarnessHandler = (core: Core) =>
   createHandler({
@@ -11,7 +12,7 @@ export const createGetHarnessHandler = (core: Core) =>
     handle: async (ctx, flags, args) => {
       const region = ctx.require(RegionKey);
       const harness = await core.harness.getHarness(region, flags["id"] as string);
-      console.log(harness);
+      renderJson(harness);
     },
   });
 
