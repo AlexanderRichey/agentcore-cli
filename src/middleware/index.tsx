@@ -1,4 +1,4 @@
-import { renderTui } from "../components";
+import { renderTui } from "../tui";
 import { JsonKey } from "../handlers/keys";
 import type { Core } from "../handlers/types";
 import { type Middleware } from "../router";

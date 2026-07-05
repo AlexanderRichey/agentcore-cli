@@ -2,7 +2,7 @@ import { Router } from "../router";
 import { createHarnessHandler } from "./harness/index.tsx";
 import { DebugKey, EndpointKey, JsonKey, RegionKey } from "./keys.tsx";
 import { createConfigHandler } from "./config/";
-import { renderTui } from "../components/index.tsx";
+import { renderTui } from "../tui";
 import type { Core } from "./types.tsx";
 
 export function createRootHandler(core: Core): Router {

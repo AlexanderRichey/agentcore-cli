@@ -1,6 +1,6 @@
 import React from "react";
 import { render } from "ink";
-import { Root } from "./Root";
+import { Root } from "../components/Root";
 import { type DefaultHandle, PathKey, CommandKey } from "../router";
 import type { Core } from "../handlers/types";
 import { JsonKey } from "../handlers/keys";

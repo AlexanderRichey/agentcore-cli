@@ -1,4 +1,4 @@
-import { renderTui } from "../../components";
+import { renderTui } from "../../tui";
 import { withTuiOnEmptyFlagsAndArgs } from "../../middleware";
 import { Router } from "../../router";
 import type { Core } from "../types";
