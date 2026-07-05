@@ -16,7 +16,7 @@ export function HelpScreen({ ctx }: HelpScreenProps) {
   const help = c.createHelp();
   const helpText = help.formatHelp(c, help);
 
-  useEffect(exit);
+  useEffect(exit, []);
 
   return <Text>{helpText}</Text>;
 }
