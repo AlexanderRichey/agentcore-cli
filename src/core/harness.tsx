@@ -5,17 +5,8 @@ import {
   type ListHarnessesResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import type { CoreHarnessClient } from "../handlers/harness/types";
-import type { AwsClients, ClientConfig, CoreOptions } from "./types";
-
-// toClientConfig translates the caller-facing CoreOptions into the ClientConfig the
-// SDK client factories expect. `endpoint` is only set when an override is provided
-// so the SDK falls back to its default endpoint resolution otherwise.
-function toClientConfig(options: CoreOptions): ClientConfig {
-  return {
-    region: options.region,
-    ...(options.endpointUrl ? { endpoint: options.endpointUrl } : {}),
-  };
-}
+import type { AwsClients, CoreOptions } from "./types";
+import { toClientConfig } from "./utils";
 
 // HarnessClient implements the harness-facing operations on top of the shared AWS
 // clients provided by CoreClient. It owns no clients of its own; it borrows the
