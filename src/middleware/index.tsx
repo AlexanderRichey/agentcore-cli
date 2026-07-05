@@ -1,4 +1,7 @@
-import { type ContextKey, type Middleware } from "../router";
+import { renderTui } from "../components";
+import { JsonKey } from "../handlers/keys";
+import type { Core } from "../handlers/types";
+import { type Middleware } from "../router";
 
 // withLogging is a sample middleware: it wraps a node and prints when (and only
 // when) that node is executed as a leaf.
@@ -16,17 +19,35 @@ export function withLogging(label: string): Middleware {
   });
 }
 
-// provide is a sample middleware: it stores a typed value on the context under
-// `key` before delegating, so downstream handlers can read it via ctx.value(key).
-export function provide<V>(key: ContextKey<V>, value: V): Middleware {
+const countPassedValues = (obj: Object) =>
+  Object.entries(obj).reduce((acc, [key, val]) => {
+    if (val !== undefined) {
+      acc += 1;
+    }
+
+    return acc;
+  }, 0);
+
+export function withTuiOnEmptyFlagsAndArgs(core: Core): Middleware {
+  const boundRenderTui = renderTui(core);
+
   return (h) => ({
     name: () => h.name(),
     description: () => h.description(),
-    arguments: () => h.arguments(),
     flags: () => h.flags(),
+    arguments: () => h.arguments(),
     children: () => h.children(),
     handle: async (ctx, flags, args) => {
-      await h.handle(ctx.withValue(key, value), flags, args);
+      if (
+        !ctx.require(JsonKey) &&
+        countPassedValues(flags) === 0 &&
+        countPassedValues(args) === 0
+      ) {
+        await boundRenderTui(ctx, flags, args);
+        return;
+      } else {
+        await h.handle(ctx, flags, args);
+      }
     },
   });
 }

@@ -1,7 +1,7 @@
 import z from "zod";
-import { createHandler, flag, PathKey } from "../../router";
-import { RegionKey } from "../keys.tsx";
-import type { Core } from "../types.tsx";
+import { createHandler, flag } from "../../../router";
+import { RegionKey } from "../../keys.tsx";
+import type { Core } from "../../types.tsx";
 
 export const createGetHarnessHandler = (core: Core) =>
   createHandler({
@@ -14,3 +14,5 @@ export const createGetHarnessHandler = (core: Core) =>
       console.log(harness);
     },
   });
+
+export { HarnessGetScreen } from "./screen.tsx";

@@ -1,4 +1,5 @@
-import { renderTui, withTuiOnEmptyFlagsAndArgs } from "../../components";
+import { renderTui } from "../../components";
+import { withTuiOnEmptyFlagsAndArgs } from "../../middleware";
 import { Router } from "../../router";
 import type { Core } from "../types";
 import { createGetHarnessHandler } from "./get";
@@ -18,3 +19,5 @@ export function createHarnessHandler(core: Core): Router {
 
   return harness;
 }
+
+export { HarnessScreen } from "./screen.tsx";

@@ -1,6 +1,6 @@
-import { createHandler } from "../../router";
-import { RegionKey } from "../keys.tsx";
-import type { Core } from "../types.tsx";
+import { createHandler } from "../../../router";
+import { RegionKey } from "../../keys.tsx";
+import type { Core } from "../../types.tsx";
 
 export const createListHarnessHandler = (core: Core) =>
   createHandler({
@@ -12,3 +12,5 @@ export const createListHarnessHandler = (core: Core) =>
       console.log(harnesss);
     },
   });
+
+export { HarnessListScreen } from "./screen.tsx";
