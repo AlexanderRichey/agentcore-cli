@@ -4,6 +4,11 @@ import { Router } from "../../router";
 import type { Core } from "../types";
 import { createGetHarnessHandler } from "./get";
 import { createListHarnessHandler } from "./list";
+import { createCreateHarnessHandler } from "./create";
+import { createUpdateHarnessHandler } from "./update";
+import { createDeleteHarnessHandler } from "./delete";
+import { createInvokeHarnessHandler } from "./invoke";
+import { createExecHarnessHandler } from "./exec";
 
 export function createHarnessHandler(core: Core): Router {
   const harness = new Router("harness", "manage AgentCore harnesses");
@@ -16,6 +21,11 @@ export function createHarnessHandler(core: Core): Router {
   // Register handlers
   harness.handler(createGetHarnessHandler(core));
   harness.handler(createListHarnessHandler(core));
+  harness.handler(createCreateHarnessHandler(core));
+  harness.handler(createUpdateHarnessHandler(core));
+  harness.handler(createDeleteHarnessHandler(core));
+  harness.handler(createInvokeHarnessHandler(core));
+  harness.handler(createExecHarnessHandler(core));
 
   return harness;
 }

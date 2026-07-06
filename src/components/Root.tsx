@@ -5,6 +5,11 @@ import type { Core } from "../handlers/types.tsx";
 import { HarnessScreen } from "../handlers/harness/screen.tsx";
 import { HarnessGetScreen } from "../handlers/harness/get/screen.tsx";
 import { HarnessListScreen } from "../handlers/harness/list/screen.tsx";
+import { HarnessCreateScreen } from "../handlers/harness/create/screen.tsx";
+import { HarnessUpdateScreen } from "../handlers/harness/update/screen.tsx";
+import { HarnessDeleteScreen } from "../handlers/harness/delete/screen.tsx";
+import { HarnessInvokeScreen } from "../handlers/harness/invoke/screen.tsx";
+import { HarnessExecScreen } from "../handlers/harness/exec/screen.tsx";
 import { RootScreen, HelpScreen } from "../handlers/screen.tsx";
 import type { Context } from "../router";
 
@@ -44,6 +49,26 @@ export function Root({ path, ctx, core }: RootProps) {
           <Route
             path="agentcore/harness/list"
             element={<HarnessListScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/create"
+            element={<HarnessCreateScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/update"
+            element={<HarnessUpdateScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/delete"
+            element={<HarnessDeleteScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/invoke"
+            element={<HarnessInvokeScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/exec"
+            element={<HarnessExecScreen ctx={ctx} core={core} />}
           />
           <Route path="*" element={<HelpScreen ctx={ctx} core={core} />} />
         </Routes>

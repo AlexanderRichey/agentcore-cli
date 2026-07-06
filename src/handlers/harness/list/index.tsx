@@ -7,7 +7,7 @@ import z from "zod";
 export const createListHarnessHandler = (core: Core) =>
   createHandler({
     name: "list",
-    description: "List harnesses",
+    description: "list harnesses",
     flags: [
       flag("next-token", "next token to use on paginated", z.string().optional()),
       flag("max-results", "max number of items to return", z.number().optional()),
