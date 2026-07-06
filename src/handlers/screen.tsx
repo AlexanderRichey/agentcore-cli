@@ -1,16 +1,13 @@
 import { Text, useApp } from "ink";
-import { CommandKey, type Context } from "../router";
+import { CommandKey } from "../router";
 import { useEffect } from "react";
+import type { ScreenProps } from "./types";
 
-export function RootScreen() {
+export function RootScreen(_props: ScreenProps) {
   return <Text>Root Screen</Text>;
 }
 
-export interface HelpScreenProps {
-  ctx: Context;
-}
-
-export function HelpScreen({ ctx }: HelpScreenProps) {
+export function HelpScreen({ ctx }: ScreenProps) {
   const { exit } = useApp();
   const c = ctx.require(CommandKey);
   const help = c.createHelp();
