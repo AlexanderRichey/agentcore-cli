@@ -7,10 +7,17 @@
 import { CoreClient } from "./core";
 import { createControlClient, createDataClient, createIamClient } from "./core/factories";
 import { createRootHandler } from "./handlers";
+import { createRootLogger } from "./logging";
 import { runWithExitCode } from "./runnable";
 
 process.exit(
   await runWithExitCode(async (argv: string[]) => {
+    // generate a unique identifier corresponding to this process of this CLI. (ex. one command invoke, one TUI session)
+    const cliProcessId = crypto.randomUUID();
+
+    // TODO: memoize this
+    const getLogger = () => createRootLogger({ bindings: { processId: cliProcessId } });
+
     // Wrap the SDK clients in the CoreClient the handlers consume. Passing
     // factories (rather than instances) lets CoreClient build one client per
     // region on demand.
@@ -20,9 +27,12 @@ process.exit(
     // the app's io. CoreClient exposes feature sub-clients (e.g. `.harness`), so
     // it satisfies the Core contract directly.
     const rootHandler = createRootHandler(coreClient, {
-      stdin: process.stdin,
-      stdout: process.stdout,
-      stderr: process.stderr,
+      io: {
+        stdin: process.stdin,
+        stdout: process.stdout,
+        stderr: process.stderr,
+      },
+      getLogger,
     });
 
     // Handle the request
