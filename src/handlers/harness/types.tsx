@@ -8,6 +8,7 @@ export interface CoreHarnessClient {
   getHarness(id: string, options: CoreOptions): Promise<GetHarnessResponse>;
   listHarnesses(
     nextToken: string | undefined,
+    maxResults: number | undefined,
     options: CoreOptions,
   ): Promise<ListHarnessesResponse>;
 }

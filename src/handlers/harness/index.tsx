@@ -6,7 +6,7 @@ import { createGetHarnessHandler } from "./get";
 import { createListHarnessHandler } from "./list";
 
 export function createHarnessHandler(core: Core): Router {
-  const harness = new Router("harness", "Manage AgentCore harnesses");
+  const harness = new Router("harness", "manage AgentCore harnesses");
 
   // Open the TUI by default if no flags or arguments are passed
   harness.use(withTuiOnEmptyFlagsAndArgs(core));

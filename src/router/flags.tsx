@@ -44,7 +44,9 @@ function attributeName(name: string): string {
 function validateFlag(flag: Flag, opts: Record<string, unknown>, command: Command): unknown {
   const result = flag.schema.safeParse(coerce(flag.schema, opts[attributeName(flag.name)]));
   if (!result.success) {
-    command.error(`Invalid value for option '--${flag.name}': ${formatZodError(result.error)}`);
+    throw new TypeError(
+      `Invalid value for option '--${flag.name}': ${formatZodError(result.error)}`,
+    );
   }
   return result.data;
 }

@@ -22,10 +22,11 @@ export class HarnessClient implements CoreHarnessClient {
 
   async listHarnesses(
     nextToken: string | undefined,
+    maxResults: number | undefined,
     options: CoreOptions,
   ): Promise<ListHarnessesResponse> {
     return this.clients
       .control(toClientConfig(options))
-      .send(new ListHarnessesCommand({ nextToken }));
+      .send(new ListHarnessesCommand({ nextToken, maxResults }));
   }
 }
