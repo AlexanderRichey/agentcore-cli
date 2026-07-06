@@ -1,4 +1,4 @@
-import { Box, Text, useWindowSize } from "ink";
+import { Text, useWindowSize } from "ink";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import type { HarnessSummary } from "@aws-sdk/client-bedrock-agentcore-control";
@@ -6,8 +6,7 @@ import { DataTable } from "../../../components/ui/data-table";
 import type { ScreenProps } from "../../types";
 import { coreOptsFromCtx } from "../../utils";
 import { Spinner } from "../../../components/ui/spinner";
-import { Divider } from "../../../components/ui/divider";
-import { KeyHint } from "../../../components/ui/key-hint";
+import { Layout } from "../../../components/Layout";
 
 // HarnessRow is the flat, display-ready shape the table renders. It also satisfies
 // DataTable's `T extends Record<string, unknown>` constraint, which the SDK's
@@ -36,7 +35,7 @@ function toRow(h: HarnessSummary): HarnessRow {
 // to HarnessGetScreen with the harness ID as a path value.
 export function HarnessListScreen({ ctx, core }: ScreenProps) {
   const opts = coreOptsFromCtx(ctx);
-  const { columns, rows } = useWindowSize();
+  const { columns } = useWindowSize();
   const navigate = useNavigate();
 
   const list = useQuery({
@@ -45,51 +44,39 @@ export function HarnessListScreen({ ctx, core }: ScreenProps) {
   });
 
   return (
-    <Box width={columns} height={rows} flexDirection="column" justifyContent="space-between">
-      <Box flexDirection="column">
-        <Box paddingLeft={1} paddingRight={1}>
-          <Text>
-            <Text bold>agentcore</Text> → harness → list
-          </Text>
-        </Box>
-        <Divider />
-
-        {list.isPending ? (
-          <Spinner label="Loading harnesses…" />
-        ) : list.isError ? (
-          <Text color="red">Error: {(list.error as Error).message}</Text>
-        ) : (
-          <DataTable
-            borderStyle="none"
-            borderTop={false}
-            borderBottom={false}
-            borderRight={false}
-            showFooter={false}
-            showDivider={true}
-            columns={[
-              { key: "harnessName", header: "Name", width: columns - 62 },
-              { key: "updatedAt", header: "UpdatedAt", width: 30 },
-              { key: "harnessVersion", header: "Version", width: 10 },
-              { key: "status", header: "Status", width: 20 },
-            ]}
-            data={(list.data.harnesses ?? []).map(toRow)}
-            onSelect={(row) => {
-              if (row.harnessId !== "—") navigate(`/agentcore/harness/get/${row.harnessId}`);
-            }}
-          />
-        )}
-      </Box>
-      <Box flexDirection="column">
-        <Divider />
-        <KeyHint
-          keys={[
-            { key: "↑↓/jk", label: "navigate" },
-            { key: "/", label: "filter" },
-            { key: "enter", label: "select" },
-            { key: "ctl+c", label: "quit" },
+    <Layout
+      breadcrumb={["agentcore", "harness", "list"]}
+      keyHints={[
+        { key: "↑↓/jk", label: "navigate" },
+        { key: "/", label: "filter" },
+        { key: "enter", label: "select" },
+        { key: "ctl+c", label: "quit" },
+      ]}
+    >
+      {list.isPending ? (
+        <Spinner label="Loading harnesses…" />
+      ) : list.isError ? (
+        <Text color="red">Error: {(list.error as Error).message}</Text>
+      ) : (
+        <DataTable
+          borderStyle="none"
+          borderTop={false}
+          borderBottom={false}
+          borderRight={false}
+          showFooter={false}
+          showDivider={true}
+          columns={[
+            { key: "harnessName", header: "Name", width: columns - 62 },
+            { key: "updatedAt", header: "UpdatedAt", width: 30 },
+            { key: "harnessVersion", header: "Version", width: 10 },
+            { key: "status", header: "Status", width: 20 },
           ]}
+          data={(list.data.harnesses ?? []).map(toRow)}
+          onSelect={(row) => {
+            if (row.harnessId !== "—") navigate(`/agentcore/harness/get/${row.harnessId}`);
+          }}
         />
-      </Box>
-    </Box>
+      )}
+    </Layout>
   );
 }
