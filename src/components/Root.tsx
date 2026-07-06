@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { MemoryRouter, Navigate, Route, Routes } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Core } from "../handlers/types.tsx";
 import { HarnessScreen } from "../handlers/harness/screen.tsx";
@@ -26,12 +26,19 @@ export function Root({ path, ctx, core }: RootProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <Routes location={path}>
+      {/* initialEntries seeds the in-memory history with the CLI command path,
+          then leaves navigation to the router so screens can useNavigate. */}
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
           <Route path="agentcore" element={<RootScreen ctx={ctx} core={core} />} />
           <Route path="agentcore/harness" element={<HarnessScreen ctx={ctx} core={core} />} />
+          {/* Bare `get` (no id) has nothing to show — send the user to the list. */}
           <Route
             path="agentcore/harness/get"
+            element={<Navigate to="/agentcore/harness/list" replace />}
+          />
+          <Route
+            path="agentcore/harness/get/:harnessId"
             element={<HarnessGetScreen ctx={ctx} core={core} />}
           />
           <Route
