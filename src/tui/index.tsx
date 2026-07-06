@@ -26,7 +26,11 @@ export function renderTui(core: Core): DefaultHandle {
     }
 
     const path = ctx.require(PathKey);
-    const { waitUntilExit } = render(<Root path={path} ctx={ctx} core={core} />);
+    // alternateScreen switches the terminal to its alternate buffer so the TUI
+    // takes over the screen and the prior scrollback is restored on exit (like Vim).
+    const { waitUntilExit } = render(<Root path={path} ctx={ctx} core={core} />, {
+      alternateScreen: true,
+    });
     await waitUntilExit();
   };
 }
