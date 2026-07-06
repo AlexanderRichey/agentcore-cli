@@ -8,6 +8,7 @@ import { createRootHandler } from "../handlers";
 import { Root } from "../components/Root";
 import { TestCoreClient } from "./TestCoreClient";
 import { testIO } from "./testIO";
+import { noopLogger } from "./noopLogger";
 
 // TUI test harness.
 //
@@ -26,7 +27,7 @@ import { testIO } from "./testIO";
 // (region/json/debug), and a no-op JsonRenderer. Compiling the real handler tree
 // keeps the command menus faithful to the production command structure.
 function baseContext(core: TestCoreClient): Context {
-  const rootCommand = compile(createRootHandler(core, testIO().io), ValueContext.EmptyContext());
+  const rootCommand = compile(createRootHandler(core, { io: testIO().io, logger: noopLogger }), ValueContext.EmptyContext());
 
   return ValueContext.EmptyContext()
     .withValue(CommandKey, rootCommand)

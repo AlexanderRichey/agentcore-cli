@@ -1,24 +1,23 @@
 import { Router } from "../router";
 import { createHarnessHandler } from "./harness/index.tsx";
-import { DebugKey, EndpointKey, JsonKey, RegionKey } from "./keys.tsx";
+import { DebugKey, EndpointKey, JsonKey, NoColorKey, RegionKey } from "./keys.tsx";
 import { createConfigHandler } from "./config/";
 import { renderTui } from "../tui";
-import { withRegion, withJsonRenderer } from "../middleware";
-import { withLogging } from "../middleware/";
+import { withRegion, withJsonRenderer, withLogging } from "../middleware";
 import type { AppIO, Core } from "./types.tsx";
-import type { Logger } from "../logging/";
+import type { Logger } from "../common";
 
 export interface RootHandlerConfig {
   io: AppIO;
-  getLogger: () => Logger;
+  logger: Logger;
 }
 
 export function createRootHandler(core: Core, config: RootHandlerConfig): Router {
-  const { io, getLogger } = config;
+  const { io, logger } = config;
   const root = new Router("agentcore", "the platform for production AI agents");
 
   // Add global flags
-  root.groupFlags(RegionKey, DebugKey, JsonKey, EndpointKey);
+  root.groupFlags(RegionKey, DebugKey, NoColorKey, JsonKey, EndpointKey);
 
   // Resolve the effective AWS region (flag -> env -> config file) and pin it on
   // the context for every command beneath the root.
@@ -29,7 +28,7 @@ export function createRootHandler(core: Core, config: RootHandlerConfig): Router
   root.use(withJsonRenderer(io));
 
   // Inject a logger into each handler.
-  root.use(withLogging({ getLogger }));
+  root.use(withLogging({ logger }));
 
   // Install sub handlers
   root.handler(createHarnessHandler(core, io));

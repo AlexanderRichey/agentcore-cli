@@ -11,6 +11,14 @@ export const RegionKey = globalFlag("region", "AWS region", z.string().optional(
 
 export const DebugKey = globalFlag("debug", "debug logging", z.boolean().default(false));
 
+// "disable-color" instead of "no-color" because Commander.js interprets --no-X
+// as the negation of a --X flag, making --no-color silently non-functional.
+export const NoColorKey = globalFlag(
+  "disable-color",
+  "disable color output",
+  z.boolean().default(false),
+);
+
 export const JsonKey = globalFlag("json", "JSON output", z.boolean().default(false));
 
 export const EndpointKey = globalFlag(

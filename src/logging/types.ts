@@ -1,3 +1,5 @@
+export type { Logger, LogArgs, LoggerBindings } from "../common";
+
 export const LOG_LEVEL = {
   DEBUG: { name: "debug", priority: 0 },
   INFO: { name: "info", priority: 1 },
@@ -9,16 +11,3 @@ export const LOG_LEVEL = {
 export type LogLevel = (typeof LOG_LEVEL)[keyof typeof LOG_LEVEL];
 
 export type LogLevelName = LogLevel["name"];
-
-export type LoggerBindings = Record<string, string | number | boolean | null | undefined>;
-
-export type LoggingMiddleware = (l: Logger) => Logger;
-
-export type LogArgs = [object, string?] | [string];
-
-type LogFn = (...args: LogArgs) => void;
-
-export type Logger = { [K in Exclude<LogLevelName, "silent">]: LogFn } & {
-  child: (bindings: LoggerBindings) => Logger;
-  flush: () => Promise<void>;
-};

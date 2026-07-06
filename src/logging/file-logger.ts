@@ -1,6 +1,5 @@
 import pino from "pino";
-import { type Logger, type LoggerBindings, type LoggingMiddleware, type LogLevel } from "./types";
-import { useMiddleware } from "./middleware";
+import { type Logger, type LoggerBindings, type LogLevel } from "./types";
 
 export interface FileLoggerConfig {
   filePath: string;
@@ -8,7 +7,6 @@ export interface FileLoggerConfig {
   maxFileCount?: number;
   bindings?: LoggerBindings;
   logLevel: LogLevel;
-  middleware?: LoggingMiddleware[];
 }
 
 function wrapPinoLogger(pinoLogger: pino.Logger): Logger {
@@ -29,8 +27,7 @@ export function createFileLogger(config: FileLoggerConfig): Logger {
   const maxSizeInMB = config.maxSizeInMB ?? 10;
   const maxFileCount = config.maxFileCount ?? 5;
   const bindings = config.bindings ?? {};
-  const middleware = config.middleware ?? [];
-  const logger = wrapPinoLogger(
+  return wrapPinoLogger(
     pino({
       level: config.logLevel.name,
       base: undefined, // omit pid and hostname
@@ -53,6 +50,4 @@ export function createFileLogger(config: FileLoggerConfig): Logger {
       },
     }),
   ).child(bindings);
-
-  return useMiddleware(logger, middleware);
 }

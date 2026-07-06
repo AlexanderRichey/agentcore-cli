@@ -1,6 +1,7 @@
 export { parse, stringify } from "./serialization";
 export { fixtureFactories, isRecording, matchGolden } from "./fixtures";
 export { testIO, type TestIO } from "./testIO";
+export { noopLogger } from "./noopLogger";
 export { TestCoreClient, TestHarnessClient, type RecordedCall } from "./TestCoreClient";
 export { StreamController } from "./StreamController";
 export {

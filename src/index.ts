@@ -4,38 +4,53 @@
 // published `bin` directly executable by Node. It's ignored during development
 // when the file is run via `bun run src/index.ts`.
 
+import { homedir } from "os";
+import { join } from "path";
+
 import { CoreClient } from "./core";
 import { createControlClient, createDataClient, createIamClient } from "./core/factories";
 import { createRootHandler } from "./handlers";
-import { createRootLogger } from "./logging";
+import { createFileLogger, LOG_LEVEL } from "./logging";
 import { runWithExitCode } from "./runnable";
 
 process.exit(
   await runWithExitCode(async (argv: string[]) => {
     // generate a unique identifier corresponding to this process of this CLI. (ex. one command invoke, one TUI session)
-    const cliProcessId = crypto.randomUUID();
+    // TODO: wire this id into telemetry as well
+    const cliSessionId = crypto.randomUUID();
 
-    // TODO: memoize this
-    const getLogger = () => createRootLogger({ bindings: { processId: cliProcessId } });
-
-    // Wrap the SDK clients in the CoreClient the handlers consume. Passing
-    // factories (rather than instances) lets CoreClient build one client per
-    // region on demand.
-    const coreClient = new CoreClient(createControlClient, createDataClient, createIamClient);
-
-    // Pass it to the root handler, along with the process's standard streams as
-    // the app's io. CoreClient exposes feature sub-clients (e.g. `.harness`), so
-    // it satisfies the Core contract directly.
-    const rootHandler = createRootHandler(coreClient, {
-      io: {
-        stdin: process.stdin,
-        stdout: process.stdout,
-        stderr: process.stderr,
-      },
-      getLogger,
+    const rootLogger = createFileLogger({
+      filePath: join(homedir(), ".agentcore", "logs", "output"),
+      // TODO: allow overriding via global settings
+      logLevel: LOG_LEVEL.DEBUG,
+      bindings: { cliSessionId },
     });
 
-    // Handle the request
-    await rootHandler.route(argv);
+    try {
+      // Wrap the SDK clients in the CoreClient the handlers consume. Passing
+      // factories (rather than instances) lets CoreClient build one client per
+      // region on demand.
+      const coreClient = new CoreClient(createControlClient, createDataClient, createIamClient);
+
+      // Pass it to the root handler, along with the process's standard streams as
+      // the app's io. CoreClient exposes feature sub-clients (e.g. `.harness`), so
+      // it satisfies the Core contract directly.
+      const rootHandler = createRootHandler(coreClient, {
+        io: {
+          stdin: process.stdin,
+          stdout: process.stdout,
+          stderr: process.stderr,
+        },
+        logger: rootLogger,
+      });
+
+      // Handle the request
+      await rootHandler.route(argv);
+    } catch (e) {
+      rootLogger.error(e instanceof Error ? e : new Error(String(e)));
+      throw e;
+    } finally {
+      rootLogger.flush();
+    }
   }),
 );

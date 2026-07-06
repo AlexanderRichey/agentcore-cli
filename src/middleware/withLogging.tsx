@@ -1,9 +1,9 @@
-import type { Logger } from "../logging";
+import type { Logger } from "../common";
 import type { Middleware } from "../router";
 import { LoggerKey, PathKey } from "../router";
 
 interface WithLoggingConfig {
-  getLogger: () => Logger;
+  logger: Logger;
 }
 
 export function withLogging(config: WithLoggingConfig): Middleware {
@@ -15,9 +15,9 @@ export function withLogging(config: WithLoggingConfig): Middleware {
     children: () => h.children(),
     handle: async (ctx, flags, args) => {
       const commandPath = ctx.require(PathKey);
-      const logger = config.getLogger().child({ commandPath });
+      const logger = config.logger.child({ commandPath });
       try {
-        logger.debug({ flags, args }, "executing command with flags");
+        logger.debug({ flags, args }, "executing command");
         await h.handle(ctx.withValue<Logger>(LoggerKey, logger), flags, args);
         logger.debug("command executed successfully");
       } catch (err) {
