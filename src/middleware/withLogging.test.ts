@@ -3,7 +3,7 @@ import { Router, createHandler } from "../router";
 import { withLogging } from "./withLogging";
 import { createFileLogger } from "../logging/file-logger";
 import { LOG_LEVEL } from "../logging/types";
-import { poll } from "../common";
+import { waitFor } from "../testing";
 import type { Logger } from "../common";
 import { join } from "node:path";
 import { mkdtemp, rm, readdir, readFile } from "node:fs/promises";
@@ -53,10 +53,12 @@ describe("withLogging", () => {
     );
 
     await app.route(["node", "myapp", "deploy"]);
-    // Note: we poll because pino-roll uses async worker threads that may not resolve yet.
-    const content = await poll(() => readLogFile(tempDir), {
-      condition: (c) => c.includes("deploy"),
-    });
+    // Note: we waitFor because pino-roll uses async worker threads that may not resolve yet.
+    let content = "";
+    await waitFor(async () => {
+      content = await readLogFile(tempDir);
+      return content.includes("deploy");
+    }, 2000);
 
     const lines = parsedLines(content);
     const match = lines.find((l) => l.commandPath?.includes("deploy"));
@@ -78,9 +80,11 @@ describe("withLogging", () => {
 
     await app.route(["node", "myapp", "deploy"]).catch(() => {});
 
-    const content = await poll(() => readLogFile(tempDir), {
-      condition: (c) => c.includes("error"),
-    });
+    let content = "";
+    await waitFor(async () => {
+      content = await readLogFile(tempDir);
+      return content.includes("error");
+    }, 2000);
 
     const lines = parsedLines(content);
     const match = lines.find((l) => l.level === "error");
@@ -101,9 +105,11 @@ describe("withLogging", () => {
 
     await app.route(["node", "myapp", "deploy"]);
 
-    const content = await poll(() => readLogFile(tempDir), {
-      condition: (c) => c.includes("success"),
-    });
+    let content = "";
+    await waitFor(async () => {
+      content = await readLogFile(tempDir);
+      return content.includes("success");
+    }, 2000);
 
     const lines = parsedLines(content);
     const match = lines.find((l) => l.msg?.includes("success"));

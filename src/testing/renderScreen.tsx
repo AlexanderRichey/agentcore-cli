@@ -8,7 +8,8 @@ import { createRootHandler } from "../handlers";
 import { Root } from "../components/Root";
 import { TestCoreClient } from "./TestCoreClient";
 import { testIO } from "./testIO";
-import { noopLogger } from "./noopLogger";
+import { createInMemoryLogger } from "./inMemoryLogger";
+import { tick, waitFor } from "./timing";
 
 // TUI test harness.
 //
@@ -27,7 +28,10 @@ import { noopLogger } from "./noopLogger";
 // (region/json/debug), and a no-op JsonRenderer. Compiling the real handler tree
 // keeps the command menus faithful to the production command structure.
 function baseContext(core: TestCoreClient): Context {
-  const rootCommand = compile(createRootHandler(core, { io: testIO().io, logger: noopLogger }), ValueContext.EmptyContext());
+  const rootCommand = compile(
+    createRootHandler(core, { io: testIO().io, logger: createInMemoryLogger() }),
+    ValueContext.EmptyContext(),
+  );
 
   return ValueContext.EmptyContext()
     .withValue(CommandKey, rootCommand)
@@ -129,24 +133,7 @@ export function renderScreen(path: string, options: RenderScreenOptions = {}): R
   };
 }
 
-// tick waits a macrotask so react-query state transitions (pending -> settled)
-// and Ink re-renders flush before assertions.
-export function tick(ms = 0): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// waitFor polls `predicate` until it returns true (or the timeout elapses),
-// ticking between attempts so pending renders/queries flush. Use it instead of a
-// fixed sleep so tests are robust to timing: assert on the outcome, not a delay.
-export async function waitFor(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
-  const step = 5;
-  let waited = 0;
-  while (!predicate()) {
-    if (waited >= timeoutMs) throw new Error("waitFor: condition not met before timeout");
-    await tick(step);
-    waited += step;
-  }
-}
+export { tick, waitFor } from "./timing";
 
 // waitForText resolves once `text` appears in the latest frame.
 export function waitForText(

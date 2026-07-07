@@ -1,6 +1,6 @@
 import { Router } from "../router";
 import { createHarnessHandler } from "./harness/index.tsx";
-import { DebugKey, EndpointKey, JsonKey, NoColorKey, RegionKey } from "./keys.tsx";
+import { DebugKey, EndpointKey, JsonKey, RegionKey } from "./keys.tsx";
 import { createConfigHandler } from "./config/";
 import { renderTui } from "../tui";
 import { withRegion, withJsonRenderer, withLogging } from "../middleware";
@@ -17,7 +17,7 @@ export function createRootHandler(core: Core, config: RootHandlerConfig): Router
   const root = new Router("agentcore", "the platform for production AI agents");
 
   // Add global flags
-  root.groupFlags(RegionKey, DebugKey, NoColorKey, JsonKey, EndpointKey);
+  root.groupFlags(RegionKey, DebugKey, JsonKey, EndpointKey);
 
   // Resolve the effective AWS region (flag -> env -> config file) and pin it on
   // the context for every command beneath the root.
