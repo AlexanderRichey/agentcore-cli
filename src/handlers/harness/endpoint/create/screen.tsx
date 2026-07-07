@@ -2,6 +2,7 @@ import { useNavigate, useParams } from "react-router";
 import type { ScreenProps } from "../../../types";
 import { HarnessPicker } from "../../../../components/HarnessPicker";
 import { EndpointWizard } from "../../../../components/EndpointWizard";
+import { useFinishFlow } from "../../../../components/useFinishFlow";
 
 // HarnessCreateEndpointScreen is the interactive endpoint create flow. Without
 // a `:harnessId` route value it renders a harness picker; with one it runs the
@@ -9,6 +10,7 @@ import { EndpointWizard } from "../../../../components/EndpointWizard";
 // CreateHarnessEndpoint call. Success lands on the endpoint's detail.
 export function HarnessCreateEndpointScreen(props: ScreenProps) {
   const navigate = useNavigate();
+  const finishFlow = useFinishFlow("/agentcore/harness/endpoint");
   const { harnessId } = useParams();
 
   if (!harnessId) {
@@ -29,7 +31,7 @@ export function HarnessCreateEndpointScreen(props: ScreenProps) {
       harnessId={harnessId}
       breadcrumb={["agentcore", "harness", "endpoint", "create", harnessId]}
       onDone={(endpointName) =>
-        navigate(`/agentcore/harness/endpoint/get/${harnessId}/${endpointName}`)
+        finishFlow(`/agentcore/harness/endpoint/get/${harnessId}/${endpointName}`)
       }
     />
   );

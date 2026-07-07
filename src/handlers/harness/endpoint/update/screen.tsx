@@ -8,6 +8,7 @@ import { EndpointPicker } from "../../../../components/EndpointPicker";
 import { EndpointWizard } from "../../../../components/EndpointWizard";
 import { Layout } from "../../../../components/Layout";
 import { Spinner } from "../../../../components/ui/spinner";
+import { useFinishFlow } from "../../../../components/useFinishFlow";
 
 // HarnessUpdateEndpointScreen is the interactive endpoint update flow: pick the
 // harness, pick the endpoint, then run the endpoint wizard prefilled with the
@@ -48,7 +49,7 @@ function UpdateWizard({
   endpointName,
 }: ScreenProps & { harnessId: string; endpointName: string }) {
   const opts = coreOptsFromCtx(ctx);
-  const navigate = useNavigate();
+  const finishFlow = useFinishFlow("/agentcore/harness/endpoint");
 
   // The wizard seeds its form state once on mount, so it renders only after the
   // endpoint's current settings have arrived.
@@ -91,7 +92,7 @@ function UpdateWizard({
         version: endpoint?.targetVersion ?? endpoint?.liveVersion ?? "",
         description: endpoint?.description ?? "",
       }}
-      onDone={(name) => navigate(`/agentcore/harness/endpoint/get/${harnessId}/${name}`)}
+      onDone={(name) => finishFlow(`/agentcore/harness/endpoint/get/${harnessId}/${name}`)}
     />
   );
 }

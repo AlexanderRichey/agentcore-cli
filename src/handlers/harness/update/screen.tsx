@@ -5,6 +5,7 @@ import type { ScreenProps } from "../../types";
 import { coreOptsFromCtx } from "../../utils";
 import { HarnessPicker } from "../../../components/HarnessPicker";
 import { HarnessWizard, fromHarness } from "../../../components/HarnessWizard";
+import { useFinishFlow } from "../../../components/useFinishFlow";
 import { Layout } from "../../../components/Layout";
 import { Spinner } from "../../../components/ui/spinner";
 
@@ -31,7 +32,7 @@ export function HarnessUpdateScreen(props: ScreenProps) {
 
 function UpdateWizard({ ctx, core, harnessId }: ScreenProps & { harnessId: string }) {
   const opts = coreOptsFromCtx(ctx);
-  const navigate = useNavigate();
+  const finishFlow = useFinishFlow("/agentcore/harness");
 
   // The wizard seeds its form state once on mount, so it renders only after the
   // current configuration has arrived.
@@ -66,7 +67,7 @@ function UpdateWizard({ ctx, core, harnessId }: ScreenProps & { harnessId: strin
       harnessId={harnessId}
       breadcrumb={["agentcore", "harness", "update", harnessId]}
       initial={fromHarness(detail.data.harness!)}
-      onDone={(id) => navigate(`/agentcore/harness/get/${id}`)}
+      onDone={(id) => finishFlow(`/agentcore/harness/get/${id}`)}
     />
   );
 }

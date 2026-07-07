@@ -230,6 +230,44 @@ describe("harness create wizard", () => {
     r.unmount();
   });
 
+  test("esc from the hub after creating returns to the menu, not the wizard", async () => {
+    const core = coreForCreate();
+    core.harness.setGetResponse({
+      harness: {
+        harnessId: "my_agent-Xyz12345",
+        harnessName: "my_agent",
+        arn: "arn:aws:bedrock-agentcore:us-east-1:123:harness/my_agent-Xyz12345",
+        executionRoleArn: "arn:aws:iam::123:role/MyRole",
+        status: "READY",
+      },
+    } as never);
+    const r = renderScreen("/agentcore/harness/create", { core });
+
+    // Fastest path through the wizard: defaults everywhere.
+    await waitForText(r.lastFrame, "What should this harness be called?");
+    await r.write("my_agent");
+    await r.press("return");
+    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "System prompt");
+    await r.write("\x04");
+    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Review");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Harness created");
+    await r.press("return"); // on to the hub
+    await waitForText(r.lastFrame, "arn:aws:iam::123:role/MyRole");
+
+    // Esc from the hub: the finished wizard must not come back.
+    await r.press("escape");
+    await waitForText(r.lastFrame, "manage agentcore harnesses");
+    expect(r.lastFrame()).not.toContain("What should this harness be called?");
+    r.unmount();
+  });
+
   test("esc on the first step leaves the wizard", async () => {
     const core = coreForCreate();
     core.harness.setListResponse({ harnesses: [] });

@@ -1,19 +1,20 @@
-import { useNavigate } from "react-router";
 import type { ScreenProps } from "../../types";
 import { HarnessWizard } from "../../../components/HarnessWizard";
+import { useFinishFlow } from "../../../components/useFinishFlow";
 
 // HarnessCreateScreen is the interactive create-harness flow: a step wizard
 // (name → memory → tools → prompt → advanced → review) that ends in a
-// CreateHarness call. Success lands on the new harness's hub.
+// CreateHarness call. Success lands on the new harness's hub, with esc from
+// there returning to the harness menu rather than the finished wizard.
 export function HarnessCreateScreen(props: ScreenProps) {
-  const navigate = useNavigate();
+  const finishFlow = useFinishFlow("/agentcore/harness");
 
   return (
     <HarnessWizard
       {...props}
       mode="create"
       breadcrumb={["agentcore", "harness", "create"]}
-      onDone={(harnessId) => navigate(`/agentcore/harness/get/${harnessId}`)}
+      onDone={(harnessId) => finishFlow(`/agentcore/harness/get/${harnessId}`)}
     />
   );
 }

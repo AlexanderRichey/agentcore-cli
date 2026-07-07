@@ -5,6 +5,7 @@ import { coreOptsFromCtx } from "../../../utils";
 import { HarnessPicker } from "../../../../components/HarnessPicker";
 import { EndpointPicker } from "../../../../components/EndpointPicker";
 import { ConfirmAction } from "../../../../components/ConfirmAction";
+import { useFinishFlow } from "../../../../components/useFinishFlow";
 
 // HarnessDeleteEndpointScreen deletes a harness endpoint. It walks the user
 // from a harness picker to an endpoint picker to a confirmation, then calls
@@ -44,7 +45,7 @@ function DeleteConfirm({
   endpointName,
 }: ScreenProps & { harnessId: string; endpointName: string }) {
   const opts = coreOptsFromCtx(ctx);
-  const navigate = useNavigate();
+  const finishFlow = useFinishFlow("/agentcore/harness/endpoint");
 
   const detail = useQuery({
     queryKey: ["harness-endpoint", opts.region, harnessId, endpointName],
@@ -76,7 +77,7 @@ function DeleteConfirm({
       }}
       successTitle="Endpoint deletion started"
       runningLabel="Deleting endpoint…"
-      onDone={() => navigate(`/agentcore/harness/endpoint/list/${harnessId}`)}
+      onDone={() => finishFlow(`/agentcore/harness/endpoint/list/${harnessId}`)}
     />
   );
 }
