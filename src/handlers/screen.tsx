@@ -1,10 +1,11 @@
 import { Text, useApp } from "ink";
 import { CommandKey } from "../router";
 import { useEffect } from "react";
+import { RouterScreen } from "../components/RouterScreen";
 import type { ScreenProps } from "./types";
 
-export function RootScreen(_props: ScreenProps) {
-  return <Text>Root Screen</Text>;
+export function RootScreen(props: ScreenProps) {
+  return <RouterScreen {...props} path={["agentcore"]} />;
 }
 
 export function HelpScreen({ ctx }: ScreenProps) {

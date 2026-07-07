@@ -1,6 +1,6 @@
-import { Text } from "ink";
+import { RouterScreen } from "../../components/RouterScreen";
 import type { ScreenProps } from "../types";
 
-export function HarnessScreen(_props: ScreenProps) {
-  return <Text>Harness Screen</Text>;
+export function HarnessScreen(props: ScreenProps) {
+  return <RouterScreen {...props} path={["agentcore", "harness"]} />;
 }
