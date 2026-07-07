@@ -1,6 +1,6 @@
 import { renderTui } from "../tui";
 import { JsonKey } from "../handlers/keys";
-import type { Core } from "../handlers/types";
+import type { AppIO, Core } from "../handlers/types";
 import { type Middleware } from "../router";
 
 // countPassedValues counts how many entries of an object hold a defined value.
@@ -16,8 +16,8 @@ const countPassedValues = (obj: Object) =>
 // withTuiOnEmptyFlagsAndArgs opens the interactive TUI when a leaf command is
 // invoked with no flags or arguments (and not in JSON mode); otherwise it
 // delegates to the wrapped handler.
-export function withTuiOnEmptyFlagsAndArgs(core: Core): Middleware {
-  const boundRenderTui = renderTui(core);
+export function withTuiOnEmptyFlagsAndArgs(core: Core, io: AppIO): Middleware {
+  const boundRenderTui = renderTui(core, io);
 
   return (h) => ({
     name: () => h.name(),

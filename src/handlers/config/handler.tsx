@@ -1,5 +1,6 @@
 import z from "zod";
 import { createHandler, argument } from "../../router";
+import type { AppIO } from "../types";
 
 /*
  * read/write global configuration values. ex. telemetry settings, log level, etc.
@@ -8,7 +9,7 @@ import { createHandler, argument } from "../../router";
  * `config [key]` prints the value with key.
  * `config` prints the full config.
  */
-export const createConfigHandler = () =>
+export const createConfigHandler = (io: AppIO) =>
   createHandler({
     name: "config",
     description: "read/write global config values",
@@ -22,6 +23,6 @@ export const createConfigHandler = () =>
     ],
     handle: async (_ctx, _flags, args) => {
       // TODO: implment a real handler that update the global config via injected config accessor.
-      console.log(`updating config key=${args.key}, value=${args.value}`);
+      io.stdout.write(`updating config key=${args.key}, value=${args.value}\n`);
     },
   });

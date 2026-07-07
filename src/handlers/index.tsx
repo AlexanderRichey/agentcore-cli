@@ -3,10 +3,10 @@ import { createHarnessHandler } from "./harness/index.tsx";
 import { DebugKey, EndpointKey, JsonKey, RegionKey } from "./keys.tsx";
 import { createConfigHandler } from "./config/";
 import { renderTui } from "../tui";
-import { withRegion } from "../middleware";
-import type { Core } from "./types.tsx";
+import { withRegion, withJsonRenderer } from "../middleware";
+import type { AppIO, Core } from "./types.tsx";
 
-export function createRootHandler(core: Core): Router {
+export function createRootHandler(core: Core, io: AppIO): Router {
   const root = new Router("agentcore", "the platform for production AI agents");
 
   // Add global flags
@@ -16,12 +16,16 @@ export function createRootHandler(core: Core): Router {
   // the context for every command beneath the root.
   root.use(withRegion());
 
+  // Pin a JSON renderer wired to the configured stdout so leaf handlers can emit
+  // machine-readable output without touching the process streams directly.
+  root.use(withJsonRenderer(io));
+
   // Install sub handlers
-  root.handler(createHarnessHandler(core));
-  root.handler(createConfigHandler());
+  root.handler(createHarnessHandler(core, io));
+  root.handler(createConfigHandler(io));
 
   // Invoking with no subcommand launches the interactive TUI.
-  root.default(renderTui(core));
+  root.default(renderTui(core, io));
 
   return root;
 }

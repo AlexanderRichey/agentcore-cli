@@ -4,10 +4,8 @@
 // published `bin` directly executable by Node. It's ignored during development
 // when the file is run via `bun run src/index.ts`.
 
-import { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
-import { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
-
 import { CoreClient } from "./core";
+import { createControlClient, createDataClient } from "./core/factories";
 import { createRootHandler } from "./handlers";
 import { runWithExitCode } from "./runnable";
 
@@ -16,14 +14,16 @@ process.exit(
     // Wrap the SDK clients in the CoreClient the handlers consume. Passing
     // factories (rather than instances) lets CoreClient build one client per
     // region on demand.
-    const coreClient = new CoreClient(
-      (config) => new BedrockAgentCoreControlClient({ ...config }),
-      (config) => new BedrockAgentCoreClient({ ...config }),
-    );
+    const coreClient = new CoreClient(createControlClient, createDataClient);
 
-    // Pass it to the root handler. CoreClient exposes feature sub-clients (e.g.
-    // `.harness`), so it satisfies the Core contract directly.
-    const rootHandler = createRootHandler(coreClient);
+    // Pass it to the root handler, along with the process's standard streams as
+    // the app's io. CoreClient exposes feature sub-clients (e.g. `.harness`), so
+    // it satisfies the Core contract directly.
+    const rootHandler = createRootHandler(coreClient, {
+      stdin: process.stdin,
+      stdout: process.stdout,
+      stderr: process.stderr,
+    });
 
     // Handle the request
     await rootHandler.route(argv);

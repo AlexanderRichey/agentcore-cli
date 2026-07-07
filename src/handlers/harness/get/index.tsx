@@ -2,7 +2,7 @@ import z from "zod";
 import { createHandler, flag } from "../../../router";
 import type { Core } from "../../types.tsx";
 import { coreOptsFromCtx } from "../../utils.tsx";
-import { renderJson } from "../../../tui";
+import { JsonRendererKey } from "../../../tui";
 
 export const createGetHarnessHandler = (core: Core) =>
   createHandler({
@@ -15,7 +15,7 @@ export const createGetHarnessHandler = (core: Core) =>
       }
 
       const harness = await core.harness.getHarness(flags["id"], coreOptsFromCtx(ctx));
-      renderJson(harness);
+      ctx.require(JsonRendererKey).renderJson(harness);
     },
   });
 

@@ -1,0 +1,54 @@
+{
+  "harness": {
+    "harnessId": "MyPDXHarness-rhkXkAE1IS",
+    "harnessName": "MyPDXHarness",
+    "arn": "arn:aws:bedrock-agentcore:us-west-2:501930284170:harness/MyPDXHarness-rhkXkAE1IS",
+    "status": "READY",
+    "executionRoleArn": "arn:aws:iam::501930284170:role/LoopyRole",
+    "createdAt": {
+      "$date": "2026-04-22T21:53:06.235Z"
+    },
+    "updatedAt": {
+      "$date": "2026-04-22T21:53:27.062Z"
+    },
+    "model": {
+      "bedrockModelConfig": {
+        "modelId": "global.anthropic.claude-sonnet-4-6",
+        "apiFormat": "converse_stream"
+      }
+    },
+    "systemPrompt": [
+      {
+        "text": "You are a helpful assistant."
+      }
+    ],
+    "tools": [],
+    "skills": [],
+    "allowedTools": ["*"],
+    "truncation": {
+      "strategy": "sliding_window",
+      "config": {
+        "slidingWindow": {
+          "messagesCount": 150
+        }
+      }
+    },
+    "environment": {
+      "agentCoreRuntimeEnvironment": {
+        "agentRuntimeArn": "arn:aws:bedrock-agentcore:us-west-2:501930284170:runtime/harness_MyPDXHarness-8WBKGfHzjg",
+        "agentRuntimeName": "harness_MyPDXHarness",
+        "agentRuntimeId": "harness_MyPDXHarness-8WBKGfHzjg",
+        "lifecycleConfiguration": {
+          "idleRuntimeSessionTimeout": 900,
+          "maxLifetime": 28800
+        },
+        "networkConfiguration": {
+          "networkMode": "PUBLIC"
+        }
+      }
+    },
+    "harnessVersion": "1",
+    "maxIterations": 75,
+    "timeoutSeconds": 3600
+  }
+}
