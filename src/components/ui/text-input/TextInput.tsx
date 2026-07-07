@@ -96,7 +96,12 @@ const FocusedInput: React.FC<FocusedInputProps> = ({
   theme,
 }) => {
   const { exit } = useApp();
-  const [cursor, setCursor] = useState(value.length);
+  const [rawCursor, setRawCursor] = useState(value.length);
+  // `value` is controlled and the parent can replace it at any time (e.g. a
+  // chat clearing the input after a submit), which would leave the stored
+  // cursor pointing past the end — edits there silently no-op. Clamp on read
+  // so the cursor always addresses the current value.
+  const cursor = Math.min(rawCursor, value.length);
 
   useInput((input, key) => {
     if (key.ctrl && input === "c") {
@@ -105,11 +110,11 @@ const FocusedInput: React.FC<FocusedInputProps> = ({
     }
 
     if (key.leftArrow) {
-      setCursor((c) => Math.max(0, c - 1));
+      setRawCursor(Math.max(0, cursor - 1));
       return;
     }
     if (key.rightArrow) {
-      setCursor((c) => Math.min(value.length, c + 1));
+      setRawCursor(Math.min(value.length, cursor + 1));
       return;
     }
     // Vertical arrows are meaningless for a single-line input; ignore them so
@@ -120,7 +125,7 @@ const FocusedInput: React.FC<FocusedInputProps> = ({
     if (key.backspace || key.delete) {
       if (cursor === 0) return;
       onChange(value.slice(0, cursor - 1) + value.slice(cursor));
-      setCursor((c) => c - 1);
+      setRawCursor(cursor - 1);
       return;
     }
 
@@ -131,7 +136,7 @@ const FocusedInput: React.FC<FocusedInputProps> = ({
     if (key.ctrl || key.meta || key.escape) return;
 
     onChange(value.slice(0, cursor) + input + value.slice(cursor));
-    setCursor((c) => c + input.length);
+    setRawCursor(cursor + input.length);
   });
 
   return (

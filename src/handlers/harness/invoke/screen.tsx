@@ -201,8 +201,8 @@ function InvokeChat({ ctx, core, harnessId }: ScreenProps & { harnessId: string 
           <Box height={rows - 8} flexDirection="column">
             <ScrollView ref={scrollRef}>
               {items.map((item, i) => (
-                <Box paddingBottom={1}>
-                  <ItemView key={i} item={item} width={columns} />
+                <Box key={i} paddingBottom={1}>
+                  <ItemView item={item} width={columns} />
                 </Box>
               ))}
             </ScrollView>

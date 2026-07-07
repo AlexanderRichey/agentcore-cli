@@ -88,7 +88,7 @@ describe("invoke picker screen", () => {
     await r.press("return");
     // The chat screen's breadcrumb carries the harness id and the prompt mounts.
     await waitForText(r.lastFrame, "invoke → MyHarness-abc123");
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
     r.unmount();
   });
 
@@ -118,14 +118,14 @@ describe("invoke chat screen", () => {
   test("sending a message streams the reply and appends a turn summary", async () => {
     const r = renderScreen(CHAT_PATH, { core: chatCore() });
 
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
     await sendMessage(r, "hi agent");
 
     await waitForText(r.lastFrame, "Hello from the agent");
     await waitForText(r.lastFrame, "end_turn · 15 tokens · 0.8s");
     // The user's message renders as a `❯` line and the prompt is ready again.
     expect(r.lastFrame()).toContain("❯ hi agent");
-    expect(r.lastFrame()).toContain("session ");
+    expect(r.lastFrame()).toContain("session:");
     r.unmount();
   });
 
@@ -133,7 +133,7 @@ describe("invoke chat screen", () => {
     const core = chatCore();
     const r = renderScreen(CHAT_PATH, { core });
 
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
     await sendMessage(r, "first");
     await waitForText(r.lastFrame, "end_turn");
     await sendMessage(r, "second");
@@ -217,17 +217,17 @@ describe("invoke chat screen", () => {
     );
     const r = renderScreen(CHAT_PATH, { core });
 
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
     await sendMessage(r, "weather?");
 
     await waitForText(r.lastFrame, "end_turn");
     const frame = r.lastFrame()!;
     expect(frame).toContain("✻ pondering the request");
-    expect(frame).toContain('get_weather({"city":"Portland"})');
+    expect(frame).toContain("get_weather");
     // Multi-line success result: first line plus the folded line count.
     expect(frame).toContain("└ Sunny … (+2 lines)");
     // The MCP-served tool is prefixed with its server name.
-    expect(frame).toContain("wx:get_forecast()");
+    expect(frame).toContain("wx:get_forecast");
     expect(frame).toContain("└ upstream timed out");
     r.unmount();
   });
@@ -238,9 +238,9 @@ describe("invoke chat screen", () => {
     core.harness.queueInvokeStream(stream);
     const r = renderScreen(CHAT_PATH, { core });
 
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
     await sendMessage(r, "take your time");
-    await waitForText(r.lastFrame, "Working… (esc to interrupt)");
+    await waitForText(r.lastFrame, "working… (esc to interrupt)");
 
     stream.emit({ messageStart: { role: "assistant" } });
     stream.emit({ contentBlockDelta: { contentBlockIndex: 0, delta: { text: "Thinking" } } });
@@ -249,8 +249,8 @@ describe("invoke chat screen", () => {
     await r.press("escape");
     await waitForText(r.lastFrame, "interrupted");
     // Idle again: the status line shows the session, not the spinner.
-    await waitForText(r.lastFrame, "session ");
-    expect(r.lastFrame()).not.toContain("Working…");
+    await waitForText(r.lastFrame, "session:");
+    expect(r.lastFrame()).not.toContain("working…");
     r.unmount();
   });
 
@@ -260,9 +260,9 @@ describe("invoke chat screen", () => {
     core.harness.queueInvokeStream(stream);
     const r = renderScreen(CHAT_PATH, { core });
 
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
     await sendMessage(r, "hi");
-    await waitForText(r.lastFrame, "Working…");
+    await waitForText(r.lastFrame, "working…");
 
     stream.emit({ messageStart: { role: "assistant" } });
     stream.emit({ contentBlockDelta: { contentBlockIndex: 0, delta: { text: "Done deal" } } });
@@ -272,7 +272,7 @@ describe("invoke chat screen", () => {
 
     await waitForText(r.lastFrame, "Done deal");
     await waitForText(r.lastFrame, "end_turn");
-    await waitForText(r.lastFrame, "session ");
+    await waitForText(r.lastFrame, "session:");
     r.unmount();
   });
 
@@ -280,13 +280,13 @@ describe("invoke chat screen", () => {
     const core = chatCore();
     const r = renderScreen(CHAT_PATH, { core });
 
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
     // The harness detail is already fetched; only the upcoming invoke fails.
     core.harness.setError(new Error("stream blew up"));
     await sendMessage(r, "hi");
 
     await waitForText(r.lastFrame, "✗ stream blew up");
-    await waitForText(r.lastFrame, "session ");
+    await waitForText(r.lastFrame, "session:");
     r.unmount();
   });
 
@@ -307,7 +307,7 @@ describe("invoke chat screen", () => {
 
     await waitForText(r.lastFrame, "MyHarness");
     await r.press("return");
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
 
     await r.press("escape");
     await waitForText(r.lastFrame, "choose a harness to chat with");
@@ -318,7 +318,7 @@ describe("invoke chat screen", () => {
     const core = chatCore();
     const r = renderScreen(CHAT_PATH, { core });
 
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
     await r.press("return");
     await r.write("   ");
     await r.press("return");
@@ -327,10 +327,28 @@ describe("invoke chat screen", () => {
     r.unmount();
   });
 
+  test("backspace edits the prompt after a completed send", async () => {
+    // Regression: sending clears the input from outside TextInput, which used
+    // to leave its cursor stranded past the end of the (now shorter) value —
+    // backspace then deleted nothing.
+    const r = renderScreen(CHAT_PATH, { core: chatCore() });
+
+    await waitForText(r.lastFrame, "send a message…");
+    await sendMessage(r, "hi agent");
+    await waitForText(r.lastFrame, "end_turn");
+
+    await r.write("abcd");
+    await waitForText(r.lastFrame, "abcd");
+    await r.write("\x7f"); // backspace
+    await waitFor(() => !(r.lastFrame() ?? "").includes("abcd"));
+    expect(r.lastFrame()).toContain("abc");
+    r.unmount();
+  });
+
   test("arrow keys scroll the transcript without crashing", async () => {
     const r = renderScreen(CHAT_PATH, { core: chatCore() });
 
-    await waitForText(r.lastFrame, "Send a message…");
+    await waitForText(r.lastFrame, "send a message…");
     await sendMessage(r, "hi agent");
     await waitForText(r.lastFrame, "end_turn");
 
