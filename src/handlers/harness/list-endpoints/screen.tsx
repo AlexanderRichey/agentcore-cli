@@ -1,26 +1,34 @@
-import { Text, useInput } from "ink";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import type { ScreenProps } from "../../types";
-import { Layout } from "../../../components/Layout";
+import { HarnessPicker } from "../../../components/HarnessPicker";
+import { EndpointPicker } from "../../../components/EndpointPicker";
 
-// HarnessListEndpointsScreen is a stub for listing a harness's endpoints. Esc
-// pops back. TODO.
-export function HarnessListEndpointsScreen(_props: ScreenProps) {
+// HarnessListEndpointsScreen lists a harness's endpoints. Without a `:harnessId`
+// route value it renders a harness picker first; with one it lists that
+// harness's endpoints, and selecting an endpoint opens its JSON detail.
+export function HarnessListEndpointsScreen(props: ScreenProps) {
   const navigate = useNavigate();
+  const { harnessId } = useParams();
 
-  useInput((_input, key) => {
-    if (key.escape) navigate(-1);
-  });
+  if (!harnessId) {
+    return (
+      <HarnessPicker
+        {...props}
+        breadcrumb={["agentcore", "harness", "list-endpoints"]}
+        description="choose a harness to list endpoints for"
+        onSelect={(id) => navigate(`/agentcore/harness/list-endpoints/${id}`)}
+      />
+    );
+  }
 
   return (
-    <Layout
-      breadcrumb={["agentcore", "harness", "list-endpoints"]}
-      keyHints={[
-        { key: "esc", label: "back" },
-        { key: "ctl+c", label: "quit" },
-      ]}
-    >
-      <Text>TODO</Text>
-    </Layout>
+    <EndpointPicker
+      {...props}
+      harnessId={harnessId}
+      breadcrumb={["agentcore", "harness", "list-endpoints", harnessId]}
+      onSelect={(endpointName) =>
+        navigate(`/agentcore/harness/get-endpoint/${harnessId}/${endpointName}`)
+      }
+    />
   );
 }

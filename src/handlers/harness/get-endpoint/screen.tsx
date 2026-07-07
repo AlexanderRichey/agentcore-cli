@@ -1,26 +1,28 @@
-import { Text, useInput } from "ink";
-import { useNavigate } from "react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useParams } from "react-router";
 import type { ScreenProps } from "../../types";
-import { Layout } from "../../../components/Layout";
+import { coreOptsFromCtx } from "../../utils";
+import { JsonDetail } from "../../../components/JsonDetail";
 
-// HarnessGetEndpointScreen is a stub for getting a harness endpoint. Esc pops
-// back. TODO.
-export function HarnessGetEndpointScreen(_props: ScreenProps) {
-  const navigate = useNavigate();
+// HarnessGetEndpointScreen shows one endpoint's full definition as scrollable
+// JSON. The harness ID and endpoint name come from the route path values.
+export function HarnessGetEndpointScreen({ ctx, core }: ScreenProps) {
+  const opts = coreOptsFromCtx(ctx);
+  const { harnessId, endpointName } = useParams();
 
-  useInput((_input, key) => {
-    if (key.escape) navigate(-1);
+  const detail = useQuery({
+    queryKey: ["harness-endpoint", opts.region, harnessId, endpointName],
+    queryFn: () => core.harness.getHarnessEndpoint(harnessId!, endpointName!, opts),
+    enabled: harnessId !== undefined && endpointName !== undefined,
   });
 
   return (
-    <Layout
-      breadcrumb={["agentcore", "harness", "get-endpoint"]}
-      keyHints={[
-        { key: "esc", label: "back" },
-        { key: "ctl+c", label: "quit" },
-      ]}
-    >
-      <Text>TODO</Text>
-    </Layout>
+    <JsonDetail
+      breadcrumb={["agentcore", "harness", "get-endpoint", harnessId ?? "", endpointName ?? ""]}
+      isPending={detail.isPending}
+      error={detail.isError ? (detail.error as Error) : null}
+      data={detail.data?.endpoint}
+      loadingLabel="Loading endpoint…"
+    />
   );
 }

@@ -1,0 +1,509 @@
+import { useMemo, useState } from "react";
+import { Box, Text, useInput } from "ink";
+import { useNavigate } from "react-router";
+import { useQuery } from "@tanstack/react-query";
+import type {
+  CreateHarnessEndpointRequest,
+  UpdateHarnessEndpointRequest,
+} from "@aws-sdk/client-bedrock-agentcore-control";
+import type { ScreenProps } from "../handlers/types";
+import { coreOptsFromCtx } from "../handlers/utils";
+import { Layout } from "./Layout";
+import { Stepper, type Step } from "./ui/stepper";
+import { TextInput } from "./ui/text-input";
+import { Spinner } from "./ui/spinner";
+import { CodeBlock } from "./ui/code-block";
+import { darkTheme } from "./ui/_core.js";
+
+const theme = darkTheme;
+
+// EndpointFormValues is the flat shape the endpoint wizard collects. version ""
+// means "latest" (create mode omits targetVersion).
+export interface EndpointFormValues {
+  name: string;
+  version: string;
+  description: string;
+}
+
+type WizardPhase =
+  | { kind: "form" }
+  | { kind: "submitting" }
+  | { kind: "success"; endpointName: string; targetVersion?: string; status?: string }
+  | { kind: "error"; message: string };
+
+export interface EndpointWizardProps extends ScreenProps {
+  mode: "create" | "update";
+  breadcrumb: string[];
+  harnessId: string;
+  // endpointName is the update target (update mode only).
+  endpointName?: string;
+  // initial seeds the form (update mode: the endpoint's current settings).
+  initial?: EndpointFormValues;
+  // onDone is called after a successful submit is acknowledged.
+  onDone: (endpointName: string) => void;
+}
+
+const NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{0,47}$/;
+
+// EndpointWizard is the interactive step flow behind `harness create-endpoint`
+// and `harness update-endpoint`: name → target version (picked from the
+// harness's actual versions) → description → review → submit. Update mode skips
+// the name step (endpoints cannot be renamed).
+export function EndpointWizard({
+  ctx,
+  core,
+  mode,
+  breadcrumb,
+  harnessId,
+  endpointName,
+  initial,
+  onDone,
+}: EndpointWizardProps) {
+  const navigate = useNavigate();
+  const opts = coreOptsFromCtx(ctx);
+
+  const steps: Step[] = useMemo(() => {
+    const all: Step[] = [
+      { key: "name", title: "Name" },
+      { key: "version", title: "Version" },
+      { key: "description", title: "Description", optional: true },
+      { key: "review", title: "Review" },
+    ];
+    return mode === "create" ? all : all.filter((step) => step.key !== "name");
+  }, [mode]);
+
+  const [initialValues] = useState<EndpointFormValues>(
+    () => initial ?? { name: "", version: "", description: "" },
+  );
+  const [values, setValues] = useState<EndpointFormValues>(initialValues);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [phase, setPhase] = useState<WizardPhase>({ kind: "form" });
+
+  // The version step chooses among the harness's real versions.
+  const versions = useQuery({
+    queryKey: ["harness-versions", opts.region, harnessId],
+    queryFn: () => core.harness.listHarnessVersions(harnessId, undefined, undefined, opts),
+  });
+
+  const stepKey = steps[stepIndex]!.key;
+  const next = () => setStepIndex((i) => Math.min(steps.length - 1, i + 1));
+  const back = () => {
+    if (stepIndex === 0) navigate(-1);
+    else setStepIndex((i) => i - 1);
+  };
+
+  const request: CreateHarnessEndpointRequest | UpdateHarnessEndpointRequest = useMemo(() => {
+    if (mode === "create") {
+      return {
+        harnessId,
+        endpointName: values.name,
+        targetVersion: values.version || undefined,
+        description: values.description || undefined,
+      };
+    }
+    const update: UpdateHarnessEndpointRequest = { harnessId, endpointName: endpointName! };
+    if (values.version !== initialValues.version && values.version !== "") {
+      update.targetVersion = values.version;
+    }
+    if (values.description !== initialValues.description) {
+      update.description = values.description;
+    }
+    return update;
+  }, [mode, values, harnessId, endpointName, initialValues]);
+
+  const submit = async () => {
+    setPhase({ kind: "submitting" });
+    try {
+      const response =
+        mode === "create"
+          ? await core.harness.createHarnessEndpoint(request as CreateHarnessEndpointRequest, opts)
+          : await core.harness.updateHarnessEndpoint(request as UpdateHarnessEndpointRequest, opts);
+      setPhase({
+        kind: "success",
+        endpointName: response.endpoint?.endpointName ?? values.name ?? endpointName ?? "",
+        targetVersion: response.endpoint?.targetVersion,
+        status: response.endpoint?.status,
+      });
+    } catch (error) {
+      setPhase({
+        kind: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  const verb = mode === "create" ? "create" : "update";
+
+  return (
+    <Layout breadcrumb={breadcrumb} keyHints={hintsFor(stepKey, phase, verb)}>
+      <Box flexDirection="column" paddingX={1}>
+        <Box marginBottom={1}>
+          <Stepper
+            steps={steps}
+            currentStep={stepKey}
+            completedSteps={steps.slice(0, stepIndex).map((step) => step.key)}
+          />
+        </Box>
+
+        {phase.kind === "form" && stepKey === "name" && (
+          <NameStep
+            value={values.name}
+            onChange={(name) => setValues((v) => ({ ...v, name }))}
+            onNext={next}
+            onBack={back}
+          />
+        )}
+        {phase.kind === "form" && stepKey === "version" && (
+          <VersionStep
+            mode={mode}
+            value={values.version}
+            versions={versions}
+            onChange={(version) => setValues((v) => ({ ...v, version }))}
+            onNext={next}
+            onBack={back}
+          />
+        )}
+        {phase.kind === "form" && stepKey === "description" && (
+          <DescriptionStep
+            value={values.description}
+            onChange={(description) => setValues((v) => ({ ...v, description }))}
+            onNext={next}
+            onBack={back}
+          />
+        )}
+        {phase.kind === "form" && stepKey === "review" && (
+          <ReviewStep verb={verb} request={request} onSubmit={submit} onBack={back} />
+        )}
+
+        {phase.kind === "submitting" && (
+          <Box marginTop={1}>
+            <Spinner label={mode === "create" ? "Creating endpoint…" : "Updating endpoint…"} />
+          </Box>
+        )}
+        {phase.kind === "success" && (
+          <SuccessPanel
+            verb={verb}
+            endpointName={phase.endpointName}
+            targetVersion={phase.targetVersion}
+            status={phase.status}
+            onContinue={() => onDone(phase.endpointName)}
+          />
+        )}
+        {phase.kind === "error" && (
+          <ErrorPanel message={phase.message} onBack={() => setPhase({ kind: "form" })} />
+        )}
+      </Box>
+    </Layout>
+  );
+}
+
+function hintsFor(
+  stepKey: string,
+  phase: WizardPhase,
+  verb: string,
+): { key: string; label: string }[] {
+  if (phase.kind === "submitting") return [{ key: "ctl+c", label: "quit" }];
+  if (phase.kind === "success") return [{ key: "enter", label: "continue" }];
+  if (phase.kind === "error")
+    return [
+      { key: "esc", label: "back" },
+      { key: "ctl+c", label: "quit" },
+    ];
+  const base = [
+    { key: "esc", label: "back" },
+    { key: "ctl+c", label: "quit" },
+  ];
+  if (stepKey === "version") {
+    return [{ key: "↑↓", label: "choose" }, { key: "enter", label: "continue" }, ...base];
+  }
+  if (stepKey === "review") return [{ key: "enter", label: verb }, ...base];
+  return [{ key: "enter", label: "continue" }, ...base];
+}
+
+function StepHeading({ title, hint }: { title: string; hint: string }) {
+  return (
+    <Box flexDirection="column" marginBottom={1}>
+      <Text bold>{title}</Text>
+      <Text color={theme.colors.muted}>{hint}</Text>
+    </Box>
+  );
+}
+
+function NameStep({
+  value,
+  onChange,
+  onNext,
+  onBack,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+
+  useInput((_input, key) => {
+    if (key.escape) {
+      onBack();
+      return;
+    }
+    if (key.return) {
+      if (NAME_PATTERN.test(value)) onNext();
+      else setError("Must start with a letter; letters, numbers, and underscores only.");
+    }
+  });
+
+  return (
+    <Box flexDirection="column">
+      <StepHeading title="Name" hint="What should this endpoint be called?" />
+      <TextInput
+        value={value}
+        onChange={(next) => {
+          onChange(next);
+          setError(null);
+        }}
+        placeholder="production"
+      />
+      <Box marginTop={1}>
+        {error ? (
+          <Text color={theme.colors.error}>{error}</Text>
+        ) : (
+          <Text color={theme.colors.muted}>
+            Starts with a letter; letters, numbers, and underscores only.
+          </Text>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+interface VersionOption {
+  value: string;
+  label: string;
+  detail: string;
+}
+
+function VersionStep({
+  mode,
+  value,
+  versions,
+  onChange,
+  onNext,
+  onBack,
+}: {
+  mode: "create" | "update";
+  value: string;
+  versions: {
+    isPending: boolean;
+    isError: boolean;
+    error: unknown;
+    data?: Awaited<ReturnType<ScreenProps["core"]["harness"]["listHarnessVersions"]>>;
+  };
+  onChange: (version: string) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  const options: VersionOption[] = useMemo(() => {
+    const listed = (versions.data?.harnessVersions ?? [])
+      .map((v) => ({
+        value: v.harnessVersion ?? "",
+        label: `version ${v.harnessVersion}`,
+        detail: `${v.status}  ·  updated ${v.updatedAt?.toISOString().slice(0, 10) ?? ""}`,
+      }))
+      .sort((a, b) => Number(b.value) - Number(a.value));
+    // Create mode offers "latest": omitting targetVersion tracks the newest
+    // version at creation time.
+    return mode === "create"
+      ? [
+          { value: "", label: "latest", detail: "point at the most recent version (default)" },
+          ...listed,
+        ]
+      : listed;
+  }, [versions.data, mode]);
+
+  const index = Math.max(
+    0,
+    options.findIndex((option) => option.value === value),
+  );
+
+  useInput((_input, key) => {
+    if (key.escape) {
+      onBack();
+      return;
+    }
+    if (options.length === 0) return;
+    if (key.upArrow) {
+      onChange(options[Math.max(0, index - 1)]!.value);
+      return;
+    }
+    if (key.downArrow) {
+      onChange(options[Math.min(options.length - 1, index + 1)]!.value);
+      return;
+    }
+    if (key.return) onNext();
+  });
+
+  return (
+    <Box flexDirection="column">
+      <StepHeading
+        title="Target version"
+        hint="Which harness version should this endpoint serve?"
+      />
+      {versions.isPending ? (
+        <Spinner label="Loading versions…" />
+      ) : versions.isError ? (
+        <Text color={theme.colors.error}>Error: {(versions.error as Error).message}</Text>
+      ) : options.length === 0 ? (
+        <Text color={theme.colors.muted}>This harness has no versions.</Text>
+      ) : (
+        <Box flexDirection="column">
+          {options.map((option, i) => {
+            const selected = i === index;
+            return (
+              <Box key={option.value === "" ? "(latest)" : option.value}>
+                <Text color={selected ? theme.colors.focus : theme.colors.muted}>
+                  {selected ? "● " : "○ "}
+                </Text>
+                <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
+                  {option.label.padEnd(14)}
+                </Text>
+                <Text color={theme.colors.muted}>{option.detail}</Text>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function DescriptionStep({
+  value,
+  onChange,
+  onNext,
+  onBack,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  useInput((_input, key) => {
+    if (key.escape) {
+      onBack();
+      return;
+    }
+    if (key.return) onNext();
+  });
+
+  return (
+    <Box flexDirection="column">
+      <StepHeading
+        title="Description"
+        hint="A short note about this endpoint. Leave empty to skip."
+      />
+      <TextInput value={value} onChange={onChange} placeholder="serves production traffic" />
+    </Box>
+  );
+}
+
+function ReviewStep({
+  verb,
+  request,
+  onSubmit,
+  onBack,
+}: {
+  verb: string;
+  request: unknown;
+  onSubmit: () => void;
+  onBack: () => void;
+}) {
+  useInput((_input, key) => {
+    if (key.escape) {
+      onBack();
+      return;
+    }
+    if (key.return) onSubmit();
+  });
+
+  return (
+    <Box flexDirection="column">
+      <StepHeading title="Review" hint={`This request will be sent to ${verb}-endpoint.`} />
+      <CodeBlock
+        language="json"
+        showLineNumbers={false}
+        showBorder={false}
+        code={JSON.stringify(request, null, 2)}
+      />
+      <Box marginTop={1}>
+        <Text color={theme.colors.muted}>
+          press <Text color={theme.colors.focus}>enter</Text> to {verb} the endpoint
+        </Text>
+      </Box>
+    </Box>
+  );
+}
+
+function SuccessPanel({
+  verb,
+  endpointName,
+  targetVersion,
+  status,
+  onContinue,
+}: {
+  verb: string;
+  endpointName: string;
+  targetVersion?: string;
+  status?: string;
+  onContinue: () => void;
+}) {
+  useInput((_input, key) => {
+    if (key.return || key.escape) onContinue();
+  });
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text color={theme.colors.success} bold>
+        ✔ Endpoint {verb}d
+      </Text>
+      <Box flexDirection="column" marginTop={1} marginLeft={2}>
+        <Text>
+          <Text color={theme.colors.muted}>{"name     "}</Text>
+          {endpointName}
+        </Text>
+        {targetVersion && (
+          <Text>
+            <Text color={theme.colors.muted}>{"target   "}</Text>
+            version {targetVersion}
+          </Text>
+        )}
+        {status && (
+          <Text>
+            <Text color={theme.colors.muted}>{"status   "}</Text>
+            {status}
+          </Text>
+        )}
+      </Box>
+      <Box marginTop={1}>
+        <Text color={theme.colors.muted}>
+          press <Text color={theme.colors.focus}>enter</Text> to view the endpoint
+        </Text>
+      </Box>
+    </Box>
+  );
+}
+
+function ErrorPanel({ message, onBack }: { message: string; onBack: () => void }) {
+  useInput((_input, key) => {
+    if (key.escape || key.return) onBack();
+  });
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text color={theme.colors.error}>✗ {message}</Text>
+      <Box marginTop={1}>
+        <Text color={theme.colors.muted}>press esc to go back and adjust</Text>
+      </Box>
+    </Box>
+  );
+}

@@ -1,26 +1,82 @@
-import { Text, useInput } from "ink";
-import { useNavigate } from "react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router";
 import type { ScreenProps } from "../../types";
-import { Layout } from "../../../components/Layout";
+import { coreOptsFromCtx } from "../../utils";
+import { HarnessPicker } from "../../../components/HarnessPicker";
+import { EndpointPicker } from "../../../components/EndpointPicker";
+import { ConfirmAction } from "../../../components/ConfirmAction";
 
-// HarnessDeleteEndpointScreen is a stub for deleting a harness endpoint. Esc
-// pops back. TODO.
-export function HarnessDeleteEndpointScreen(_props: ScreenProps) {
+// HarnessDeleteEndpointScreen deletes a harness endpoint. It walks the user
+// from a harness picker to an endpoint picker to a confirmation, then calls
+// DeleteHarnessEndpoint.
+export function HarnessDeleteEndpointScreen(props: ScreenProps) {
+  const navigate = useNavigate();
+  const { harnessId, endpointName } = useParams();
+
+  if (!harnessId) {
+    return (
+      <HarnessPicker
+        {...props}
+        breadcrumb={["agentcore", "harness", "delete-endpoint"]}
+        description="choose the harness the endpoint belongs to"
+        onSelect={(id) => navigate(`/agentcore/harness/delete-endpoint/${id}`)}
+      />
+    );
+  }
+  if (!endpointName) {
+    return (
+      <EndpointPicker
+        {...props}
+        harnessId={harnessId}
+        breadcrumb={["agentcore", "harness", "delete-endpoint", harnessId]}
+        description="choose an endpoint to delete"
+        onSelect={(name) => navigate(`/agentcore/harness/delete-endpoint/${harnessId}/${name}`)}
+      />
+    );
+  }
+  return <DeleteConfirm {...props} harnessId={harnessId} endpointName={endpointName} />;
+}
+
+function DeleteConfirm({
+  ctx,
+  core,
+  harnessId,
+  endpointName,
+}: ScreenProps & { harnessId: string; endpointName: string }) {
+  const opts = coreOptsFromCtx(ctx);
   const navigate = useNavigate();
 
-  useInput((_input, key) => {
-    if (key.escape) navigate(-1);
+  const detail = useQuery({
+    queryKey: ["harness-endpoint", opts.region, harnessId, endpointName],
+    queryFn: () => core.harness.getHarnessEndpoint(harnessId, endpointName, opts),
   });
+  const endpoint = detail.data?.endpoint;
 
   return (
-    <Layout
-      breadcrumb={["agentcore", "harness", "delete-endpoint"]}
-      keyHints={[
-        { key: "esc", label: "back" },
-        { key: "ctl+c", label: "quit" },
+    <ConfirmAction
+      breadcrumb={["agentcore", "harness", "delete-endpoint", harnessId, endpointName]}
+      title={endpoint?.endpointName ?? endpointName}
+      rows={[
+        { label: "arn", value: endpoint?.arn ?? "-" },
+        { label: "status", value: endpoint?.status ?? "-" },
+        { label: "target", value: endpoint?.targetVersion ?? "-" },
       ]}
-    >
-      <Text>TODO</Text>
-    </Layout>
+      message={`Delete endpoint ${endpointName}? Callers using it will lose access.`}
+      isPending={detail.isPending}
+      error={detail.isError ? (detail.error as Error) : null}
+      action={async () => {
+        const response = await core.harness.deleteHarnessEndpoint(
+          { harnessId, endpointName },
+          opts,
+        );
+        return [
+          { label: "name", value: response.endpoint?.endpointName ?? endpointName },
+          { label: "status", value: response.endpoint?.status ?? "DELETING" },
+        ];
+      }}
+      successTitle="Endpoint deletion started"
+      runningLabel="Deleting endpoint…"
+      onDone={() => navigate(`/agentcore/harness/list-endpoints/${harnessId}`)}
+    />
   );
 }

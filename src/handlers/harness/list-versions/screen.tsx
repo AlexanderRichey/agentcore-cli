@@ -1,26 +1,32 @@
-import { Text, useInput } from "ink";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import type { ScreenProps } from "../../types";
-import { Layout } from "../../../components/Layout";
+import { HarnessPicker } from "../../../components/HarnessPicker";
+import { VersionPicker } from "../../../components/VersionPicker";
 
-// HarnessListVersionsScreen is a stub for listing a harness's versions. Esc pops
-// back. TODO.
-export function HarnessListVersionsScreen(_props: ScreenProps) {
+// HarnessListVersionsScreen lists a harness's versions. Without a `:harnessId`
+// route value it renders a harness picker first; with one it lists that
+// harness's versions, and selecting a version opens its JSON detail.
+export function HarnessListVersionsScreen(props: ScreenProps) {
   const navigate = useNavigate();
+  const { harnessId } = useParams();
 
-  useInput((_input, key) => {
-    if (key.escape) navigate(-1);
-  });
+  if (!harnessId) {
+    return (
+      <HarnessPicker
+        {...props}
+        breadcrumb={["agentcore", "harness", "list-versions"]}
+        description="choose a harness to list versions for"
+        onSelect={(id) => navigate(`/agentcore/harness/list-versions/${id}`)}
+      />
+    );
+  }
 
   return (
-    <Layout
-      breadcrumb={["agentcore", "harness", "list-versions"]}
-      keyHints={[
-        { key: "esc", label: "back" },
-        { key: "ctl+c", label: "quit" },
-      ]}
-    >
-      <Text>TODO</Text>
-    </Layout>
+    <VersionPicker
+      {...props}
+      harnessId={harnessId}
+      breadcrumb={["agentcore", "harness", "list-versions", harnessId]}
+      onSelect={(version) => navigate(`/agentcore/harness/get-version/${harnessId}/${version}`)}
+    />
   );
 }

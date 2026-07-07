@@ -1,25 +1,19 @@
-import { Text, useInput } from "ink";
 import { useNavigate } from "react-router";
 import type { ScreenProps } from "../../types";
-import { Layout } from "../../../components/Layout";
+import { HarnessWizard } from "../../../components/HarnessWizard";
 
-// HarnessCreateScreen is a stub for creating a harness. Esc pops back. TODO.
-export function HarnessCreateScreen(_props: ScreenProps) {
+// HarnessCreateScreen is the interactive create-harness flow: a step wizard
+// (name → memory → tools → prompt → advanced → review) that ends in a
+// CreateHarness call. Success lands on the new harness's hub.
+export function HarnessCreateScreen(props: ScreenProps) {
   const navigate = useNavigate();
 
-  useInput((_input, key) => {
-    if (key.escape) navigate(-1);
-  });
-
   return (
-    <Layout
+    <HarnessWizard
+      {...props}
+      mode="create"
       breadcrumb={["agentcore", "harness", "create"]}
-      keyHints={[
-        { key: "esc", label: "back" },
-        { key: "ctl+c", label: "quit" },
-      ]}
-    >
-      <Text>TODO</Text>
-    </Layout>
+      onDone={(harnessId) => navigate(`/agentcore/harness/get/${harnessId}`)}
+    />
   );
 }

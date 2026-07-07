@@ -1,26 +1,28 @@
-import { Text, useInput } from "ink";
-import { useNavigate } from "react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useParams } from "react-router";
 import type { ScreenProps } from "../../types";
-import { Layout } from "../../../components/Layout";
+import { coreOptsFromCtx } from "../../utils";
+import { JsonDetail } from "../../../components/JsonDetail";
 
-// HarnessGetVersionScreen is a stub for getting a specific harness version. Esc
-// pops back. TODO.
-export function HarnessGetVersionScreen(_props: ScreenProps) {
-  const navigate = useNavigate();
+// HarnessGetVersionScreen shows one harness version's full definition as
+// scrollable JSON. The harness ID and version come from the route path values.
+export function HarnessGetVersionScreen({ ctx, core }: ScreenProps) {
+  const opts = coreOptsFromCtx(ctx);
+  const { harnessId, version } = useParams();
 
-  useInput((_input, key) => {
-    if (key.escape) navigate(-1);
+  const detail = useQuery({
+    queryKey: ["harness-version", opts.region, harnessId, version],
+    queryFn: () => core.harness.getHarnessVersion(harnessId!, version!, opts),
+    enabled: harnessId !== undefined && version !== undefined,
   });
 
   return (
-    <Layout
-      breadcrumb={["agentcore", "harness", "get-version"]}
-      keyHints={[
-        { key: "esc", label: "back" },
-        { key: "ctl+c", label: "quit" },
-      ]}
-    >
-      <Text>TODO</Text>
-    </Layout>
+    <JsonDetail
+      breadcrumb={["agentcore", "harness", "get-version", harnessId ?? "", version ?? ""]}
+      isPending={detail.isPending}
+      error={detail.isError ? (detail.error as Error) : null}
+      data={detail.data?.harness}
+      loadingLabel="Loading version…"
+    />
   );
 }
