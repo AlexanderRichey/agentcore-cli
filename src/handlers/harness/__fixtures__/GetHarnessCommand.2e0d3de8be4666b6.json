@@ -24,7 +24,9 @@
     ],
     "tools": [],
     "skills": [],
-    "allowedTools": ["*"],
+    "allowedTools": [
+      "*"
+    ],
     "truncation": {
       "strategy": "sliding_window",
       "config": {

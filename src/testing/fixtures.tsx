@@ -115,6 +115,10 @@ export function fixtureFactories(dir: string): {
 // mode it (re)writes the file; otherwise it asserts equality, so a behavior change
 // surfaces as a reviewable golden diff. Use for asserting a command's rendered
 // output rather than pinning exact strings inline.
+//
+// Trailing whitespace is ignored on both sides: golden files are committed and
+// the pre-commit Prettier hook adds a final newline to *.json, which is not a
+// behavior difference worth failing on.
 export function matchGolden(dir: string, name: string, actual: string): void {
   const path = join(dir, name);
 
@@ -128,5 +132,5 @@ export function matchGolden(dir: string, name: string, actual: string): void {
     throw new Error(`Missing golden file ${path}. Re-run with RECORD=1 to record expected output.`);
   }
   const expected = readFileSync(path, "utf8");
-  expect(actual).toBe(expected);
+  expect(actual.replace(/\s+$/, "")).toBe(expected.replace(/\s+$/, ""));
 }

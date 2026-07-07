@@ -20,17 +20,24 @@ export interface RootProps {
   core: Core;
 
   ctx: Context;
+
+  // queryClient is an optional override for the react-query client. Production
+  // leaves it unset (a stable one is created per mount); tests inject one — e.g.
+  // with retries disabled — to keep behavior deterministic and fast.
+  queryClient?: QueryClient;
 }
 
 // Root is the top of the Ink React tree, rendered by the `agentcore` default
 // handler when the CLI is invoked without a subcommand.
-export function Root({ path, ctx, core }: RootProps) {
+export function Root({ path, ctx, core, queryClient }: RootProps) {
   // Create the QueryClient once per mount; a lazy initializer keeps it stable
-  // across re-renders (a fresh client would drop the cache and refetch).
-  const [queryClient] = useState(() => new QueryClient());
+  // across re-renders (a fresh client would drop the cache and refetch). An
+  // injected client (tests) takes precedence.
+  const [defaultQueryClient] = useState(() => new QueryClient());
+  const client = queryClient ?? defaultQueryClient;
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={client}>
       {/* initialEntries seeds the in-memory history with the CLI command path,
           then leaves navigation to the router so screens can useNavigate. */}
       <MemoryRouter initialEntries={[path]}>
