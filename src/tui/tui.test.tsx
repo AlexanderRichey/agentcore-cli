@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import { createRootHandler } from "../handlers";
 import { renderJson } from "./index";
-import { TestCoreClient, testIO, createInMemoryLogger } from "../testing";
+import { TestCoreClient, testIO, createTestLogger } from "../testing";
 
 describe("renderJson", () => {
   test("pretty-prints a value as indented JSON to the given writer", () => {
@@ -20,7 +20,7 @@ describe("--json short-circuits the TUI", () => {
     const io = testIO();
     const root = createRootHandler(new TestCoreClient(), {
       io: io.io,
-      logger: createInMemoryLogger(),
+      logger: createTestLogger(),
     });
     await root.route(["node", "agentcore", ...args, "--json"]);
     return io.stdout();

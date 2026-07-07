@@ -6,7 +6,7 @@ export interface LogEntry {
   args: LogArgs;
 }
 
-export interface InMemoryLogger extends Logger {
+export interface TestLogger extends Logger {
   /** All recorded log entries across every level. */
   entries: LogEntry[];
 
@@ -28,7 +28,7 @@ function matchesPattern(args: LogArgs, pattern: string | RegExp): boolean {
   return false;
 }
 
-export function createInMemoryLogger(): InMemoryLogger {
+export function createTestLogger(): TestLogger {
   const entries: LogEntry[] = [];
 
   function log(level: LogLevelName) {
@@ -37,7 +37,7 @@ export function createInMemoryLogger(): InMemoryLogger {
     };
   }
 
-  const logger: InMemoryLogger = {
+  const logger: TestLogger = {
     debug: log("debug"),
     info: log("info"),
     warn: log("warn"),

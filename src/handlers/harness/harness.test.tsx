@@ -2,7 +2,7 @@ import { test, expect, describe } from "bun:test";
 import { join } from "node:path";
 import { CoreClient } from "../../core";
 import { createRootHandler } from "../index";
-import { fixtureFactories, isRecording, matchGolden, testIO, createInMemoryLogger } from "../../testing";
+import { fixtureFactories, isRecording, matchGolden, testIO, createTestLogger } from "../../testing";
 
 // End-to-end command-flow tests for the `harness` subtree.
 //
@@ -26,7 +26,7 @@ async function run(args: string[]): Promise<string> {
   const { createControlClient, createDataClient, createIamClient } = fixtureFactories(FIXTURES);
   const core = new CoreClient(createControlClient, createDataClient, createIamClient);
   const io = testIO();
-  const root = createRootHandler(core, { io: io.io, logger: createInMemoryLogger() });
+  const root = createRootHandler(core, { io: io.io, logger: createTestLogger() });
   await root.route(["node", "agentcore", ...args, "--region", REGION]);
   return io.stdout();
 }

@@ -8,8 +8,8 @@ import { createRootHandler } from "../handlers";
 import { Root } from "../components/Root";
 import { TestCoreClient } from "./TestCoreClient";
 import { testIO } from "./testIO";
-import { createInMemoryLogger } from "./inMemoryLogger";
 import { tick, waitFor } from "./timing";
+import { createTestLogger } from "./testLogger";
 
 // TUI test harness.
 //
@@ -29,7 +29,7 @@ import { tick, waitFor } from "./timing";
 // keeps the command menus faithful to the production command structure.
 function baseContext(core: TestCoreClient): Context {
   const rootCommand = compile(
-    createRootHandler(core, { io: testIO().io, logger: createInMemoryLogger() }),
+    createRootHandler(core, { io: testIO().io, logger: createTestLogger() }),
     ValueContext.EmptyContext(),
   );
 
@@ -132,8 +132,6 @@ export function renderScreen(path: string, options: RenderScreenOptions = {}): R
     unmount: instance.unmount,
   };
 }
-
-export { tick, waitFor } from "./timing";
 
 // waitForText resolves once `text` appears in the latest frame.
 export function waitForText(
