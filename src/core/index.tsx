@@ -1,9 +1,22 @@
 import { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
 import { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
+import { IAMClient } from "@aws-sdk/client-iam";
 import { HarnessClient } from "./harness";
-import type { AwsClients, ClientConfig, CreateControlClient, CreateDataClient } from "./types";
+import type {
+  AwsClients,
+  ClientConfig,
+  CreateControlClient,
+  CreateDataClient,
+  CreateIamClient,
+} from "./types";
 
-export type { AwsClients, ClientConfig, CreateControlClient, CreateDataClient } from "./types";
+export type {
+  AwsClients,
+  ClientConfig,
+  CreateControlClient,
+  CreateDataClient,
+  CreateIamClient,
+} from "./types";
 
 // CoreClient is the single entry point to the Bedrock AgentCore APIs. It owns the
 // underlying SDK clients (one per config, created on demand from the injected
@@ -12,6 +25,7 @@ export type { AwsClients, ClientConfig, CreateControlClient, CreateDataClient } 
 export class CoreClient implements AwsClients {
   private controlClients = new Map<string, BedrockAgentCoreControlClient>();
   private dataClients = new Map<string, BedrockAgentCoreClient>();
+  private iamClients = new Map<string, IAMClient>();
 
   // Feature-scoped sub-clients. Access as e.g. `coreClient.harness.getHarness(...)`.
   readonly harness: HarnessClient = new HarnessClient(this);
@@ -19,6 +33,7 @@ export class CoreClient implements AwsClients {
   constructor(
     private readonly createControlClient: CreateControlClient,
     private readonly createDataClient: CreateDataClient,
+    private readonly createIamClient: CreateIamClient,
   ) {}
 
   // control returns the control-plane client for `config`, creating and caching it
@@ -41,6 +56,18 @@ export class CoreClient implements AwsClients {
     if (!client) {
       client = this.createDataClient(config);
       this.dataClients.set(key, client);
+    }
+    return client;
+  }
+
+  // iam returns the IAM client for `config`, creating and caching it on first
+  // use (used to provision default harness execution roles).
+  iam(config: ClientConfig): IAMClient {
+    const key = cacheKey(config);
+    let client = this.iamClients.get(key);
+    if (!client) {
+      client = this.createIamClient(config);
+      this.iamClients.set(key, client);
     }
     return client;
   }

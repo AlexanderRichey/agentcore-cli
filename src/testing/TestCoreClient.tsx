@@ -1,9 +1,20 @@
 import type {
+  CreateHarnessEndpointRequest,
+  CreateHarnessEndpointResponse,
+  CreateHarnessResponse,
+  DeleteHarnessEndpointRequest,
+  DeleteHarnessEndpointResponse,
+  DeleteHarnessRequest,
+  DeleteHarnessResponse,
   GetHarnessResponse,
   GetHarnessEndpointResponse,
   ListHarnessesResponse,
   ListHarnessEndpointsResponse,
   ListHarnessVersionsResponse,
+  UpdateHarnessEndpointRequest,
+  UpdateHarnessEndpointResponse,
+  UpdateHarnessRequest,
+  UpdateHarnessResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import type {
   InvokeAgentRuntimeCommandRequest,
@@ -14,7 +25,7 @@ import type {
   InvokeHarnessStreamOutput,
 } from "@aws-sdk/client-bedrock-agentcore";
 import type { Core } from "../handlers/types";
-import type { CoreHarnessClient } from "../handlers/harness/types";
+import type { CoreHarnessClient, CreateHarnessInput } from "../handlers/harness/types";
 import type { CoreOptions } from "../core/types";
 
 // TestCoreClient is a hand-controllable `Core` for tests. It implements the same
@@ -44,6 +55,15 @@ const DEFAULT_GET_VERSION_RESPONSE: GetHarnessResponse = {} as GetHarnessRespons
 const DEFAULT_LIST_ENDPOINTS_RESPONSE: ListHarnessEndpointsResponse = { endpoints: [] };
 const DEFAULT_LIST_VERSIONS_RESPONSE: ListHarnessVersionsResponse = { harnessVersions: [] };
 const DEFAULT_GET_ENDPOINT_RESPONSE: GetHarnessEndpointResponse = {} as GetHarnessEndpointResponse;
+const DEFAULT_CREATE_RESPONSE: CreateHarnessResponse = {} as CreateHarnessResponse;
+const DEFAULT_UPDATE_RESPONSE: UpdateHarnessResponse = {} as UpdateHarnessResponse;
+const DEFAULT_DELETE_RESPONSE: DeleteHarnessResponse = {} as DeleteHarnessResponse;
+const DEFAULT_CREATE_ENDPOINT_RESPONSE: CreateHarnessEndpointResponse =
+  {} as CreateHarnessEndpointResponse;
+const DEFAULT_UPDATE_ENDPOINT_RESPONSE: UpdateHarnessEndpointResponse =
+  {} as UpdateHarnessEndpointResponse;
+const DEFAULT_DELETE_ENDPOINT_RESPONSE: DeleteHarnessEndpointResponse =
+  {} as DeleteHarnessEndpointResponse;
 
 // abortError mirrors the error the SDK's abort handling rejects with.
 function abortError(): Error {
@@ -96,6 +116,12 @@ export class TestHarnessClient implements CoreHarnessClient {
   private invokeStreams: AsyncIterable<InvokeHarnessStreamOutput>[] = [];
   private execEvents: InvokeAgentRuntimeCommandStreamOutput[] = [];
   private execStreams: AsyncIterable<InvokeAgentRuntimeCommandStreamOutput>[] = [];
+  private createResponse: CreateHarnessResponse = DEFAULT_CREATE_RESPONSE;
+  private updateResponse: UpdateHarnessResponse = DEFAULT_UPDATE_RESPONSE;
+  private deleteResponse: DeleteHarnessResponse = DEFAULT_DELETE_RESPONSE;
+  private createEndpointResponse: CreateHarnessEndpointResponse = DEFAULT_CREATE_ENDPOINT_RESPONSE;
+  private updateEndpointResponse: UpdateHarnessEndpointResponse = DEFAULT_UPDATE_ENDPOINT_RESPONSE;
+  private deleteEndpointResponse: DeleteHarnessEndpointResponse = DEFAULT_DELETE_ENDPOINT_RESPONSE;
   private error?: Error;
 
   // setListResponse sets what listHarnesses resolves to (when not erroring).
@@ -167,11 +193,104 @@ export class TestHarnessClient implements CoreHarnessClient {
     return this;
   }
 
+  // setCreateResponse sets what createHarness resolves to (when not erroring).
+  setCreateResponse(response: CreateHarnessResponse): this {
+    this.createResponse = response;
+    return this;
+  }
+
+  // setUpdateResponse sets what updateHarness resolves to (when not erroring).
+  setUpdateResponse(response: UpdateHarnessResponse): this {
+    this.updateResponse = response;
+    return this;
+  }
+
+  // setDeleteResponse sets what deleteHarness resolves to (when not erroring).
+  setDeleteResponse(response: DeleteHarnessResponse): this {
+    this.deleteResponse = response;
+    return this;
+  }
+
+  // setCreateEndpointResponse sets what createHarnessEndpoint resolves to (when
+  // not erroring).
+  setCreateEndpointResponse(response: CreateHarnessEndpointResponse): this {
+    this.createEndpointResponse = response;
+    return this;
+  }
+
+  // setUpdateEndpointResponse sets what updateHarnessEndpoint resolves to (when
+  // not erroring).
+  setUpdateEndpointResponse(response: UpdateHarnessEndpointResponse): this {
+    this.updateEndpointResponse = response;
+    return this;
+  }
+
+  // setDeleteEndpointResponse sets what deleteHarnessEndpoint resolves to (when
+  // not erroring).
+  setDeleteEndpointResponse(response: DeleteHarnessEndpointResponse): this {
+    this.deleteEndpointResponse = response;
+    return this;
+  }
+
   // setError makes every subsequent call reject with `error`. Pass undefined to
   // clear it.
   setError(error: Error | undefined): this {
     this.error = error;
     return this;
+  }
+
+  async createHarness(
+    input: CreateHarnessInput,
+    options: CoreOptions,
+  ): Promise<CreateHarnessResponse> {
+    this.calls.push({ method: "createHarness", args: [input, options] });
+    if (this.error) throw this.error;
+    return this.createResponse;
+  }
+
+  async updateHarness(
+    request: UpdateHarnessRequest,
+    options: CoreOptions,
+  ): Promise<UpdateHarnessResponse> {
+    this.calls.push({ method: "updateHarness", args: [request, options] });
+    if (this.error) throw this.error;
+    return this.updateResponse;
+  }
+
+  async deleteHarness(
+    request: DeleteHarnessRequest,
+    options: CoreOptions,
+  ): Promise<DeleteHarnessResponse> {
+    this.calls.push({ method: "deleteHarness", args: [request, options] });
+    if (this.error) throw this.error;
+    return this.deleteResponse;
+  }
+
+  async createHarnessEndpoint(
+    request: CreateHarnessEndpointRequest,
+    options: CoreOptions,
+  ): Promise<CreateHarnessEndpointResponse> {
+    this.calls.push({ method: "createHarnessEndpoint", args: [request, options] });
+    if (this.error) throw this.error;
+    return this.createEndpointResponse;
+  }
+
+  async updateHarnessEndpoint(
+    request: UpdateHarnessEndpointRequest,
+    options: CoreOptions,
+  ): Promise<UpdateHarnessEndpointResponse> {
+    this.calls.push({ method: "updateHarnessEndpoint", args: [request, options] });
+    if (this.error) throw this.error;
+    return this.updateEndpointResponse;
+  }
+
+  async deleteHarnessEndpoint(
+    request: DeleteHarnessEndpointRequest,
+    options: CoreOptions,
+  ): Promise<DeleteHarnessEndpointResponse> {
+    this.calls.push({ method: "deleteHarnessEndpoint", args: [request, options] });
+    if (this.error) throw this.error;
+    return this.deleteEndpointResponse;
   }
 
   async getHarness(id: string, options: CoreOptions): Promise<GetHarnessResponse> {

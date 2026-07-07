@@ -1,14 +1,31 @@
 import {
+  CreateHarnessCommand,
+  CreateHarnessEndpointCommand,
+  DeleteHarnessCommand,
+  DeleteHarnessEndpointCommand,
   GetHarnessCommand,
   GetHarnessEndpointCommand,
   ListHarnessesCommand,
   ListHarnessEndpointsCommand,
   ListHarnessVersionsCommand,
+  UpdateHarnessCommand,
+  UpdateHarnessEndpointCommand,
+  type CreateHarnessEndpointRequest,
+  type CreateHarnessEndpointResponse,
+  type CreateHarnessResponse,
+  type DeleteHarnessEndpointRequest,
+  type DeleteHarnessEndpointResponse,
+  type DeleteHarnessRequest,
+  type DeleteHarnessResponse,
   type GetHarnessResponse,
   type GetHarnessEndpointResponse,
   type ListHarnessesResponse,
   type ListHarnessEndpointsResponse,
   type ListHarnessVersionsResponse,
+  type UpdateHarnessEndpointRequest,
+  type UpdateHarnessEndpointResponse,
+  type UpdateHarnessRequest,
+  type UpdateHarnessResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import {
   InvokeAgentRuntimeCommandCommand,
@@ -18,8 +35,9 @@ import {
   type InvokeHarnessRequest,
   type InvokeHarnessResponse,
 } from "@aws-sdk/client-bedrock-agentcore";
-import type { CoreHarnessClient } from "../handlers/harness/types";
+import type { CoreHarnessClient, CreateHarnessInput } from "../handlers/harness/types";
 import type { AwsClients, CoreOptions } from "./types";
+import { ensureDefaultExecutionRole } from "./executionRole";
 import { toClientConfig } from "./utils";
 
 // HarnessClient implements the harness-facing operations on top of the shared AWS
@@ -86,6 +104,77 @@ export class HarnessClient implements CoreHarnessClient {
       .send(new ListHarnessVersionsCommand({ harnessId: id, nextToken, maxResults }));
   }
 
+  async createHarness(
+    input: CreateHarnessInput,
+    options: CoreOptions,
+  ): Promise<CreateHarnessResponse> {
+    const control = this.clients.control(toClientConfig(options));
+    const { executionRoleArn, ...request } = input;
+    if (executionRoleArn) {
+      return control.send(new CreateHarnessCommand({ ...request, executionRoleArn }));
+    }
+
+    // No role supplied: provision (or reuse) the default execution role, then
+    // create the harness with it. IAM is eventually consistent — a role created
+    // moments ago may not yet be assumable by the AgentCore service principal —
+    // so retry the create while the service reports the role as unusable.
+    const defaultRoleArn = await ensureDefaultExecutionRole(
+      // IAM is a global service; the region only selects the endpoint, and the
+      // agentcore endpoint override must not leak onto it.
+      this.clients.iam({ region: options.region }),
+      input.harnessName!,
+      options.region,
+    );
+    return retryWhileRoleUnassumable(() =>
+      control.send(new CreateHarnessCommand({ ...request, executionRoleArn: defaultRoleArn })),
+    );
+  }
+
+  async updateHarness(
+    request: UpdateHarnessRequest,
+    options: CoreOptions,
+  ): Promise<UpdateHarnessResponse> {
+    return this.clients
+      .control(toClientConfig(options))
+      .send(new UpdateHarnessCommand({ ...request }));
+  }
+
+  async deleteHarness(
+    request: DeleteHarnessRequest,
+    options: CoreOptions,
+  ): Promise<DeleteHarnessResponse> {
+    return this.clients
+      .control(toClientConfig(options))
+      .send(new DeleteHarnessCommand({ ...request }));
+  }
+
+  async createHarnessEndpoint(
+    request: CreateHarnessEndpointRequest,
+    options: CoreOptions,
+  ): Promise<CreateHarnessEndpointResponse> {
+    return this.clients
+      .control(toClientConfig(options))
+      .send(new CreateHarnessEndpointCommand({ ...request }));
+  }
+
+  async updateHarnessEndpoint(
+    request: UpdateHarnessEndpointRequest,
+    options: CoreOptions,
+  ): Promise<UpdateHarnessEndpointResponse> {
+    return this.clients
+      .control(toClientConfig(options))
+      .send(new UpdateHarnessEndpointCommand({ ...request }));
+  }
+
+  async deleteHarnessEndpoint(
+    request: DeleteHarnessEndpointRequest,
+    options: CoreOptions,
+  ): Promise<DeleteHarnessEndpointResponse> {
+    return this.clients
+      .control(toClientConfig(options))
+      .send(new DeleteHarnessEndpointCommand({ ...request }));
+  }
+
   async invokeHarness(
     request: InvokeHarnessRequest,
     options: CoreOptions,
@@ -114,6 +203,28 @@ export class HarnessClient implements CoreHarnessClient {
     if (!response.stream || !abortSignal) return response;
     // Same mid-stream abort gap as invokeHarness; see above.
     return { ...response, stream: abortable(response.stream, abortSignal) };
+  }
+}
+
+// retryWhileRoleUnassumable retries `operation` while it fails with the
+// validation error AgentCore raises for an execution role it cannot yet assume
+// (fresh IAM roles propagate over several seconds). Any other failure — or
+// exhausting the attempts — rethrows.
+async function retryWhileRoleUnassumable<T>(
+  operation: () => Promise<T>,
+  attempts = 8,
+  delayMs = 2000,
+): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      const retryable =
+        (error as Error).name === "ValidationException" &&
+        /role|assume|trust/i.test((error as Error).message ?? "");
+      if (!retryable || attempt >= attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
 }
 

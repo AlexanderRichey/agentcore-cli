@@ -3,8 +3,14 @@ import { join } from "node:path";
 import { expect } from "bun:test";
 import type { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
 import type { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
-import type { ClientConfig, CreateControlClient, CreateDataClient } from "../core/types";
-import { createControlClient, createDataClient } from "../core/factories";
+import type { IAMClient } from "@aws-sdk/client-iam";
+import type {
+  ClientConfig,
+  CreateControlClient,
+  CreateDataClient,
+  CreateIamClient,
+} from "../core/types";
+import { createControlClient, createDataClient, createIamClient } from "../core/factories";
 import { parse, stringify } from "./serialization";
 
 // Golden-file record/replay for the AWS SDK seam.
@@ -57,10 +63,30 @@ function normalizeResponse(response: unknown): unknown {
   return response;
 }
 
+// Service errors are as much a part of a recorded flow as successes (e.g. the
+// default-execution-role flow probes GetRole and expects NoSuchEntityException
+// on a fresh account). A rejected send is recorded under this tag and re-thrown
+// with the same name/message on replay.
+const ERROR_TAG = "$error";
+
+interface TaggedError {
+  [ERROR_TAG]: { name: string; message: string };
+}
+
+function isTaggedError(value: unknown): value is TaggedError {
+  return typeof value === "object" && value !== null && ERROR_TAG in value;
+}
+
+function reviveError(tagged: TaggedError): Error {
+  const error = new Error(tagged[ERROR_TAG].message);
+  error.name = tagged[ERROR_TAG].name;
+  return error;
+}
+
 // makeRecordingSend returns a `.send()` that records to / replays from `dir`.
-// In record mode it delegates to the real client, saves the response, and
-// returns it; otherwise it reads the fixture, failing with an actionable message
-// when one is missing.
+// In record mode it delegates to the real client, saves the response (or the
+// service error), and propagates it; otherwise it reads the fixture, failing
+// with an actionable message when one is missing.
 function makeRecordingSend<C extends { send: (command: any) => Promise<any> }>(
   realClient: C,
   dir: string,
@@ -69,8 +95,17 @@ function makeRecordingSend<C extends { send: (command: any) => Promise<any> }>(
     const path = fixturePath(dir, command);
 
     if (isRecording()) {
-      const response = normalizeResponse(await realClient.send(command as never));
       mkdirSync(dir, { recursive: true });
+      let response: unknown;
+      try {
+        response = normalizeResponse(await realClient.send(command as never));
+      } catch (error) {
+        const tagged: TaggedError = {
+          [ERROR_TAG]: { name: (error as Error).name, message: (error as Error).message },
+        };
+        writeFileSync(path, stringify(tagged));
+        throw error;
+      }
       writeFileSync(path, stringify(response));
       return response;
     }
@@ -81,7 +116,9 @@ function makeRecordingSend<C extends { send: (command: any) => Promise<any> }>(
           `Re-run with RECORD=1 to record it against the live API.`,
       );
     }
-    return parse(readFileSync(path, "utf8"));
+    const recorded = parse(readFileSync(path, "utf8"));
+    if (isTaggedError(recorded)) throw reviveError(recorded);
+    return recorded;
   };
 }
 
@@ -92,6 +129,7 @@ function makeRecordingSend<C extends { send: (command: any) => Promise<any> }>(
 export function fixtureFactories(dir: string): {
   createControlClient: CreateControlClient;
   createDataClient: CreateDataClient;
+  createIamClient: CreateIamClient;
 } {
   return {
     createControlClient: (config: ClientConfig) => {
@@ -107,6 +145,12 @@ export function fixtureFactories(dir: string): {
       return {
         send: makeRecordingSend(real, dir),
       } as unknown as BedrockAgentCoreClient;
+    },
+    createIamClient: (config: ClientConfig) => {
+      const real = createIamClient(config);
+      return {
+        send: makeRecordingSend(real, dir),
+      } as unknown as IAMClient;
     },
   };
 }

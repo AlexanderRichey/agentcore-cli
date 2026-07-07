@@ -5,7 +5,7 @@
 // when the file is run via `bun run src/index.ts`.
 
 import { CoreClient } from "./core";
-import { createControlClient, createDataClient } from "./core/factories";
+import { createControlClient, createDataClient, createIamClient } from "./core/factories";
 import { createRootHandler } from "./handlers";
 import { runWithExitCode } from "./runnable";
 
@@ -14,7 +14,7 @@ process.exit(
     // Wrap the SDK clients in the CoreClient the handlers consume. Passing
     // factories (rather than instances) lets CoreClient build one client per
     // region on demand.
-    const coreClient = new CoreClient(createControlClient, createDataClient);
+    const coreClient = new CoreClient(createControlClient, createDataClient, createIamClient);
 
     // Pass it to the root handler, along with the process's standard streams as
     // the app's io. CoreClient exposes feature sub-clients (e.g. `.harness`), so

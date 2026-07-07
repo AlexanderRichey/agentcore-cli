@@ -1,9 +1,21 @@
 import type {
+  CreateHarnessEndpointRequest,
+  CreateHarnessEndpointResponse,
+  CreateHarnessRequest,
+  CreateHarnessResponse,
+  DeleteHarnessEndpointRequest,
+  DeleteHarnessEndpointResponse,
+  DeleteHarnessRequest,
+  DeleteHarnessResponse,
   GetHarnessResponse,
   GetHarnessEndpointResponse,
   ListHarnessesResponse,
   ListHarnessEndpointsResponse,
   ListHarnessVersionsResponse,
+  UpdateHarnessEndpointRequest,
+  UpdateHarnessEndpointResponse,
+  UpdateHarnessRequest,
+  UpdateHarnessResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import type {
   InvokeAgentRuntimeCommandRequest,
@@ -13,7 +25,35 @@ import type {
 } from "@aws-sdk/client-bedrock-agentcore";
 import type { CoreOptions } from "../../core/types";
 
+// CreateHarnessInput is CreateHarnessRequest with the execution role made
+// optional: when omitted, Core provisions the default execution role in IAM and
+// creates the harness with it.
+export type CreateHarnessInput = Omit<CreateHarnessRequest, "executionRoleArn"> & {
+  executionRoleArn?: string;
+};
+
 export interface CoreHarnessClient {
+  createHarness(input: CreateHarnessInput, options: CoreOptions): Promise<CreateHarnessResponse>;
+  updateHarness(
+    request: UpdateHarnessRequest,
+    options: CoreOptions,
+  ): Promise<UpdateHarnessResponse>;
+  deleteHarness(
+    request: DeleteHarnessRequest,
+    options: CoreOptions,
+  ): Promise<DeleteHarnessResponse>;
+  createHarnessEndpoint(
+    request: CreateHarnessEndpointRequest,
+    options: CoreOptions,
+  ): Promise<CreateHarnessEndpointResponse>;
+  updateHarnessEndpoint(
+    request: UpdateHarnessEndpointRequest,
+    options: CoreOptions,
+  ): Promise<UpdateHarnessEndpointResponse>;
+  deleteHarnessEndpoint(
+    request: DeleteHarnessEndpointRequest,
+    options: CoreOptions,
+  ): Promise<DeleteHarnessEndpointResponse>;
   getHarness(id: string, options: CoreOptions): Promise<GetHarnessResponse>;
   getHarnessVersion(id: string, version: string, options: CoreOptions): Promise<GetHarnessResponse>;
   getHarnessEndpoint(

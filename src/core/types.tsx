@@ -1,5 +1,6 @@
 import type { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
 import type { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
+import type { IAMClient } from "@aws-sdk/client-iam";
 
 // CoreOptions is the standard trailing argument for Core operations. It carries
 // the per-call settings a handler resolves from context (the AWS region and an
@@ -23,6 +24,7 @@ export interface ClientConfig {
 // while keeping construction swappable for unit tests.
 export type CreateControlClient = (config: ClientConfig) => BedrockAgentCoreControlClient;
 export type CreateDataClient = (config: ClientConfig) => BedrockAgentCoreClient;
+export type CreateIamClient = (config: ClientConfig) => IAMClient;
 
 // AwsClients hands out configured SDK clients. CoreClient implements it and its
 // sub-clients (HarnessClient, etc.) consume it, so they all share the same
@@ -32,4 +34,5 @@ export type CreateDataClient = (config: ClientConfig) => BedrockAgentCoreClient;
 export interface AwsClients {
   control(config: ClientConfig): BedrockAgentCoreControlClient;
   data(config: ClientConfig): BedrockAgentCoreClient;
+  iam(config: ClientConfig): IAMClient;
 }
