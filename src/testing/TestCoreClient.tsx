@@ -1,5 +1,6 @@
 import type {
   GetHarnessResponse,
+  GetHarnessEndpointResponse,
   ListHarnessesResponse,
   ListHarnessEndpointsResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
@@ -36,6 +37,7 @@ export interface RecordedCall {
 const DEFAULT_LIST_RESPONSE: ListHarnessesResponse = { harnesses: [] };
 const DEFAULT_GET_RESPONSE: GetHarnessResponse = {} as GetHarnessResponse;
 const DEFAULT_LIST_ENDPOINTS_RESPONSE: ListHarnessEndpointsResponse = { endpoints: [] };
+const DEFAULT_GET_ENDPOINT_RESPONSE: GetHarnessEndpointResponse = {} as GetHarnessEndpointResponse;
 
 // abortError mirrors the error the SDK's abort handling rejects with.
 function abortError(): Error {
@@ -80,6 +82,7 @@ export class TestHarnessClient implements CoreHarnessClient {
 
   private listResponse: ListHarnessesResponse = DEFAULT_LIST_RESPONSE;
   private getResponse: GetHarnessResponse = DEFAULT_GET_RESPONSE;
+  private getEndpointResponse: GetHarnessEndpointResponse = DEFAULT_GET_ENDPOINT_RESPONSE;
   private listEndpointsResponse: ListHarnessEndpointsResponse = DEFAULT_LIST_ENDPOINTS_RESPONSE;
   private invokeEvents: InvokeHarnessStreamOutput[] = [];
   private invokeStreams: AsyncIterable<InvokeHarnessStreamOutput>[] = [];
@@ -94,6 +97,13 @@ export class TestHarnessClient implements CoreHarnessClient {
   // setGetResponse sets what getHarness resolves to (when not erroring).
   setGetResponse(response: GetHarnessResponse): this {
     this.getResponse = response;
+    return this;
+  }
+
+  // setGetEndpointResponse sets what getHarnessEndpoint resolves to (when not
+  // erroring).
+  setGetEndpointResponse(response: GetHarnessEndpointResponse): this {
+    this.getEndpointResponse = response;
     return this;
   }
 
@@ -130,6 +140,16 @@ export class TestHarnessClient implements CoreHarnessClient {
     this.calls.push({ method: "getHarness", args: [id, options] });
     if (this.error) throw this.error;
     return this.getResponse;
+  }
+
+  async getHarnessEndpoint(
+    id: string,
+    qualifier: string,
+    options: CoreOptions,
+  ): Promise<GetHarnessEndpointResponse> {
+    this.calls.push({ method: "getHarnessEndpoint", args: [id, qualifier, options] });
+    if (this.error) throw this.error;
+    return this.getEndpointResponse;
   }
 
   async listHarnesses(

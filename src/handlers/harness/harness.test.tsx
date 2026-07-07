@@ -78,6 +78,32 @@ describe("harness list-endpoints", () => {
   });
 });
 
+describe("harness get-endpoint", () => {
+  test("prints the endpoint detail as JSON for a given id and qualifier", async () => {
+    const out = await run([
+      "harness",
+      "get-endpoint",
+      "--id",
+      "MyPDXHarness-rhkXkAE1IS",
+      "--qualifier",
+      "DEFAULT",
+    ]);
+    matchGolden(FIXTURES, "get-endpoint.golden.json", out);
+  });
+
+  test("errors when --id is omitted (leaf requires it)", async () => {
+    await expect(
+      run(["harness", "get-endpoint", "--id", "", "--qualifier", "DEFAULT"]),
+    ).rejects.toThrow(/--id/);
+  });
+
+  test("errors when --qualifier is omitted (leaf requires it)", async () => {
+    await expect(
+      run(["harness", "get-endpoint", "--id", "MyPDXHarness-rhkXkAE1IS", "--qualifier", ""]),
+    ).rejects.toThrow(/--qualifier/);
+  });
+});
+
 describe("unimplemented harness subcommands", () => {
   // These leaves are scaffolded but not yet implemented. Locking in their
   // current behavior documents the surface and flags the day they change.
@@ -87,7 +113,6 @@ describe("unimplemented harness subcommands", () => {
     "delete",
     "exec",
     "create-endpoint",
-    "get-endpoint",
     "update-endpoint",
     "delete-endpoint",
     "get-versions",
