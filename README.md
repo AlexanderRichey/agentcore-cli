@@ -81,18 +81,70 @@ it takes **factory functions** (`(config) => new BedrockAgentCore...Client(...)`
 injected at the app edge in `src/index.ts`. That keeps the SDK swappable —
 crucial for the testing strategy below.
 
-### Tests live beside source
+### Testing
 
 Tests sit next to the code they cover as `<file>.test.tsx` (e.g.
-`src/router/router.test.ts`), run with `bun test`.
+`src/router/router.test.ts`), run with `bun test`. Shared test infrastructure
+lives in `src/testing/`.
 
-We have not written the application-level tests yet, but the strategy the app is
-structured around is **dependency injection end to end**. Because every
-dependency is injected at the edges (Core client factories in `src/index.ts`,
-`core`/`ctx` threaded through handlers and screens), a test can construct the
-whole CLI with mocked dependencies at the boundary and exercise a real command
-flow — argument parsing, middleware, handler, and Core — as a single unit,
-asserting on the output. The seams already exist; the tests will plug into them.
+The guiding principle is **test behavior, not implementation**: a good test lets
+a maintainer refactor freely and only fails when observable behavior changes.
+This is possible because the app injects every dependency at its edges, so a
+test can build the whole CLI with test doubles at the boundary and drive a real
+command flow — argument parsing, middleware, handler, Core, and (for the TUI)
+rendering — as a single unit, asserting on the output a user would see.
+
+We aim for **90% line coverage** (`bun test --coverage`).
+
+#### Injected IO
+
+Nothing in the app reaches for `process.stdout`/`console.*` directly. An `AppIO`
+(`{ stdin, stdout, stderr }`, defined in `src/handlers/types.tsx`) is passed to
+`createRootHandler(core, io)` at the edge (`src/index.ts` passes the real process
+streams) and threaded down to the TUI renderer and handlers. JSON output flows
+through the context: a `withJsonRenderer` middleware pins a `JsonRenderer` wired
+to the configured stdout, and leaf handlers emit via
+`ctx.require(JsonRendererKey).renderJson(...)`. In tests, `testIO()` supplies an
+in-memory `AppIO` with `stdout()`/`stderr()` accessors, so a command's output is
+captured with no global patching.
+
+#### Golden files and record mode
+
+Handler tests run the real `CoreClient` over fixture-backed SDK clients and
+compare rendered output against committed **golden files**. The record/replay
+seam sits at the SDK `.send()` boundary (the same seam `src/index.ts` wires the
+real clients into), so replayed tests still exercise the real `CoreClient`,
+`HarnessClient`, and option translation — only the network call is swapped out.
+
+Two modes, selected by the `RECORD` env var:
+
+```bash
+RECORD=1 bun test   # hit the live AWS APIs and (re)write fixtures + golden files
+bun test            # replay the saved fixtures; never touch the network
+```
+
+Recording lets the suite be fast, deterministic, and runnable offline/in CI.
+Refresh the fixtures by re-running in record mode when the APIs or expected
+output change. Fixtures are Date-safe (Dates round-trip via a tagged encoding)
+and strip volatile transport metadata (`$metadata`, request IDs) so they stay
+stable. Golden files are excluded from Prettier (`.prettierignore`) — they are
+byte-for-byte recordings, not source to reformat.
+
+See [this talk](https://www.youtube.com/watch?v=yszygk1cpEc&t=1s) for background
+on the pattern.
+
+#### TUI tests
+
+Screens are tested with
+[`ink-testing-library`](https://github.com/vadimdemedes/ink-testing-library) via
+the `renderScreen(path, { core })` helper (`src/testing/renderScreen.tsx`). It
+mounts the real `Root` (MemoryRouter + the app's route table + react-query)
+seeded at a command path — exactly how the CLI mounts a screen — so routing,
+route params, data fetching, key input, and rendering are all exercised
+together. Data comes from a `TestCoreClient` (a hand-controllable `Core` that
+returns canned responses, forces errors, and records calls). Assertions read the
+rendered frame (`waitForText`, `lastFrame`) and key presses drive navigation
+between screens (`press`, `write`).
 
 ## Development
 
@@ -203,14 +255,5 @@ A Husky pre-commit hook runs Prettier (via lint-staged) on staged files automati
 
 - **Flesh out the TUI.** The framework is in place (full-screen Ink app,
   react-router screens, react-query, InkUI components), but most screens are
-  still placeholders. The harness detail view in particular is currently a TODO
-  and needs a workable, scrollable renderer.
-- **Golden-file testing.** Build a robust testing pattern with two modes. In
-  "record" mode the test suite calls the live AWS APIs and saves the responses
-  as test **fixtures** (golden files). Every other run replays those fixtures
-  instead of hitting the network, so the suite is fast, deterministic, and
-  runnable offline/in CI. This plugs directly into the dependency-injection
-  seams described in [Patterns](#patterns): the recorded fixtures are injected
-  in place of the real Core client factories, letting us test the whole command
-  flow end to end against known-good data. Fixtures are refreshed by re-running
-  in record mode when the APIs or expected output change. See [this talk](https://www.youtube.com/watch?v=yszygk1cpEc&t=1s) for background.
+  still placeholders. The create/update/delete/invoke/exec harness screens are
+  still TODO stubs and need real implementations.
