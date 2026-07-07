@@ -3,7 +3,7 @@ import { HarnessWizard } from "../../../components/HarnessWizard";
 import { useFinishFlow } from "../../../components/useFinishFlow";
 
 // HarnessCreateScreen is the interactive create-harness flow: a step wizard
-// (name → memory → tools → prompt → advanced → review) that ends in a
+// (name → model → memory → tools → prompt → advanced → review) that ends in a
 // CreateHarness call. Success lands on the new harness's hub, with esc from
 // there returning to the harness menu rather than the finished wizard.
 export function HarnessCreateScreen(props: ScreenProps) {

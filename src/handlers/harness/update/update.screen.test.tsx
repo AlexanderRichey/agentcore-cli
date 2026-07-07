@@ -71,18 +71,23 @@ describe("harness update wizard", () => {
     await waitForText(r.lastFrame, "MyHarness");
     expect(r.lastFrame()).toContain("choose a harness to update");
     await r.press("return");
-    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await waitForText(r.lastFrame, "Which model should the agent use?");
     r.unmount();
   });
 
-  test("starts on memory (no rename) with values prefilled from the harness", async () => {
+  test("starts on model (no rename) with values prefilled from the harness", async () => {
     const core = coreForUpdate();
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
-    // Managed memory is the current config and is preselected.
-    await waitForText(r.lastFrame, "● Managed memory");
+    // The harness has no bedrock model configured, so keep-current is
+    // preselected; enter leaves the model untouched.
+    await waitForText(r.lastFrame, "● Keep current model");
     // The name step is absent from the stepper.
     expect(r.lastFrame()).not.toContain("Name");
+    await r.press("return");
+
+    // Managed memory is the current config and is preselected.
+    await waitForText(r.lastFrame, "● Managed memory");
     await r.press("return");
 
     // Tools reflect the current config: browser on.
@@ -90,10 +95,74 @@ describe("harness update wizard", () => {
     r.unmount();
   });
 
+  test("prefills the current bedrock model and sends nothing when unchanged", async () => {
+    const core = coreForUpdate();
+    const current = currentHarness();
+    current.harness!.model = {
+      bedrockModelConfig: { modelId: "us.anthropic.claude-opus-4-8" },
+    };
+    core.harness.setGetResponse(current);
+    const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
+
+    // The harness's model is one of the presets, so it is preselected.
+    await waitForText(r.lastFrame, "● Claude Opus 4.8");
+    await r.press("return"); // model unchanged
+    await waitForText(r.lastFrame, "● Managed memory");
+    await r.press("return");
+    await waitForText(r.lastFrame, "[✓] Browser");
+    await r.press("return");
+    await waitForText(r.lastFrame, "System prompt");
+    await r.write(" Now v2.");
+    await r.write("\x04");
+    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Review");
+    await r.press("return");
+
+    await waitFor(() => core.harness.calls.some((c) => c.method === "updateHarness"));
+    const call = core.harness.calls.find((c) => c.method === "updateHarness")!;
+    expect(call.args[0]).toEqual({
+      harnessId: "MyHarness-abc123",
+      systemPrompt: [{ text: "You are v1. Now v2." }],
+    });
+    r.unmount();
+  });
+
+  test("changing the model submits a request with just that field", async () => {
+    const core = coreForUpdate();
+    const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
+
+    await waitForText(r.lastFrame, "● Keep current model");
+    await r.press("up"); // Other
+    await r.press("up"); // Haiku 4.5
+    await waitForText(r.lastFrame, "● Claude Haiku 4.5");
+    await r.press("return");
+    await waitForText(r.lastFrame, "● Managed memory");
+    await r.press("return");
+    await waitForText(r.lastFrame, "[✓] Browser");
+    await r.press("return");
+    await waitForText(r.lastFrame, "System prompt");
+    await r.write("\x04");
+    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Review");
+    await r.press("return");
+
+    await waitFor(() => core.harness.calls.some((c) => c.method === "updateHarness"));
+    const call = core.harness.calls.find((c) => c.method === "updateHarness")!;
+    expect(call.args[0]).toEqual({
+      harnessId: "MyHarness-abc123",
+      model: { bedrockModelConfig: { modelId: "us.anthropic.claude-haiku-4-5-20251001-v1:0" } },
+    });
+    r.unmount();
+  });
+
   test("changing only the prompt submits a request with just that field", async () => {
     const core = coreForUpdate();
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
+    await waitForText(r.lastFrame, "● Keep current model");
+    await r.press("return"); // model unchanged
     await waitForText(r.lastFrame, "● Managed memory");
     await r.press("return"); // memory unchanged
     await waitForText(r.lastFrame, "[✓] Browser");
@@ -123,6 +192,8 @@ describe("harness update wizard", () => {
     const core = coreForUpdate();
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
+    await waitForText(r.lastFrame, "● Keep current model");
+    await r.press("return"); // model unchanged
     await waitForText(r.lastFrame, "● Managed memory");
     await r.press("down"); // byo
     await r.press("down"); // disabled
@@ -150,6 +221,8 @@ describe("harness update wizard", () => {
     const core = coreForUpdate();
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
+    await waitForText(r.lastFrame, "● Keep current model");
+    await r.press("return"); // model unchanged
     await waitForText(r.lastFrame, "● Managed memory");
     await r.press("return");
     await waitForText(r.lastFrame, "[✓] Browser");

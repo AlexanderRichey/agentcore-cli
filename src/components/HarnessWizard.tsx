@@ -29,6 +29,9 @@ export type MemoryKind = "managed" | "byo" | "disabled";
 // translate it (and fromHarness translates back for the update flow).
 export interface HarnessFormValues {
   name: string;
+  // model.modelId is a Bedrock model/inference-profile ID; "" means "don't
+  // send a model" (service default on create, keep the current one on update).
+  model: { modelId: string };
   memory: { kind: MemoryKind; arn: string };
   tools: {
     browser: boolean;
@@ -43,7 +46,6 @@ export interface HarnessFormValues {
     subnets: string;
     securityGroups: string;
     environmentVariables: string;
-    modelId: string;
     maxIterations: string;
     maxTokens: string;
     timeoutSeconds: string;
@@ -53,9 +55,13 @@ export interface HarnessFormValues {
   passthroughTools: HarnessTool[];
 }
 
+// DEFAULT_MODEL_ID is preselected when creating a harness.
+export const DEFAULT_MODEL_ID = "us.anthropic.claude-sonnet-4-6";
+
 export function emptyHarnessForm(): HarnessFormValues {
   return {
     name: "",
+    model: { modelId: DEFAULT_MODEL_ID },
     memory: { kind: "managed", arn: "" },
     tools: { browser: false, codeInterpreter: false, gatewayArn: "", mcpUrl: "" },
     systemPrompt: "",
@@ -65,7 +71,6 @@ export function emptyHarnessForm(): HarnessFormValues {
       subnets: "",
       securityGroups: "",
       environmentVariables: "",
-      modelId: "",
       maxIterations: "",
       maxTokens: "",
       timeoutSeconds: "",
@@ -115,7 +120,7 @@ export function fromHarness(harness: Harness): HarnessFormValues {
   values.advanced.environmentVariables = Object.entries(harness.environmentVariables ?? {})
     .map(([key, value]) => `${key}=${value}`)
     .join(",");
-  values.advanced.modelId = harness.model?.bedrockModelConfig?.modelId ?? "";
+  values.model.modelId = harness.model?.bedrockModelConfig?.modelId ?? "";
   values.advanced.maxIterations = harness.maxIterations?.toString() ?? "";
   values.advanced.maxTokens = harness.maxTokens?.toString() ?? "";
   values.advanced.timeoutSeconds = harness.timeoutSeconds?.toString() ?? "";
@@ -208,8 +213,8 @@ export function toCreateInput(values: HarnessFormValues): CreateHarnessInput {
     systemPrompt: values.systemPrompt !== "" ? [{ text: values.systemPrompt }] : undefined,
     environment: toEnvironment(values),
     environmentVariables: Object.keys(envVars).length > 0 ? envVars : undefined,
-    model: values.advanced.modelId
-      ? { bedrockModelConfig: { modelId: values.advanced.modelId } }
+    model: values.model.modelId
+      ? { bedrockModelConfig: { modelId: values.model.modelId } }
       : undefined,
     maxIterations: toNumber(values.advanced.maxIterations),
     maxTokens: toNumber(values.advanced.maxTokens),
@@ -230,6 +235,10 @@ export function toUpdateRequest(
   const memoryChanged =
     values.memory.kind !== initial.memory.kind || values.memory.arn !== initial.memory.arn;
   if (memoryChanged) request.memory = { optionalValue: toMemoryConfiguration(values) };
+
+  if (values.model.modelId !== initial.model.modelId && values.model.modelId !== "") {
+    request.model = { bedrockModelConfig: { modelId: values.model.modelId } };
+  }
 
   if (JSON.stringify(values.tools) !== JSON.stringify(initial.tools)) {
     request.tools = toTools(values);
@@ -255,9 +264,6 @@ export function toUpdateRequest(
   }
   if (advanced.environmentVariables !== before.environmentVariables) {
     request.environmentVariables = parseEnvVars(advanced.environmentVariables);
-  }
-  if (advanced.modelId !== before.modelId && advanced.modelId !== "") {
-    request.model = { bedrockModelConfig: { modelId: advanced.modelId } };
   }
   if (advanced.maxIterations !== before.maxIterations) {
     request.maxIterations = toNumber(advanced.maxIterations);
@@ -291,9 +297,9 @@ export interface HarnessWizardProps extends ScreenProps {
 const NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{0,47}$/;
 
 // HarnessWizard is the interactive step flow behind `harness create` and
-// `harness update`: name → memory → tools → prompt → advanced (optional) →
-// review, then submit. Update mode skips the name step (harnesses cannot be
-// renamed) and submits only what changed.
+// `harness update`: name → model → memory → tools → prompt → advanced
+// (optional) → review, then submit. Update mode skips the name step (harnesses
+// cannot be renamed) and submits only what changed.
 export function HarnessWizard({
   ctx,
   core,
@@ -309,6 +315,7 @@ export function HarnessWizard({
   const steps: Step[] = useMemo(() => {
     const all: Step[] = [
       { key: "name", title: "Name" },
+      { key: "model", title: "Model" },
       { key: "memory", title: "Memory" },
       { key: "tools", title: "Tools" },
       { key: "prompt", title: "Prompt" },
@@ -446,6 +453,7 @@ function hintsFor(
   switch (stepKey) {
     case "name":
       return [{ key: "enter", label: "continue" }, ...base];
+    case "model":
     case "memory":
       return [{ key: "↑↓", label: "choose" }, { key: "enter", label: "continue" }, ...base];
     case "tools":
@@ -493,6 +501,16 @@ function WizardStep({
         <NameStep
           value={values.name}
           onChange={(name) => patch({ name })}
+          onNext={onNext}
+          onBack={onBack}
+        />
+      );
+    case "model":
+      return (
+        <ModelStep
+          mode={mode}
+          value={values.model}
+          onChange={(model) => patch({ model })}
           onNext={onNext}
           onBack={onBack}
         />
@@ -596,6 +614,130 @@ function NameStep({
           </Text>
         )}
       </Box>
+    </Box>
+  );
+}
+
+// ─── step: model ──────────────────────────────────────────────────────────────
+
+const MODEL_PRESETS: { id: string; label: string }[] = [
+  { id: DEFAULT_MODEL_ID, label: "Claude Sonnet 4.6" },
+  { id: "us.anthropic.claude-sonnet-5", label: "Claude Sonnet 5" },
+  { id: "us.anthropic.claude-opus-4-8", label: "Claude Opus 4.8" },
+  { id: "us.anthropic.claude-haiku-4-5-20251001-v1:0", label: "Claude Haiku 4.5" },
+];
+
+function ModelStep({
+  mode,
+  value,
+  onChange,
+  onNext,
+  onBack,
+}: {
+  mode: "create" | "update";
+  value: HarnessFormValues["model"];
+  onChange: (value: HarnessFormValues["model"]) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  // Rows: the presets, then "Other" (free-form model ID), then the opt-out
+  // ("" — service default on create, keep the current model on update).
+  const customIndex = MODEL_PRESETS.length;
+  const noneIndex = MODEL_PRESETS.length + 1;
+  const [cursor, setCursor] = useState(() => {
+    if (value.modelId === "") return noneIndex;
+    const preset = MODEL_PRESETS.findIndex((p) => p.id === value.modelId);
+    return preset >= 0 ? preset : customIndex;
+  });
+  const [draft, setDraft] = useState(() =>
+    MODEL_PRESETS.some((p) => p.id === value.modelId) ? "" : value.modelId,
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  useInput((_input, key) => {
+    if (key.escape) {
+      onBack();
+      return;
+    }
+    if (key.upArrow) {
+      setCursor((c) => Math.max(0, c - 1));
+      setError(null);
+      return;
+    }
+    if (key.downArrow) {
+      setCursor((c) => Math.min(noneIndex, c + 1));
+      setError(null);
+      return;
+    }
+    if (key.return) {
+      if (cursor === noneIndex) {
+        onChange({ modelId: "" });
+        onNext();
+        return;
+      }
+      if (cursor === customIndex) {
+        const committed = draft.trim();
+        if (committed === "") {
+          setError("Enter a Bedrock model or inference profile ID.");
+          return;
+        }
+        onChange({ modelId: committed });
+        onNext();
+        return;
+      }
+      onChange({ modelId: MODEL_PRESETS[cursor]!.id });
+      onNext();
+    }
+  });
+
+  const rows: { label: string; description: string }[] = [
+    ...MODEL_PRESETS.map((preset, i) => ({
+      label: preset.label,
+      description: i === 0 ? `${preset.id} (recommended)` : preset.id,
+    })),
+    { label: "Other", description: "enter any Bedrock model or inference profile ID" },
+    mode === "create"
+      ? { label: "Service default", description: "let the service choose the model" }
+      : { label: "Keep current model", description: "leave the model configuration untouched" },
+  ];
+
+  return (
+    <Box flexDirection="column">
+      <StepHeading title="Model" hint="Which model should the agent use?" />
+      <Box flexDirection="column">
+        {rows.map((row, i) => {
+          const selected = i === cursor;
+          return (
+            <Box key={row.label}>
+              <Text color={selected ? theme.colors.focus : theme.colors.muted}>
+                {selected ? "● " : "○ "}
+              </Text>
+              <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
+                {row.label.padEnd(20)}
+              </Text>
+              <Text color={theme.colors.muted}>{row.description}</Text>
+            </Box>
+          );
+        })}
+      </Box>
+      {cursor === customIndex && (
+        <Box marginTop={1}>
+          <TextInput
+            label="model id"
+            value={draft}
+            onChange={(next) => {
+              setDraft(next);
+              setError(null);
+            }}
+            placeholder="e.g. us.anthropic.claude-opus-4-5-20251101-v1:0"
+          />
+        </Box>
+      )}
+      {error && (
+        <Box marginTop={1}>
+          <Text color={theme.colors.error}>{error}</Text>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -966,7 +1108,6 @@ const ADVANCED_FIELDS: AdvancedField[] = [
     vpcOnly: true,
   },
   { key: "environmentVariables", label: "environment vars", placeholder: "KEY=value,OTHER=value" },
-  { key: "modelId", label: "model id", placeholder: "e.g. global.anthropic.claude-sonnet-4-5" },
   { key: "maxIterations", label: "max iterations", placeholder: "e.g. 50", numeric: true },
   { key: "maxTokens", label: "max tokens", placeholder: "e.g. 64000", numeric: true },
   { key: "timeoutSeconds", label: "timeout seconds", placeholder: "e.g. 900", numeric: true },
@@ -1103,7 +1244,6 @@ function AdvancedStep({
     if (field.key === "executionRoleArn") {
       return mode === "create" ? "(create a default role)" : "(keep current role)";
     }
-    if (field.key === "modelId") return "(service default)";
     return "—";
   };
 

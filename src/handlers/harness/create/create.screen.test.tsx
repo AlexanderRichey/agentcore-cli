@@ -10,9 +10,13 @@ import {
 
 afterEach(cleanupScreens);
 
-// Behavior tests for the create-harness wizard: name → memory → tools → prompt
-// → advanced → review → submit. Key input drives the whole flow; assertions
-// check both what the user sees and the exact request Core receives.
+// Behavior tests for the create-harness wizard: name → model → memory → tools
+// → prompt → advanced → review → submit. Key input drives the whole flow;
+// assertions check both what the user sees and the exact request Core receives.
+
+const DEFAULT_MODEL = {
+  bedrockModelConfig: { modelId: "us.anthropic.claude-sonnet-4-6" },
+};
 
 function coreForCreate(): TestCoreClient {
   const core = new TestCoreClient();
@@ -28,13 +32,19 @@ function coreForCreate(): TestCoreClient {
 }
 
 describe("harness create wizard", () => {
-  test("walks name → memory → tools → prompt → advanced → review and creates", async () => {
+  test("walks name → model → memory → tools → prompt → advanced → review and creates", async () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
     // Step: name.
     await waitForText(r.lastFrame, "What should this harness be called?");
     await r.write("my_agent");
+    await r.press("return");
+
+    // Step: model — Claude Sonnet 4.6 is preselected; keep it.
+    await waitForText(r.lastFrame, "Which model should the agent use?");
+    expect(r.lastFrame()).toContain("● Claude Sonnet 4.6");
+    expect(r.lastFrame()).toContain("us.anthropic.claude-sonnet-4-6 (recommended)");
     await r.press("return");
 
     // Step: memory — managed is preselected; keep it.
@@ -77,6 +87,7 @@ describe("harness create wizard", () => {
     const call = core.harness.calls.find((c) => c.method === "createHarness")!;
     expect(call.args[0]).toEqual({
       harnessName: "my_agent",
+      model: DEFAULT_MODEL,
       memory: { managedMemoryConfiguration: {} },
       tools: [
         { type: "agentcore_browser", config: { agentCoreBrowser: {} } },
@@ -98,6 +109,118 @@ describe("harness create wizard", () => {
     r.unmount();
   });
 
+  test("picking a different preset model sends that model", async () => {
+    const core = coreForCreate();
+    const r = renderScreen("/agentcore/harness/create", { core });
+
+    await waitForText(r.lastFrame, "What should this harness be called?");
+    await r.write("my_agent");
+    await r.press("return");
+
+    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await r.press("down"); // Sonnet 5
+    await r.press("down"); // Opus 4.8
+    await waitForText(r.lastFrame, "● Claude Opus 4.8");
+    await r.press("return");
+
+    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "System prompt");
+    await r.write("\x04");
+    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Review");
+    await r.press("return");
+
+    await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
+    const call = core.harness.calls.find((c) => c.method === "createHarness")!;
+    expect(call.args[0]).toEqual({
+      harnessName: "my_agent",
+      model: { bedrockModelConfig: { modelId: "us.anthropic.claude-opus-4-8" } },
+      memory: { managedMemoryConfiguration: {} },
+    });
+    r.unmount();
+  });
+
+  test("Other requires a model ID and sends the entered one", async () => {
+    const core = coreForCreate();
+    const r = renderScreen("/agentcore/harness/create", { core });
+
+    await waitForText(r.lastFrame, "What should this harness be called?");
+    await r.write("my_agent");
+    await r.press("return");
+
+    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await r.press("down"); // Sonnet 5
+    await r.press("down"); // Opus 4.8
+    await r.press("down"); // Haiku 4.5
+    await r.press("down"); // Other
+    await waitForText(r.lastFrame, "● Other");
+    await r.press("return"); // empty → error
+    await waitForText(r.lastFrame, "Enter a Bedrock model or inference profile ID.");
+    await r.write("eu.anthropic.claude-sonnet-4-6");
+    await r.press("return");
+
+    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "System prompt");
+    await r.write("\x04");
+    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Review");
+    await r.press("return");
+
+    await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
+    const call = core.harness.calls.find((c) => c.method === "createHarness")!;
+    expect(call.args[0]).toEqual({
+      harnessName: "my_agent",
+      model: { bedrockModelConfig: { modelId: "eu.anthropic.claude-sonnet-4-6" } },
+      memory: { managedMemoryConfiguration: {} },
+    });
+    r.unmount();
+  });
+
+  test("service default sends no model", async () => {
+    const core = coreForCreate();
+    const r = renderScreen("/agentcore/harness/create", { core });
+
+    await waitForText(r.lastFrame, "What should this harness be called?");
+    await r.write("my_agent");
+    await r.press("return");
+
+    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await r.press("down"); // Sonnet 5
+    await r.press("down"); // Opus 4.8
+    await r.press("down"); // Haiku 4.5
+    await r.press("down"); // Other
+    await r.press("down"); // Service default
+    await waitForText(r.lastFrame, "● Service default");
+    await r.press("return");
+
+    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "System prompt");
+    await r.write("\x04");
+    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Review");
+    await r.press("return");
+
+    await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
+    const call = core.harness.calls.find((c) => c.method === "createHarness")!;
+    expect(call.args[0]).toEqual({
+      harnessName: "my_agent",
+      memory: { managedMemoryConfiguration: {} },
+    });
+    r.unmount();
+  });
+
   test("rejects an invalid name and stays on the name step", async () => {
     const r = renderScreen("/agentcore/harness/create", { core: coreForCreate() });
 
@@ -114,6 +237,8 @@ describe("harness create wizard", () => {
 
     await waitForText(r.lastFrame, "What should this harness be called?");
     await r.write("my_agent");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Which model should the agent use?");
     await r.press("return");
 
     await waitForText(r.lastFrame, "How should the harness remember conversations?");
@@ -138,6 +263,7 @@ describe("harness create wizard", () => {
     const call = core.harness.calls.find((c) => c.method === "createHarness")!;
     expect(call.args[0]).toEqual({
       harnessName: "my_agent",
+      model: DEFAULT_MODEL,
       memory: {
         agentCoreMemoryConfiguration: {
           arn: "arn:aws:bedrock-agentcore:us-east-1:123:memory/m-1",
@@ -153,6 +279,8 @@ describe("harness create wizard", () => {
 
     await waitForText(r.lastFrame, "What should this harness be called?");
     await r.write("my_agent");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Which model should the agent use?");
     await r.press("return");
     await waitForText(r.lastFrame, "How should the harness remember conversations?");
     await r.press("return");
@@ -177,7 +305,6 @@ describe("harness create wizard", () => {
     // Move to max iterations and set it.
     await r.press("down"); // network mode
     await r.press("down"); // environment vars
-    await r.press("down"); // model id
     await r.press("down"); // max iterations
     await r.press("return");
     await r.write("42");
@@ -197,6 +324,7 @@ describe("harness create wizard", () => {
     expect(call.args[0]).toEqual({
       harnessName: "my_agent",
       executionRoleArn: "arn:aws:iam::123:role/Custom",
+      model: DEFAULT_MODEL,
       memory: { managedMemoryConfiguration: {} },
       maxIterations: 42,
     });
@@ -212,6 +340,8 @@ describe("harness create wizard", () => {
 
     await waitForText(r.lastFrame, "What should this harness be called?");
     await r.write("my_agent");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Which model should the agent use?");
     await r.press("return");
     await waitForText(r.lastFrame, "How should the harness remember conversations?");
     await r.press("return");
@@ -246,6 +376,8 @@ describe("harness create wizard", () => {
     // Fastest path through the wizard: defaults everywhere.
     await waitForText(r.lastFrame, "What should this harness be called?");
     await r.write("my_agent");
+    await r.press("return");
+    await waitForText(r.lastFrame, "Which model should the agent use?");
     await r.press("return");
     await waitForText(r.lastFrame, "How should the harness remember conversations?");
     await r.press("return");
