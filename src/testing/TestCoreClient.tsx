@@ -106,12 +106,14 @@ export class TestHarnessClient implements CoreHarnessClient {
   // calls records every invocation in order, for assertions.
   readonly calls: RecordedCall[] = [];
 
-  private listResponse: ListHarnessesResponse = DEFAULT_LIST_RESPONSE;
+  // List responses are keyed by the nextToken that requests them (undefined =
+  // the first page), so tests can serve multi-page listings.
+  private listResponses = new Map<string | undefined, ListHarnessesResponse>();
   private getResponse: GetHarnessResponse = DEFAULT_GET_RESPONSE;
   private getVersionResponse: GetHarnessResponse = DEFAULT_GET_VERSION_RESPONSE;
   private getEndpointResponse: GetHarnessEndpointResponse = DEFAULT_GET_ENDPOINT_RESPONSE;
-  private listEndpointsResponse: ListHarnessEndpointsResponse = DEFAULT_LIST_ENDPOINTS_RESPONSE;
-  private listVersionsResponse: ListHarnessVersionsResponse = DEFAULT_LIST_VERSIONS_RESPONSE;
+  private listEndpointsResponses = new Map<string | undefined, ListHarnessEndpointsResponse>();
+  private listVersionsResponses = new Map<string | undefined, ListHarnessVersionsResponse>();
   private invokeEvents: InvokeHarnessStreamOutput[] = [];
   private invokeStreams: AsyncIterable<InvokeHarnessStreamOutput>[] = [];
   private execEvents: InvokeAgentRuntimeCommandStreamOutput[] = [];
@@ -125,8 +127,10 @@ export class TestHarnessClient implements CoreHarnessClient {
   private error?: Error;
 
   // setListResponse sets what listHarnesses resolves to (when not erroring).
-  setListResponse(response: ListHarnessesResponse): this {
-    this.listResponse = response;
+  // Pass `forNextToken` to serve a later page: the response is returned when
+  // listHarnesses is called with that nextToken.
+  setListResponse(response: ListHarnessesResponse, forNextToken?: string): this {
+    this.listResponses.set(forNextToken, response);
     return this;
   }
 
@@ -151,16 +155,16 @@ export class TestHarnessClient implements CoreHarnessClient {
   }
 
   // setListEndpointsResponse sets what listHarnessEndpoints resolves to (when
-  // not erroring).
-  setListEndpointsResponse(response: ListHarnessEndpointsResponse): this {
-    this.listEndpointsResponse = response;
+  // not erroring). Pass `forNextToken` to serve a later page.
+  setListEndpointsResponse(response: ListHarnessEndpointsResponse, forNextToken?: string): this {
+    this.listEndpointsResponses.set(forNextToken, response);
     return this;
   }
 
   // setListVersionsResponse sets what listHarnessVersions resolves to (when not
-  // erroring).
-  setListVersionsResponse(response: ListHarnessVersionsResponse): this {
-    this.listVersionsResponse = response;
+  // erroring). Pass `forNextToken` to serve a later page.
+  setListVersionsResponse(response: ListHarnessVersionsResponse, forNextToken?: string): this {
+    this.listVersionsResponses.set(forNextToken, response);
     return this;
   }
 
@@ -326,7 +330,11 @@ export class TestHarnessClient implements CoreHarnessClient {
   ): Promise<ListHarnessesResponse> {
     this.calls.push({ method: "listHarnesses", args: [nextToken, maxResults, options] });
     if (this.error) throw this.error;
-    return this.listResponse;
+    return (
+      this.listResponses.get(nextToken) ??
+      this.listResponses.get(undefined) ??
+      DEFAULT_LIST_RESPONSE
+    );
   }
 
   async listHarnessEndpoints(
@@ -340,7 +348,11 @@ export class TestHarnessClient implements CoreHarnessClient {
       args: [id, nextToken, maxResults, options],
     });
     if (this.error) throw this.error;
-    return this.listEndpointsResponse;
+    return (
+      this.listEndpointsResponses.get(nextToken) ??
+      this.listEndpointsResponses.get(undefined) ??
+      DEFAULT_LIST_ENDPOINTS_RESPONSE
+    );
   }
 
   async listHarnessVersions(
@@ -354,7 +366,11 @@ export class TestHarnessClient implements CoreHarnessClient {
       args: [id, nextToken, maxResults, options],
     });
     if (this.error) throw this.error;
-    return this.listVersionsResponse;
+    return (
+      this.listVersionsResponses.get(nextToken) ??
+      this.listVersionsResponses.get(undefined) ??
+      DEFAULT_LIST_VERSIONS_RESPONSE
+    );
   }
 
   async invokeHarness(

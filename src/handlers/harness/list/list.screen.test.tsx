@@ -113,6 +113,70 @@ describe("harness list screen", () => {
     r.unmount();
   });
 
+  test("pages forward and back when the response has a nextToken", async () => {
+    const core = new TestCoreClient();
+    core.harness.setListResponse({
+      harnesses: [
+        harness({ harnessName: "alpha_one", harnessId: "a1" }),
+        harness({ harnessName: "alpha_two", harnessId: "a2" }),
+      ],
+      nextToken: "t2",
+    });
+    core.harness.setListResponse(
+      { harnesses: [harness({ harnessName: "beta_one", harnessId: "b1" })] },
+      "t2",
+    );
+    const r = renderScreen("/agentcore/harness/list", { core });
+
+    // Page 1 advertises pagination: key hint plus the status line.
+    await waitForText(r.lastFrame, "alpha_one");
+    expect(r.lastFrame()).toContain("←→/hl");
+    expect(r.lastFrame()).toContain("page 1 · more →");
+
+    // l → page 2, fetched with the nextToken and a terminal-derived maxResults.
+    await r.write("l");
+    await waitForText(r.lastFrame, "beta_one");
+    expect(r.lastFrame()).toContain("page 2");
+    expect(r.lastFrame()).not.toContain("more →");
+    const paged = core.harness.calls.filter((c) => c.method === "listHarnesses");
+    expect(paged.at(-1)!.args[0]).toBe("t2");
+    expect(paged.at(-1)!.args[1] as number).toBeGreaterThan(0);
+
+    // ← → back to page 1.
+    await r.press("left");
+    await waitForText(r.lastFrame, "alpha_one");
+    expect(r.lastFrame()).toContain("page 1");
+    r.unmount();
+  });
+
+  test("no pagination hint when the listing fits one page", async () => {
+    const core = coreWith([harness({ harnessName: "only_one" })]);
+    const r = renderScreen("/agentcore/harness/list", { core });
+
+    await waitForText(r.lastFrame, "only_one");
+    expect(r.lastFrame()).not.toContain("←→/hl");
+    expect(r.lastFrame()).not.toContain("page 1");
+    r.unmount();
+  });
+
+  test("typing l into the filter does not turn the page", async () => {
+    const core = new TestCoreClient();
+    core.harness.setListResponse({
+      harnesses: [harness({ harnessName: "alpha_one", harnessId: "a1" })],
+      nextToken: "t2",
+    });
+    const r = renderScreen("/agentcore/harness/list", { core });
+
+    await waitForText(r.lastFrame, "alpha_one");
+    await r.write("/");
+    await r.write("l");
+    await waitForText(r.lastFrame, "/ Filter: l");
+    expect(core.harness.calls.some((c) => c.method === "listHarnesses" && c.args[0] === "t2")).toBe(
+      false,
+    );
+    r.unmount();
+  });
+
   test("esc returns to the harness menu", async () => {
     const core = coreWith([harness()]);
     const r = renderScreen("/agentcore/harness/list", { core });

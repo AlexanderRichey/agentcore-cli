@@ -72,6 +72,34 @@ describe("harness version list screen", () => {
     r.unmount();
   });
 
+  test("pages forward and back when the response has a nextToken", async () => {
+    const core = coreWithVersions([]);
+    core.harness.setListVersionsResponse({
+      harnessVersions: [version({ harnessVersion: "42" }), version({ harnessVersion: "41" })],
+      nextToken: "v2",
+    });
+    core.harness.setListVersionsResponse(
+      { harnessVersions: [version({ harnessVersion: "40" })] },
+      "v2",
+    );
+    const r = renderScreen("/agentcore/harness/version/list/MyHarness-abc123", { core });
+
+    await waitForText(r.lastFrame, "42");
+    expect(r.lastFrame()).toContain("page 1 · more →");
+
+    await r.write("l");
+    await waitForText(r.lastFrame, "40");
+    expect(r.lastFrame()).toContain("page 2");
+    const paged = core.harness.calls.filter((c) => c.method === "listHarnessVersions");
+    expect(paged.at(-1)!.args[1]).toBe("v2");
+    expect(paged.at(-1)!.args[2] as number).toBeGreaterThan(0);
+
+    await r.write("h");
+    await waitForText(r.lastFrame, "42");
+    expect(r.lastFrame()).toContain("page 1");
+    r.unmount();
+  });
+
   test("enter on a row opens the version's JSON detail", async () => {
     const core = coreWithVersions([version({ harnessVersion: "2" }), version()]);
     core.harness.setGetVersionResponse({

@@ -1,12 +1,14 @@
-import { Text, useWindowSize } from "ink";
-import { useQuery } from "@tanstack/react-query";
+import { Text } from "ink";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import type { HarnessVersionSummary } from "@aws-sdk/client-bedrock-agentcore-control";
 import { DataTable } from "./ui/data-table";
 import type { ScreenProps } from "../handlers/types";
 import { coreOptsFromCtx } from "../handlers/utils";
+import { usePagedList } from "./usePagedList";
 import { Spinner } from "./ui/spinner";
 import { Layout } from "./Layout";
+import { darkTheme } from "./ui/_core.js";
 
 // VersionRow is the flat, display-ready shape the table renders.
 interface VersionRow extends Record<string, unknown> {
@@ -47,15 +49,21 @@ export function VersionPicker({
   onSelect,
 }: VersionPickerProps) {
   const opts = coreOptsFromCtx(ctx);
-  const { columns } = useWindowSize();
   const navigate = useNavigate();
+  const paging = usePagedList();
 
   const list = useQuery({
-    queryKey: ["harness-versions", opts.region, harnessId],
-    queryFn: () => core.harness.listHarnessVersions(harnessId, undefined, undefined, opts),
+    queryKey: ["harness-versions", opts.region, harnessId, paging.pageSize, paging.token],
+    queryFn: () => core.harness.listHarnessVersions(harnessId, paging.token, paging.pageSize, opts),
+    placeholderData: keepPreviousData,
   });
 
-  // Newest first: versions are numeric strings incremented by UpdateHarness.
+  const nextToken = list.data?.nextToken;
+  // Pagination surfaces only once a response reports more pages (nextToken).
+  const paginated = paging.pageIndex > 0 || nextToken !== undefined;
+
+  // Newest first within the page: versions are numeric strings incremented by
+  // UpdateHarness (the service already pages newest-first).
   const rows = (list.data?.harnessVersions ?? [])
     .map(toRow)
     .sort((a, b) => Number(b.harnessVersion) - Number(a.harnessVersion));
@@ -66,6 +74,7 @@ export function VersionPicker({
       description={description}
       keyHints={[
         { key: "↑↓/jk", label: "navigate" },
+        ...(paginated ? [{ key: "←→/hl", label: "page" }] : []),
         { key: "/", label: "filter" },
         { key: "enter", label: "select" },
         { key: "esc", label: "back" },
@@ -77,25 +86,36 @@ export function VersionPicker({
       ) : list.isError ? (
         <Text color="red">Error: {(list.error as Error).message}</Text>
       ) : (
-        <DataTable
-          borderStyle="none"
-          borderTop={false}
-          borderBottom={false}
-          borderRight={false}
-          showFooter={false}
-          showDivider={true}
-          columns={[
-            { key: "harnessVersion", header: "Version", width: 10 },
-            { key: "status", header: "Status", width: 20 },
-            { key: "createdAt", header: "CreatedAt", width: 30 },
-            { key: "updatedAt", header: "UpdatedAt", width: 30 },
-          ]}
-          data={rows}
-          onSelect={(row) => {
-            if (row.harnessVersion) onSelect(row.harnessVersion);
-          }}
-          onEscape={() => navigate(-1)}
-        />
+        <>
+          <DataTable
+            borderStyle="none"
+            borderTop={false}
+            borderBottom={false}
+            borderRight={false}
+            showFooter={false}
+            showDivider={true}
+            pageSize={paging.pageSize}
+            columns={[
+              { key: "harnessVersion", header: "Version", width: 10 },
+              { key: "status", header: "Status", width: 20 },
+              { key: "createdAt", header: "CreatedAt", width: 30 },
+              { key: "updatedAt", header: "UpdatedAt", width: 30 },
+            ]}
+            data={rows}
+            onSelect={(row) => {
+              if (row.harnessVersion) onSelect(row.harnessVersion);
+            }}
+            onEscape={() => navigate(-1)}
+            onPrevPage={paging.pageIndex > 0 ? paging.prev : undefined}
+            onNextPage={nextToken ? () => paging.next(nextToken) : undefined}
+          />
+          {paginated && (
+            <Text color={darkTheme.colors.muted} dimColor>
+              page {paging.pageIndex + 1}
+              {nextToken ? " · more →" : ""}
+            </Text>
+          )}
+        </>
       )}
     </Layout>
   );

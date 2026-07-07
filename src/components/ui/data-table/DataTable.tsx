@@ -21,6 +21,13 @@ export interface DataTableProps<T> {
   onSelect?: (row: T, index: number) => void;
   /** Called when Escape is pressed while not in search mode (e.g. to go back). */
   onEscape?: () => void;
+  /**
+   * Server-side paging: when either is provided, ←/h and →/l call these
+   * instead of paging the client-side rows, and the selection resets to the
+   * top of the new page. Pass a callback only when that direction has a page.
+   */
+  onPrevPage?: () => void;
+  onNextPage?: () => void;
   selectable?: boolean;
   borderStyle?: "single" | "double" | "rounded" | "bold" | "classic" | "none";
   /** Toggle individual border edges (each defaults to true when a border is shown). */
@@ -44,6 +51,8 @@ export function DataTable<T extends Record<string, unknown>>({
   searchPlaceholder = "Filter...",
   onSelect,
   onEscape,
+  onPrevPage,
+  onNextPage,
   selectable = true,
   borderStyle = "single",
   borderTop,
@@ -109,13 +118,25 @@ export function DataTable<T extends Record<string, unknown>>({
         return;
       }
 
+      const serverPaged = onPrevPage !== undefined || onNextPage !== undefined;
       if (key.upArrow || input === "k") setSelectedRow((r) => Math.max(0, r - 1));
       else if (key.downArrow || input === "j")
         setSelectedRow((r) => Math.min(pageData.length - 1, r + 1));
-      else if (key.leftArrow || input === "h") setCurrentPage((p) => Math.max(0, p - 1));
-      else if (key.rightArrow || input === "l")
-        setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
-      else if (input === "/") setSearchMode(true);
+      else if (key.leftArrow || input === "h") {
+        if (serverPaged) {
+          if (onPrevPage) {
+            setSelectedRow(0);
+            onPrevPage();
+          }
+        } else setCurrentPage((p) => Math.max(0, p - 1));
+      } else if (key.rightArrow || input === "l") {
+        if (serverPaged) {
+          if (onNextPage) {
+            setSelectedRow(0);
+            onNextPage();
+          }
+        } else setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
+      } else if (input === "/") setSearchMode(true);
       else if (input === "s") {
         const col = columns.find((c) => c.sortable);
         if (col) {

@@ -1,12 +1,14 @@
 import { Text, useWindowSize } from "ink";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import type { HarnessSummary } from "@aws-sdk/client-bedrock-agentcore-control";
 import { DataTable } from "./ui/data-table";
 import type { ScreenProps } from "../handlers/types";
 import { coreOptsFromCtx } from "../handlers/utils";
+import { usePagedList } from "./usePagedList";
 import { Spinner } from "./ui/spinner";
 import { Layout } from "./Layout";
+import { darkTheme } from "./ui/_core.js";
 
 // HarnessRow is the flat, display-ready shape the table renders. It also satisfies
 // DataTable's `T extends Record<string, unknown>` constraint, which the SDK's
@@ -56,11 +58,17 @@ export function HarnessPicker({
   const opts = coreOptsFromCtx(ctx);
   const { columns } = useWindowSize();
   const navigate = useNavigate();
+  const paging = usePagedList();
 
   const list = useQuery({
-    queryKey: ["harnesses", opts.region],
-    queryFn: () => core.harness.listHarnesses(undefined, undefined, opts),
+    queryKey: ["harnesses", opts.region, paging.pageSize, paging.token],
+    queryFn: () => core.harness.listHarnesses(paging.token, paging.pageSize, opts),
+    placeholderData: keepPreviousData,
   });
+
+  const nextToken = list.data?.nextToken;
+  // Pagination surfaces only once a response reports more pages (nextToken).
+  const paginated = paging.pageIndex > 0 || nextToken !== undefined;
 
   return (
     <Layout
@@ -68,6 +76,7 @@ export function HarnessPicker({
       description={description}
       keyHints={[
         { key: "↑↓/jk", label: "navigate" },
+        ...(paginated ? [{ key: "←→/hl", label: "page" }] : []),
         { key: "/", label: "filter" },
         { key: "enter", label: "select" },
         { key: "esc", label: "back" },
@@ -79,25 +88,36 @@ export function HarnessPicker({
       ) : list.isError ? (
         <Text color="red">Error: {(list.error as Error).message}</Text>
       ) : (
-        <DataTable
-          borderStyle="none"
-          borderTop={false}
-          borderBottom={false}
-          borderRight={false}
-          showFooter={false}
-          showDivider={true}
-          columns={[
-            { key: "harnessName", header: "Name", width: columns - 62 },
-            { key: "updatedAt", header: "UpdatedAt", width: 30 },
-            { key: "harnessVersion", header: "Version", width: 10 },
-            { key: "status", header: "Status", width: 20 },
-          ]}
-          data={(list.data.harnesses ?? []).map(toRow)}
-          onSelect={(row) => {
-            if (row.harnessId) onSelect(row.harnessId);
-          }}
-          onEscape={() => navigate("/" + breadcrumb.slice(0, -1).join("/"))}
-        />
+        <>
+          <DataTable
+            borderStyle="none"
+            borderTop={false}
+            borderBottom={false}
+            borderRight={false}
+            showFooter={false}
+            showDivider={true}
+            pageSize={paging.pageSize}
+            columns={[
+              { key: "harnessName", header: "Name", width: columns - 62 },
+              { key: "updatedAt", header: "UpdatedAt", width: 30 },
+              { key: "harnessVersion", header: "Version", width: 10 },
+              { key: "status", header: "Status", width: 20 },
+            ]}
+            data={(list.data.harnesses ?? []).map(toRow)}
+            onSelect={(row) => {
+              if (row.harnessId) onSelect(row.harnessId);
+            }}
+            onEscape={() => navigate("/" + breadcrumb.slice(0, -1).join("/"))}
+            onPrevPage={paging.pageIndex > 0 ? paging.prev : undefined}
+            onNextPage={nextToken ? () => paging.next(nextToken) : undefined}
+          />
+          {paginated && (
+            <Text color={darkTheme.colors.muted} dimColor>
+              page {paging.pageIndex + 1}
+              {nextToken ? " · more →" : ""}
+            </Text>
+          )}
+        </>
       )}
     </Layout>
   );
