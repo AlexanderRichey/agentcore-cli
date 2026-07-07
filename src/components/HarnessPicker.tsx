@@ -2,11 +2,11 @@ import { Text, useWindowSize } from "ink";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import type { HarnessSummary } from "@aws-sdk/client-bedrock-agentcore-control";
-import { DataTable } from "../../components/ui/data-table";
-import type { ScreenProps } from "../types";
-import { coreOptsFromCtx } from "../utils";
-import { Spinner } from "../../components/ui/spinner";
-import { Layout } from "../../components/Layout";
+import { DataTable } from "./ui/data-table";
+import type { ScreenProps } from "../handlers/types";
+import { coreOptsFromCtx } from "../handlers/utils";
+import { Spinner } from "./ui/spinner";
+import { Layout } from "./Layout";
 
 // HarnessRow is the flat, display-ready shape the table renders. It also satisfies
 // DataTable's `T extends Record<string, unknown>` constraint, which the SDK's

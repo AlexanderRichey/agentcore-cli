@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router";
 import { ScrollView, type ScrollViewRef } from "ink-scroll-view";
 import type { ScreenProps } from "../../types";
 import { coreOptsFromCtx } from "../../utils";
-import { HarnessPicker } from "../HarnessPicker";
+import { HarnessPicker } from "../../../components/HarnessPicker";
 import { Layout } from "../../../components/Layout";
 import { Divider } from "../../../components/ui/divider";
 import { Markdown } from "../../../components/ui/markdown";

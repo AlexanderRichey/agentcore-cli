@@ -59,6 +59,10 @@ Conventions:
 - **`types.tsx`** defines the interface(s) this command needs from Core.
 - Shared helpers live in a sibling `utils.tsx` (e.g. `coreOptsFromCtx(ctx)`
   builds the standard `CoreOptions` from context values).
+- Shared components live in `src/components/`: anything rendered by more than
+  one screen belongs there (e.g. `Layout`, `RouterScreen`, `HarnessPicker`),
+  with the vendored InkUI primitives under `src/components/ui/`. A handler
+  directory contains only the screens for its own command.
 
 Mount the new handler by adding `root.handler(create<Name>Handler(core))` in
 `src/handlers/index.tsx` (or on the appropriate parent router).
