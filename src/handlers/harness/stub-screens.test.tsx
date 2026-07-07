@@ -17,7 +17,7 @@ const STUBS = [
   "list-endpoints",
   "update-endpoint",
   "delete-endpoint",
-  "get-versions",
+  "get-version",
   "list-versions",
 ] as const;
 

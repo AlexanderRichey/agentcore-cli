@@ -14,7 +14,7 @@ import { createGetEndpointHandler } from "./get-endpoint";
 import { createListEndpointsHandler } from "./list-endpoints";
 import { createUpdateEndpointHandler } from "./update-endpoint";
 import { createDeleteEndpointHandler } from "./delete-endpoint";
-import { createGetVersionsHandler } from "./get-versions";
+import { createGetVersionHandler } from "./get-version";
 import { createListVersionsHandler } from "./list-versions";
 
 export function createHarnessHandler(core: Core, io: AppIO): Router {
@@ -38,7 +38,7 @@ export function createHarnessHandler(core: Core, io: AppIO): Router {
   harness.handler(createListEndpointsHandler(core));
   harness.handler(createUpdateEndpointHandler(core));
   harness.handler(createDeleteEndpointHandler(core));
-  harness.handler(createGetVersionsHandler(core));
+  harness.handler(createGetVersionHandler(core));
   harness.handler(createListVersionsHandler(core));
 
   return harness;

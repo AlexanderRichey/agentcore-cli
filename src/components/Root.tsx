@@ -15,7 +15,7 @@ import { HarnessGetEndpointScreen } from "../handlers/harness/get-endpoint/scree
 import { HarnessListEndpointsScreen } from "../handlers/harness/list-endpoints/screen.tsx";
 import { HarnessUpdateEndpointScreen } from "../handlers/harness/update-endpoint/screen.tsx";
 import { HarnessDeleteEndpointScreen } from "../handlers/harness/delete-endpoint/screen.tsx";
-import { HarnessGetVersionsScreen } from "../handlers/harness/get-versions/screen.tsx";
+import { HarnessGetVersionScreen } from "../handlers/harness/get-version/screen.tsx";
 import { HarnessListVersionsScreen } from "../handlers/harness/list-versions/screen.tsx";
 import { RootScreen, HelpScreen } from "../handlers/screen.tsx";
 import type { Context } from "../router";
@@ -109,8 +109,8 @@ export function Root({ path, ctx, core, queryClient }: RootProps) {
             element={<HarnessDeleteEndpointScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/get-versions"
-            element={<HarnessGetVersionsScreen ctx={ctx} core={core} />}
+            path="agentcore/harness/get-version"
+            element={<HarnessGetVersionScreen ctx={ctx} core={core} />}
           />
           <Route
             path="agentcore/harness/list-versions"

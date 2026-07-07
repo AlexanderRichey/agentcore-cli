@@ -37,6 +37,7 @@ export interface RecordedCall {
 
 const DEFAULT_LIST_RESPONSE: ListHarnessesResponse = { harnesses: [] };
 const DEFAULT_GET_RESPONSE: GetHarnessResponse = {} as GetHarnessResponse;
+const DEFAULT_GET_VERSION_RESPONSE: GetHarnessResponse = {} as GetHarnessResponse;
 const DEFAULT_LIST_ENDPOINTS_RESPONSE: ListHarnessEndpointsResponse = { endpoints: [] };
 const DEFAULT_LIST_VERSIONS_RESPONSE: ListHarnessVersionsResponse = { harnessVersions: [] };
 const DEFAULT_GET_ENDPOINT_RESPONSE: GetHarnessEndpointResponse = {} as GetHarnessEndpointResponse;
@@ -84,6 +85,7 @@ export class TestHarnessClient implements CoreHarnessClient {
 
   private listResponse: ListHarnessesResponse = DEFAULT_LIST_RESPONSE;
   private getResponse: GetHarnessResponse = DEFAULT_GET_RESPONSE;
+  private getVersionResponse: GetHarnessResponse = DEFAULT_GET_VERSION_RESPONSE;
   private getEndpointResponse: GetHarnessEndpointResponse = DEFAULT_GET_ENDPOINT_RESPONSE;
   private listEndpointsResponse: ListHarnessEndpointsResponse = DEFAULT_LIST_ENDPOINTS_RESPONSE;
   private listVersionsResponse: ListHarnessVersionsResponse = DEFAULT_LIST_VERSIONS_RESPONSE;
@@ -100,6 +102,13 @@ export class TestHarnessClient implements CoreHarnessClient {
   // setGetResponse sets what getHarness resolves to (when not erroring).
   setGetResponse(response: GetHarnessResponse): this {
     this.getResponse = response;
+    return this;
+  }
+
+  // setGetVersionResponse sets what getHarnessVersion resolves to (when not
+  // erroring).
+  setGetVersionResponse(response: GetHarnessResponse): this {
+    this.getVersionResponse = response;
     return this;
   }
 
@@ -150,6 +159,16 @@ export class TestHarnessClient implements CoreHarnessClient {
     this.calls.push({ method: "getHarness", args: [id, options] });
     if (this.error) throw this.error;
     return this.getResponse;
+  }
+
+  async getHarnessVersion(
+    id: string,
+    version: string,
+    options: CoreOptions,
+  ): Promise<GetHarnessResponse> {
+    this.calls.push({ method: "getHarnessVersion", args: [id, version, options] });
+    if (this.error) throw this.error;
+    return this.getVersionResponse;
   }
 
   async getHarnessEndpoint(

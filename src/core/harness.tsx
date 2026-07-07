@@ -31,6 +31,16 @@ export class HarnessClient implements CoreHarnessClient {
       .send(new GetHarnessCommand({ harnessId: id }));
   }
 
+  async getHarnessVersion(
+    id: string,
+    version: string,
+    options: CoreOptions,
+  ): Promise<GetHarnessResponse> {
+    return this.clients
+      .control(toClientConfig(options))
+      .send(new GetHarnessCommand({ harnessId: id, harnessVersion: version }));
+  }
+
   async getHarnessEndpoint(
     id: string,
     qualifier: string,

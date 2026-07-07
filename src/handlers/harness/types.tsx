@@ -13,6 +13,7 @@ import type { CoreOptions } from "../../core/types";
 
 export interface CoreHarnessClient {
   getHarness(id: string, options: CoreOptions): Promise<GetHarnessResponse>;
+  getHarnessVersion(id: string, version: string, options: CoreOptions): Promise<GetHarnessResponse>;
   getHarnessEndpoint(
     id: string,
     qualifier: string,

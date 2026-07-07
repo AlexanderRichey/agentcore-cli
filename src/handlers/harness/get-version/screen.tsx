@@ -3,9 +3,9 @@ import { useNavigate } from "react-router";
 import type { ScreenProps } from "../../types";
 import { Layout } from "../../../components/Layout";
 
-// HarnessGetVersionsScreen is a stub for getting a harness's versions. Esc pops
-// back. TODO.
-export function HarnessGetVersionsScreen(_props: ScreenProps) {
+// HarnessGetVersionScreen is a stub for getting a specific harness version. Esc
+// pops back. TODO.
+export function HarnessGetVersionScreen(_props: ScreenProps) {
   const navigate = useNavigate();
 
   useInput((_input, key) => {
@@ -14,7 +14,7 @@ export function HarnessGetVersionsScreen(_props: ScreenProps) {
 
   return (
     <Layout
-      breadcrumb={["agentcore", "harness", "get-versions"]}
+      breadcrumb={["agentcore", "harness", "get-version"]}
       keyHints={[
         { key: "esc", label: "back" },
         { key: "ctl+c", label: "quit" },
