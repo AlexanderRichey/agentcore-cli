@@ -257,7 +257,7 @@ A Husky pre-commit hook runs Prettier (via lint-staged) on staged files automati
 
 ## Next Steps
 
-- **Flesh out the TUI.** The framework is in place (full-screen Ink app,
-  react-router screens, react-query, InkUI components), but most screens are
-  still placeholders. The create/update/delete/invoke/exec harness screens are
-  still TODO stubs and need real implementations.
+- **Cover more AgentCore resources.** The harness surface (CRUD, versions,
+  endpoints, invoke, exec) is fully implemented in both the CLI and the TUI;
+  the same patterns extend naturally to gateways, memory, browser profiles,
+  and the other control-plane resources.
