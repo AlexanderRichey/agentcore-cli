@@ -602,3 +602,71 @@ test("handler with overlapping flag and arg names works independently", async ()
   expect(seenFlags).toEqual({ id: "flag-value" });
   expect(seenArgs).toEqual({ id: "arg-value" });
 });
+
+// --- parameter details help ---------------------------------------------------
+
+// helpOutput compiles the router, triggers `--help` on the given subcommand,
+// and returns what Commander printed (exitOverride turns the post-help exit
+// into a caught error).
+async function helpOutput(root: Router, argv: string[]): Promise<string> {
+  let out = "";
+  const cmd = compile(root, ValueContext.EmptyContext());
+  const capture = (c: Command): Command => {
+    c.exitOverride();
+    c.configureOutput({ writeOut: (s) => (out += s), writeErr: () => {} });
+    c.commands.forEach(capture);
+    return c;
+  };
+  capture(cmd);
+  try {
+    await cmd.parseAsync(["node", ...argv]);
+  } catch {
+    // commander.helpDisplayed
+  }
+  return out;
+}
+
+test("flags with long-form help render a Parameter details section", async () => {
+  const create = createHandler({
+    name: "create",
+    description: "",
+    flags: [
+      flag("name", "the name", z.string().optional()),
+      flag(
+        "model",
+        "model config (JSON)",
+        z.string().optional(),
+        `(JSON: tagged union object)\nThe model configuration.\n\nExample:\n  --model '{"a":1}'`,
+      ),
+    ],
+    handle: async () => {},
+  });
+  const root = new Router("app");
+  root.handler(create);
+
+  const out = await helpOutput(root, ["app", "create", "--help"]);
+
+  expect(out).toContain("Parameter details:");
+  // The annotation shares the flag's line; the body is indented beneath it.
+  expect(out).toContain("--model (JSON: tagged union object)");
+  expect(out).toContain("      The model configuration.");
+  expect(out).toContain(`--model '{"a":1}'`);
+  // Flags without long-form help stay out of the section.
+  expect(out).not.toContain("--name (");
+});
+
+test("commands without long-form flag help have no Parameter details section", async () => {
+  const get = createHandler({
+    name: "get",
+    description: "",
+    flags: [flag("id", "the id", z.string().optional())],
+    handle: async () => {},
+  });
+  const root = new Router("app");
+  root.handler(get);
+
+  const out = await helpOutput(root, ["app", "get", "--help"]);
+
+  expect(out).toContain("--id");
+  expect(out).not.toContain("Parameter details:");
+});

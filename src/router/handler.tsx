@@ -9,6 +9,11 @@ export interface Flag<N extends string = string, T = unknown> {
   name: N;
   description: string;
   schema: z.ZodType<T>;
+  // help is optional long-form documentation rendered in the command's
+  // "Parameter details" help section (see flags.tsx/formatParameterDetails).
+  // Its first line is the type annotation shown next to the flag name; the
+  // remaining lines are the body — prose, JSON syntax, examples.
+  help?: string;
 }
 
 // GlobalFlag is a group-level flag that is *also* a typed ContextKey: declared on
@@ -27,8 +32,9 @@ export function flag<N extends string, T>(
   name: N,
   description: string,
   schema: z.ZodType<T>,
+  help?: string,
 ): Flag<N, T> {
-  return { name, description, schema };
+  return { name, description, schema, help };
 }
 
 // globalFlag constructs a GlobalFlag. The returned value doubles as the typed

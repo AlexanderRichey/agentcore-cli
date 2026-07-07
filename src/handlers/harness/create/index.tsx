@@ -13,61 +13,95 @@ import { createHandler, flag } from "../../../router";
 import type { Core } from "../../types.tsx";
 import { coreOptsFromCtx, parseJsonFlag } from "../../utils.tsx";
 import { JsonRendererKey } from "../../../tui";
+import { parameterHelp } from "../parameterHelp.tsx";
 
 export const createCreateHarnessHandler = (core: Core) =>
   createHandler({
     name: "create",
     description: "create a harness",
     flags: [
-      flag("name", "the name of the harness", z.string().optional()),
+      flag("name", "the name of the harness", z.string().optional(), parameterHelp.name),
       flag(
         "execution-role-arn",
         "IAM role the harness assumes; a default role is created when omitted",
         z.string().optional(),
+        parameterHelp.executionRoleArn,
       ),
-      flag("system-prompt", "the agent's system prompt", z.string().optional()),
-      flag("model", "model configuration (JSON HarnessModelConfiguration)", z.string().optional()),
-      flag("tools", "tools available to the agent (JSON HarnessTool[])", z.string().optional()),
-      flag("skills", "skills available to the agent (JSON HarnessSkill[])", z.string().optional()),
+      flag(
+        "system-prompt",
+        "the agent's system prompt",
+        z.string().optional(),
+        parameterHelp.systemPrompt,
+      ),
+      flag(
+        "model",
+        "model configuration (JSON HarnessModelConfiguration)",
+        z.string().optional(),
+        parameterHelp.model,
+      ),
+      flag(
+        "tools",
+        "tools available to the agent (JSON HarnessTool[])",
+        z.string().optional(),
+        parameterHelp.tools,
+      ),
+      flag(
+        "skills",
+        "skills available to the agent (JSON HarnessSkill[])",
+        z.string().optional(),
+        parameterHelp.skills,
+      ),
       flag(
         "allowed-tools",
         "tool allowlist patterns (e.g. * or @serverName/toolName)",
         z.array(z.string()).optional(),
+        parameterHelp.allowedTools,
       ),
       flag(
         "memory",
         "memory configuration (JSON HarnessMemoryConfiguration)",
         z.string().optional(),
+        parameterHelp.memory,
       ),
       flag(
         "truncation",
         "context truncation configuration (JSON HarnessTruncationConfiguration)",
         z.string().optional(),
+        parameterHelp.truncation,
       ),
       flag(
         "environment",
         "compute environment configuration (JSON HarnessEnvironmentProviderRequest)",
         z.string().optional(),
+        parameterHelp.environment,
       ),
       flag(
         "environment-artifact",
         "environment artifact, e.g. a container image (JSON HarnessEnvironmentArtifact)",
         z.string().optional(),
+        parameterHelp.environmentArtifact,
       ),
       flag(
         "environment-variables",
         "environment variables (JSON object of key/value strings)",
         z.string().optional(),
+        parameterHelp.environmentVariables,
       ),
       flag(
         "authorizer-configuration",
         "inbound authorizer configuration (JSON AuthorizerConfiguration)",
         z.string().optional(),
+        parameterHelp.authorizerConfiguration,
       ),
       flag("max-iterations", "max agent loop iterations per invocation", z.number().optional()),
       flag("max-tokens", "max total output tokens per invocation", z.number().optional()),
       flag("timeout-seconds", "max duration in seconds per invocation", z.number().optional()),
-      flag("tags", "tags to apply (JSON object of key/value strings)", z.string().optional()),
+      flag(
+        "tags",
+        "tags to apply (JSON object of key/value strings)",
+        z.string().optional(),
+        parameterHelp.tags,
+      ),
       flag("client-token", "idempotency token", z.string().optional()),
     ],
     handle: async (ctx, flags) => {

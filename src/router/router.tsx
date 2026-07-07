@@ -1,7 +1,7 @@
 import type { Argument, Flag, GlobalFlag, Handler } from "./handler";
 import { type Middleware, type MiddlewareProvider, isMiddlewareProvider } from "./middleware";
 import { type Context, type ContextKey, ValueContext, contextKey } from "./context";
-import { applyGlobalFlags, parseFlags, toOption } from "./flags";
+import { applyGlobalFlags, formatParameterDetails, parseFlags, toOption } from "./flags";
 import { parseArguments, toCommanderArgument } from "./args";
 
 import { Command } from "commander";
@@ -105,6 +105,13 @@ export function compile(
   const ownFlags = node.flags();
   declareFlags(c, ownFlags);
   declareArguments(c, node.arguments());
+
+  // Flags with long-form documentation get a "Parameter details" section after
+  // the option list in `--help` output.
+  const parameterDetails = formatParameterDetails(ownFlags);
+  if (parameterDetails) {
+    c.addHelpText("after", parameterDetails);
+  }
 
   const own = isMiddlewareProvider(node) ? node.middlewares() : [];
   const nextStack = [...stack, ...own];

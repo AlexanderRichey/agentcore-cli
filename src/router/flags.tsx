@@ -31,6 +31,24 @@ export function toOption(flag: Flag): Option {
   return option;
 }
 
+// formatParameterDetails renders the long-form documentation of flags that carry
+// `help` into the block appended after Commander's option list (modeled on the
+// AWS CLI's OPTIONS section). A flag's first help line is its type annotation
+// and shares the line with the flag name; the rest is indented beneath it.
+// Returns undefined when no flag has long-form help.
+export function formatParameterDetails(flags: Flag[]): string | undefined {
+  const detailed = flags.filter((f) => f.help !== undefined);
+  if (detailed.length === 0) return undefined;
+
+  const sections = detailed.map((f) => {
+    const [annotation = "", ...body] = f.help!.trim().split("\n");
+    const indented = body.map((line) => (line ? `      ${line}` : line)).join("\n");
+    return `  --${f.name} ${annotation}${indented ? `\n${indented}` : ""}`;
+  });
+
+  return `\nParameter details:\n\n${sections.join("\n\n")}\n`;
+}
+
 // attributeName mirrors how Commander camelCases an option name into the key it
 // stores on the parsed options object (e.g. "harness-id" -> "harnessId").
 function attributeName(name: string): string {

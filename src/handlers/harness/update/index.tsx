@@ -13,6 +13,7 @@ import { createHandler, flag } from "../../../router";
 import type { Core } from "../../types.tsx";
 import { coreOptsFromCtx, parseJsonFlag } from "../../utils.tsx";
 import { JsonRendererKey } from "../../../tui";
+import { parameterHelp } from "../parameterHelp.tsx";
 
 // updated wraps a PATCH-semantics field: `--<flag> <json>` replaces the value,
 // `--clear-<flag> true` sends an empty wrapper (unsetting it), and omitting
@@ -28,20 +29,47 @@ export const createUpdateHarnessHandler = (core: Core) =>
     description: "update a harness (creates a new version)",
     flags: [
       flag("id", "the ID of the harness to update", z.string().max(48).optional()),
-      flag("execution-role-arn", "IAM role the harness assumes", z.string().optional()),
-      flag("system-prompt", "the agent's system prompt", z.string().optional()),
-      flag("model", "model configuration (JSON HarnessModelConfiguration)", z.string().optional()),
-      flag("tools", "tools available to the agent (JSON HarnessTool[])", z.string().optional()),
-      flag("skills", "skills available to the agent (JSON HarnessSkill[])", z.string().optional()),
+      flag(
+        "execution-role-arn",
+        "IAM role the harness assumes",
+        z.string().optional(),
+        parameterHelp.executionRoleArn,
+      ),
+      flag(
+        "system-prompt",
+        "the agent's system prompt",
+        z.string().optional(),
+        parameterHelp.systemPrompt,
+      ),
+      flag(
+        "model",
+        "model configuration (JSON HarnessModelConfiguration)",
+        z.string().optional(),
+        parameterHelp.model,
+      ),
+      flag(
+        "tools",
+        "tools available to the agent (JSON HarnessTool[])",
+        z.string().optional(),
+        parameterHelp.tools,
+      ),
+      flag(
+        "skills",
+        "skills available to the agent (JSON HarnessSkill[])",
+        z.string().optional(),
+        parameterHelp.skills,
+      ),
       flag(
         "allowed-tools",
         "tool allowlist patterns (e.g. * or @serverName/toolName)",
         z.array(z.string()).optional(),
+        parameterHelp.allowedTools,
       ),
       flag(
         "memory",
         "memory configuration (JSON HarnessMemoryConfiguration)",
         z.string().optional(),
+        parameterHelp.memory,
       ),
       flag(
         "clear-memory",
@@ -52,16 +80,19 @@ export const createUpdateHarnessHandler = (core: Core) =>
         "truncation",
         "context truncation configuration (JSON HarnessTruncationConfiguration)",
         z.string().optional(),
+        parameterHelp.truncation,
       ),
       flag(
         "environment",
         "compute environment configuration (JSON HarnessEnvironmentProviderRequest)",
         z.string().optional(),
+        parameterHelp.environment,
       ),
       flag(
         "environment-artifact",
         "environment artifact, e.g. a container image (JSON HarnessEnvironmentArtifact)",
         z.string().optional(),
+        parameterHelp.environmentArtifact,
       ),
       flag(
         "clear-environment-artifact",
@@ -72,11 +103,13 @@ export const createUpdateHarnessHandler = (core: Core) =>
         "environment-variables",
         "environment variables (JSON object; replaces all existing)",
         z.string().optional(),
+        parameterHelp.environmentVariables,
       ),
       flag(
         "authorizer-configuration",
         "inbound authorizer configuration (JSON AuthorizerConfiguration)",
         z.string().optional(),
+        parameterHelp.authorizerConfiguration,
       ),
       flag(
         "clear-authorizer-configuration",
