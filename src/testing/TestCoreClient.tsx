@@ -1,6 +1,7 @@
 import type {
   GetHarnessResponse,
   ListHarnessesResponse,
+  ListHarnessEndpointsResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import type {
   InvokeHarnessRequest,
@@ -34,6 +35,7 @@ export interface RecordedCall {
 
 const DEFAULT_LIST_RESPONSE: ListHarnessesResponse = { harnesses: [] };
 const DEFAULT_GET_RESPONSE: GetHarnessResponse = {} as GetHarnessResponse;
+const DEFAULT_LIST_ENDPOINTS_RESPONSE: ListHarnessEndpointsResponse = { endpoints: [] };
 
 // abortError mirrors the error the SDK's abort handling rejects with.
 function abortError(): Error {
@@ -78,6 +80,7 @@ export class TestHarnessClient implements CoreHarnessClient {
 
   private listResponse: ListHarnessesResponse = DEFAULT_LIST_RESPONSE;
   private getResponse: GetHarnessResponse = DEFAULT_GET_RESPONSE;
+  private listEndpointsResponse: ListHarnessEndpointsResponse = DEFAULT_LIST_ENDPOINTS_RESPONSE;
   private invokeEvents: InvokeHarnessStreamOutput[] = [];
   private invokeStreams: AsyncIterable<InvokeHarnessStreamOutput>[] = [];
   private error?: Error;
@@ -91,6 +94,13 @@ export class TestHarnessClient implements CoreHarnessClient {
   // setGetResponse sets what getHarness resolves to (when not erroring).
   setGetResponse(response: GetHarnessResponse): this {
     this.getResponse = response;
+    return this;
+  }
+
+  // setListEndpointsResponse sets what listHarnessEndpoints resolves to (when
+  // not erroring).
+  setListEndpointsResponse(response: ListHarnessEndpointsResponse): this {
+    this.listEndpointsResponse = response;
     return this;
   }
 
@@ -130,6 +140,20 @@ export class TestHarnessClient implements CoreHarnessClient {
     this.calls.push({ method: "listHarnesses", args: [nextToken, maxResults, options] });
     if (this.error) throw this.error;
     return this.listResponse;
+  }
+
+  async listHarnessEndpoints(
+    id: string,
+    nextToken: string | undefined,
+    maxResults: number | undefined,
+    options: CoreOptions,
+  ): Promise<ListHarnessEndpointsResponse> {
+    this.calls.push({
+      method: "listHarnessEndpoints",
+      args: [id, nextToken, maxResults, options],
+    });
+    if (this.error) throw this.error;
+    return this.listEndpointsResponse;
   }
 
   async invokeHarness(

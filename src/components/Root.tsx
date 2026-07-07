@@ -10,6 +10,13 @@ import { HarnessUpdateScreen } from "../handlers/harness/update/screen.tsx";
 import { HarnessDeleteScreen } from "../handlers/harness/delete/screen.tsx";
 import { HarnessInvokeScreen } from "../handlers/harness/invoke/screen.tsx";
 import { HarnessExecScreen } from "../handlers/harness/exec/screen.tsx";
+import { HarnessCreateEndpointScreen } from "../handlers/harness/create-endpoint/screen.tsx";
+import { HarnessGetEndpointScreen } from "../handlers/harness/get-endpoint/screen.tsx";
+import { HarnessListEndpointsScreen } from "../handlers/harness/list-endpoints/screen.tsx";
+import { HarnessUpdateEndpointScreen } from "../handlers/harness/update-endpoint/screen.tsx";
+import { HarnessDeleteEndpointScreen } from "../handlers/harness/delete-endpoint/screen.tsx";
+import { HarnessGetVersionsScreen } from "../handlers/harness/get-versions/screen.tsx";
+import { HarnessListVersionsScreen } from "../handlers/harness/list-versions/screen.tsx";
 import { RootScreen, HelpScreen } from "../handlers/screen.tsx";
 import type { Context } from "../router";
 
@@ -80,6 +87,34 @@ export function Root({ path, ctx, core, queryClient }: RootProps) {
           <Route
             path="agentcore/harness/exec"
             element={<HarnessExecScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/create-endpoint"
+            element={<HarnessCreateEndpointScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/get-endpoint"
+            element={<HarnessGetEndpointScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/list-endpoints"
+            element={<HarnessListEndpointsScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/update-endpoint"
+            element={<HarnessUpdateEndpointScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/delete-endpoint"
+            element={<HarnessDeleteEndpointScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/get-versions"
+            element={<HarnessGetVersionsScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/list-versions"
+            element={<HarnessListVersionsScreen ctx={ctx} core={core} />}
           />
           <Route path="*" element={<HelpScreen ctx={ctx} core={core} />} />
         </Routes>

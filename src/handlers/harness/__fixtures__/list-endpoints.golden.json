@@ -1,0 +1,14 @@
+{
+  "endpoints": [
+    {
+      "harnessId": "MyPDXHarness-rhkXkAE1IS",
+      "harnessName": "MyPDXHarness",
+      "endpointName": "DEFAULT",
+      "arn": "arn:aws:bedrock-agentcore:us-west-2:501930284170:harness/MyPDXHarness-rhkXkAE1IS/harness-endpoint/DEFAULT",
+      "status": "READY",
+      "createdAt": "2026-04-22T21:53:06.235Z",
+      "updatedAt": "2026-06-16T01:42:17.699Z",
+      "liveVersion": "1"
+    }
+  ]
+}

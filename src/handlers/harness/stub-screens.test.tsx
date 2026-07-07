@@ -7,7 +7,19 @@ afterEach(cleanupScreens);
 // TODO placeholder and pops back on esc. These tests lock in that behavior (and
 // will need updating as each screen is built out).
 
-const STUBS = ["create", "update", "delete", "exec"] as const;
+const STUBS = [
+  "create",
+  "update",
+  "delete",
+  "exec",
+  "create-endpoint",
+  "get-endpoint",
+  "list-endpoints",
+  "update-endpoint",
+  "delete-endpoint",
+  "get-versions",
+  "list-versions",
+] as const;
 
 describe("harness stub screens", () => {
   for (const stub of STUBS) {

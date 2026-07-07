@@ -61,10 +61,38 @@ describe("harness get", () => {
   });
 });
 
+describe("harness list-endpoints", () => {
+  test("prints the harness's endpoints as JSON for a given id", async () => {
+    const out = await run(["harness", "list-endpoints", "--id", "MyPDXHarness-rhkXkAE1IS"]);
+    matchGolden(FIXTURES, "list-endpoints.golden.json", out);
+  });
+
+  test("output is valid JSON containing an endpoints array", async () => {
+    const out = await run(["harness", "list-endpoints", "--id", "MyPDXHarness-rhkXkAE1IS"]);
+    const parsed = JSON.parse(out);
+    expect(Array.isArray(parsed.endpoints)).toBe(true);
+  });
+
+  test("errors when --id is omitted (leaf requires it)", async () => {
+    await expect(run(["harness", "list-endpoints", "--id", ""])).rejects.toThrow(/--id/);
+  });
+});
+
 describe("unimplemented harness subcommands", () => {
   // These leaves are scaffolded but not yet implemented. Locking in their
   // current behavior documents the surface and flags the day they change.
-  for (const cmd of ["create", "update", "delete", "exec"]) {
+  for (const cmd of [
+    "create",
+    "update",
+    "delete",
+    "exec",
+    "create-endpoint",
+    "get-endpoint",
+    "update-endpoint",
+    "delete-endpoint",
+    "get-versions",
+    "list-versions",
+  ]) {
     test(`\`harness ${cmd}\` reports not implemented`, async () => {
       // Pass a throwaway flag so the empty-args TUI middleware doesn't engage.
       await expect(run(["harness", cmd, "--json"])).rejects.toThrow(/Not implemented/);
