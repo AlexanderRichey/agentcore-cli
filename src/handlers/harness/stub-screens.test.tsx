@@ -3,11 +3,11 @@ import { renderScreen, waitForText, cleanupScreens, TestCoreClient } from "../..
 
 afterEach(cleanupScreens);
 
-// The create/update/delete/invoke/exec harness screens are stubs: each renders a
+// The create/update/delete/exec harness screens are stubs: each renders a
 // TODO placeholder and pops back on esc. These tests lock in that behavior (and
 // will need updating as each screen is built out).
 
-const STUBS = ["create", "update", "delete", "invoke", "exec"] as const;
+const STUBS = ["create", "update", "delete", "exec"] as const;
 
 describe("harness stub screens", () => {
   for (const stub of STUBS) {

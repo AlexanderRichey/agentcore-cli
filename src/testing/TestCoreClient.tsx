@@ -2,6 +2,11 @@ import type {
   GetHarnessResponse,
   ListHarnessesResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
+import type {
+  InvokeHarnessRequest,
+  InvokeHarnessResponse,
+  InvokeHarnessStreamOutput,
+} from "@aws-sdk/client-bedrock-agentcore";
 import type { Core } from "../handlers/types";
 import type { CoreHarnessClient } from "../handlers/harness/types";
 import type { CoreOptions } from "../core/types";
@@ -30,6 +35,42 @@ export interface RecordedCall {
 const DEFAULT_LIST_RESPONSE: ListHarnessesResponse = { harnesses: [] };
 const DEFAULT_GET_RESPONSE: GetHarnessResponse = {} as GetHarnessResponse;
 
+// abortError mirrors the error the SDK's abort handling rejects with.
+function abortError(): Error {
+  const error = new Error("The operation was aborted");
+  error.name = "AbortError";
+  return error;
+}
+
+// abortable wraps a stream so iteration rejects with an AbortError as soon as
+// `signal` aborts, mirroring how the SDK cuts an event stream off mid-read.
+// Each next() races against the abortion; the pre-attached catch swallows the
+// rejection when nothing is racing (e.g. abort after the stream already ended)
+// so tests don't fail on unhandled-rejection noise.
+async function* abortable<T>(source: AsyncIterable<T>, signal?: AbortSignal): AsyncGenerator<T> {
+  if (!signal) {
+    yield* source;
+    return;
+  }
+  const aborted = new Promise<never>((_, reject) => {
+    if (signal.aborted) reject(abortError());
+    else signal.addEventListener("abort", () => reject(abortError()), { once: true });
+  });
+  aborted.catch(() => {});
+
+  const iterator = source[Symbol.asyncIterator]();
+  for (;;) {
+    const result = await Promise.race([iterator.next(), aborted]);
+    if (result.done) return;
+    yield result.value;
+  }
+}
+
+// events wraps canned events as a one-shot AsyncIterable.
+async function* events<T>(items: T[]): AsyncGenerator<T> {
+  for (const item of items) yield item;
+}
+
 // TestHarnessClient is the harness sub-client of TestCoreClient.
 export class TestHarnessClient implements CoreHarnessClient {
   // calls records every invocation in order, for assertions.
@@ -37,6 +78,8 @@ export class TestHarnessClient implements CoreHarnessClient {
 
   private listResponse: ListHarnessesResponse = DEFAULT_LIST_RESPONSE;
   private getResponse: GetHarnessResponse = DEFAULT_GET_RESPONSE;
+  private invokeEvents: InvokeHarnessStreamOutput[] = [];
+  private invokeStreams: AsyncIterable<InvokeHarnessStreamOutput>[] = [];
   private error?: Error;
 
   // setListResponse sets what listHarnesses resolves to (when not erroring).
@@ -48,6 +91,21 @@ export class TestHarnessClient implements CoreHarnessClient {
   // setGetResponse sets what getHarness resolves to (when not erroring).
   setGetResponse(response: GetHarnessResponse): this {
     this.getResponse = response;
+    return this;
+  }
+
+  // setInvokeEvents sets the canned full turn every invokeHarness call streams
+  // (unless a queued stream takes precedence).
+  setInvokeEvents(...events: InvokeHarnessStreamOutput[]): this {
+    this.invokeEvents = events;
+    return this;
+  }
+
+  // queueInvokeStream enqueues a stream for a single invokeHarness call; calls
+  // consume the queue in FIFO order before falling back to the canned events.
+  // Pass a StreamController to hold the stream open and pump it by hand.
+  queueInvokeStream(stream: AsyncIterable<InvokeHarnessStreamOutput>): this {
+    this.invokeStreams.push(stream);
     return this;
   }
 
@@ -72,6 +130,17 @@ export class TestHarnessClient implements CoreHarnessClient {
     this.calls.push({ method: "listHarnesses", args: [nextToken, maxResults, options] });
     if (this.error) throw this.error;
     return this.listResponse;
+  }
+
+  async invokeHarness(
+    request: InvokeHarnessRequest,
+    options: CoreOptions,
+    abortSignal?: AbortSignal,
+  ): Promise<InvokeHarnessResponse> {
+    this.calls.push({ method: "invokeHarness", args: [request, options, abortSignal] });
+    if (this.error) throw this.error;
+    const stream = this.invokeStreams.shift() ?? events(this.invokeEvents);
+    return { stream: abortable(stream, abortSignal) };
   }
 }
 

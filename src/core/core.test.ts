@@ -1,6 +1,9 @@
 import { test, expect } from "bun:test";
 import type { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
-import type { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
+import {
+  InvokeHarnessCommand,
+  type BedrockAgentCoreClient,
+} from "@aws-sdk/client-bedrock-agentcore";
 import { CoreClient } from "./index";
 import type { ClientConfig } from "./types";
 import { toClientConfig } from "./utils";
@@ -68,6 +71,97 @@ test("data() caches independently of control()", () => {
 test("exposes a harness sub-client", () => {
   const core = new CoreClient(fakeControl, fakeData);
   expect(core.harness).toBeDefined();
+});
+
+test("invokeHarness sends an InvokeHarnessCommand on the data client with the abort signal", async () => {
+  // A fake data client that records what send() receives and resolves a canned
+  // response, so we can assert the harness sub-client's SDK translation.
+  const sent: { command: unknown; options: unknown }[] = [];
+  const configs: ClientConfig[] = [];
+  const response = { stream: undefined };
+  const core = new CoreClient(fakeControl, (config) => {
+    configs.push(config);
+    return {
+      config,
+      kind: "data",
+      send: async (command: unknown, options: unknown) => {
+        sent.push({ command, options });
+        return response;
+      },
+    } as unknown as BedrockAgentCoreClient;
+  });
+
+  const request = {
+    harnessArn: "arn:aws:bedrock-agentcore:us-east-1:123:harness/h-1",
+    runtimeSessionId: "s".repeat(40),
+    messages: [{ role: "user" as const, content: [{ text: "hi" }] }],
+  };
+  const controller = new AbortController();
+  const result = await core.harness.invokeHarness(
+    request,
+    { region: "us-east-1", endpointUrl: "https://custom" },
+    controller.signal,
+  );
+
+  expect(result).toBe(response);
+  expect(configs).toEqual([{ region: "us-east-1", endpoint: "https://custom" }]);
+  expect(sent).toHaveLength(1);
+  expect(sent[0]!.command).toBeInstanceOf(InvokeHarnessCommand);
+  expect((sent[0]!.command as InvokeHarnessCommand).input).toEqual(request);
+  expect(sent[0]!.options).toEqual({ abortSignal: controller.signal });
+});
+
+test("invokeHarness stream iteration rejects promptly when aborted mid-stream", async () => {
+  // A stream that yields one event then hangs, like a live turn between
+  // events; the SDK itself does not fail the iteration on abort at this point.
+  const hangingStream: AsyncIterable<string> = {
+    async *[Symbol.asyncIterator]() {
+      yield "first";
+      await new Promise(() => {});
+    },
+  };
+  const core = new CoreClient(
+    fakeControl,
+    (config) =>
+      ({
+        config,
+        kind: "data",
+        send: async () => ({ stream: hangingStream }),
+      }) as unknown as BedrockAgentCoreClient,
+  );
+
+  const controller = new AbortController();
+  const response = await core.harness.invokeHarness(
+    { harnessArn: "arn", runtimeSessionId: "s".repeat(40), messages: [] },
+    { region: "us-east-1" },
+    controller.signal,
+  );
+
+  const iterator = response.stream![Symbol.asyncIterator]();
+  expect((await iterator.next()).value).toBe("first");
+
+  const pending = iterator.next();
+  controller.abort();
+  expect(pending).rejects.toMatchObject({ name: "AbortError" });
+});
+
+test("invokeHarness returns the stream untouched when no abort signal is given", async () => {
+  const stream = (async function* () {})();
+  const core = new CoreClient(
+    fakeControl,
+    (config) =>
+      ({
+        config,
+        kind: "data",
+        send: async () => ({ stream }),
+      }) as unknown as BedrockAgentCoreClient,
+  );
+
+  const response = await core.harness.invokeHarness(
+    { harnessArn: "arn", runtimeSessionId: "s".repeat(40), messages: [] },
+    { region: "us-east-1" },
+  );
+  expect(response.stream).toBe(stream);
 });
 
 test("toClientConfig maps region and omits endpoint when not overridden", () => {

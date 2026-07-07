@@ -64,7 +64,7 @@ describe("harness get", () => {
 describe("unimplemented harness subcommands", () => {
   // These leaves are scaffolded but not yet implemented. Locking in their
   // current behavior documents the surface and flags the day they change.
-  for (const cmd of ["create", "update", "delete", "invoke", "exec"]) {
+  for (const cmd of ["create", "update", "delete", "exec"]) {
     test(`\`harness ${cmd}\` reports not implemented`, async () => {
       // Pass a throwaway flag so the empty-args TUI middleware doesn't engage.
       await expect(run(["harness", cmd, "--json"])).rejects.toThrow(/Not implemented/);
