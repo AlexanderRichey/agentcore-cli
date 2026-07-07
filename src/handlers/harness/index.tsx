@@ -11,7 +11,7 @@ import { createInvokeHarnessHandler } from "./invoke";
 import { createExecHarnessHandler } from "./exec";
 
 export function createHarnessHandler(core: Core): Router {
-  const harness = new Router("harness", "manage AgentCore harnesses");
+  const harness = new Router("harness", "manage agentcore harnesses");
 
   // Open the TUI by default if no flags or arguments are passed
   harness.use(withTuiOnEmptyFlagsAndArgs(core));

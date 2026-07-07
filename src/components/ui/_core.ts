@@ -125,7 +125,7 @@ export const darkTheme: InkUITheme = {
     warning: "yellow",
     error: "red",
     info: "blue",
-    muted: "gray",
+    muted: "#888888",
     text: "white",
     textInverse: "black",
     border: "gray",

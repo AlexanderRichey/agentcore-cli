@@ -50,6 +50,7 @@ export function HarnessListScreen({ ctx, core }: ScreenProps) {
         { key: "↑↓/jk", label: "navigate" },
         { key: "/", label: "filter" },
         { key: "enter", label: "select" },
+        { key: "esc", label: "back" },
         { key: "ctl+c", label: "quit" },
       ]}
     >
@@ -75,6 +76,7 @@ export function HarnessListScreen({ ctx, core }: ScreenProps) {
           onSelect={(row) => {
             if (row.harnessId !== "—") navigate(`/agentcore/harness/get/${row.harnessId}`);
           }}
+          onEscape={() => navigate("/agentcore/harness")}
         />
       )}
     </Layout>

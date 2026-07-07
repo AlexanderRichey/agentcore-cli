@@ -19,6 +19,8 @@ export interface DataTableProps<T> {
   searchable?: boolean;
   searchPlaceholder?: string;
   onSelect?: (row: T, index: number) => void;
+  /** Called when Escape is pressed while not in search mode (e.g. to go back). */
+  onEscape?: () => void;
   selectable?: boolean;
   borderStyle?: "single" | "double" | "rounded" | "bold" | "classic" | "none";
   /** Toggle individual border edges (each defaults to true when a border is shown). */
@@ -41,6 +43,7 @@ export function DataTable<T extends Record<string, unknown>>({
   searchable = true,
   searchPlaceholder = "Filter...",
   onSelect,
+  onEscape,
   selectable = true,
   borderStyle = "single",
   borderTop,
@@ -98,6 +101,11 @@ export function DataTable<T extends Record<string, unknown>>({
           return;
         }
         if (input && input.length === 1 && !key.ctrl) setSearchQuery((q) => q + input);
+        return;
+      }
+
+      if (key.escape) {
+        onEscape?.();
         return;
       }
 

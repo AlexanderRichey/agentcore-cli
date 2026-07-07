@@ -7,7 +7,7 @@ import { withRegion } from "../middleware";
 import type { Core } from "./types.tsx";
 
 export function createRootHandler(core: Core): Router {
-  const root = new Router("agentcore", "Do fun things with AgentCore");
+  const root = new Router("agentcore", "the platform for production AI agents");
 
   // Add global flags
   root.groupFlags(RegionKey, DebugKey, JsonKey, EndpointKey);

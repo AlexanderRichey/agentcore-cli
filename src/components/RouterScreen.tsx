@@ -5,11 +5,12 @@ import { useNavigate } from "react-router";
 import { CommandKey } from "../router";
 import { Layout } from "./Layout";
 import { Divider } from "./ui/divider";
+import { TextInput } from "./ui/text-input";
 import { darkTheme } from "./ui/_core.js";
 import type { ScreenProps } from "../handlers/types";
 
 const theme = darkTheme;
-const PLACEHOLDER = "type to filter…";
+const PLACEHOLDER = "type to choose a command";
 
 // rootCommand walks up to the top of the Commander tree.
 function rootCommand(c: Command): Command {
@@ -73,12 +74,14 @@ export function RouterScreen({ ctx, path }: RouterScreenProps) {
   const highlight = Math.min(index, Math.max(0, filtered.length - 1));
 
   const base = "/" + path.join("/");
-  const isRoot = path.length === 1;
-  const subtitle = isRoot ? command.description() : `${command.name()}: ${command.description()}`;
 
   // Width of the name column so descriptions line up (longest name + a gap).
   const nameWidth = options.reduce((m, o) => Math.max(m, o.name.length), 0) + 3;
 
+  // Navigation-only input. Text editing (typing, backspace, cursor) is owned by
+  // the TextInput below; this handler just drives list movement, selection, and
+  // going back. It coexists with TextInput's own useInput — every keystroke
+  // reaches both, so the two must handle disjoint keys.
   useInput(
     (input, key) => {
       if (key.ctrl && input === "c") {
@@ -100,19 +103,14 @@ export function RouterScreen({ ctx, path }: RouterScreenProps) {
         if (opt) navigate(`${base}/${opt.name}`);
         return;
       }
-      if (key.backspace || key.delete) {
-        setQuery((q) => q.slice(0, -1));
-        setIndex(0);
-        return;
-      }
       if (key.escape) {
-        setQuery("");
-        setIndex(0);
+        // Go back to the parent command screen, inferred from this screen's
+        // path (e.g. harness -> agentcore). Navigating to an explicit parent
+        // rather than popping history avoids cycles when we arrived here via a
+        // sibling screen's own back-navigation. At the root there is no parent,
+        // so escape is a no-op.
+        if (path.length > 1) navigate("/" + path.slice(0, -1).join("/"));
         return;
-      }
-      if (input && input.length === 1 && !key.ctrl && !key.meta) {
-        setQuery((q) => q + input);
-        setIndex(0);
       }
     },
     { isActive: Boolean(isRawModeSupported) },
@@ -121,42 +119,38 @@ export function RouterScreen({ ctx, path }: RouterScreenProps) {
   return (
     <Layout
       breadcrumb={path}
+      description={command.description()}
       keyHints={[
         { key: "type", label: "filter" },
         { key: "↑↓", label: "navigate" },
         { key: "enter", label: "select" },
+        { key: "esc", label: "back" },
         { key: "ctl+c", label: "quit" },
       ]}
     >
       <Box flexDirection="column">
-        {/* Filter input */}
+        {/* Filter input. TextInput owns text editing; the highlight resets to
+            the best match whenever the query changes. */}
         <Box paddingX={1}>
-          <Text color={theme.colors.muted}>{"› "}</Text>
-          {query.length > 0 ? (
-            <Text>{query}</Text>
-          ) : (
-            <Text color={theme.colors.muted}>{PLACEHOLDER}</Text>
-          )}
-          {isRawModeSupported && (
-            <Text color={theme.colors.focus} inverse>
-              {" "}
-            </Text>
-          )}
+          <TextInput
+            value={query}
+            onChange={(v) => {
+              setQuery(v);
+              setIndex(0);
+            }}
+            placeholder={PLACEHOLDER}
+            prompt="/ "
+            focus={Boolean(isRawModeSupported)}
+          />
         </Box>
 
         <Divider />
-
-        <Box height={1} />
-        <Box paddingX={1}>
-          <Text color={theme.colors.muted}>{subtitle}</Text>
-        </Box>
-        <Box height={1} />
 
         {/* Options */}
         <Box flexDirection="column">
           {filtered.length === 0 ? (
             <Box paddingX={1}>
-              <Text color={theme.colors.muted}>No matches</Text>
+              <Text color={theme.colors.text}>No matches</Text>
             </Box>
           ) : (
             filtered.map((o, i) => {

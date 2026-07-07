@@ -18,6 +18,8 @@ export interface TextInputProps {
   focus?: boolean;
   /** Optional label rendered to the left */
   label?: string;
+  /** Optional prompt override */
+  prompt?: string;
   /** Theme override — defaults to darkTheme */
   theme?: InkUITheme;
 }
@@ -110,6 +112,10 @@ const FocusedInput: React.FC<FocusedInputProps> = ({
       setCursor((c) => Math.min(value.length, c + 1));
       return;
     }
+    // Vertical arrows are meaningless for a single-line input; ignore them so
+    // their escape sequence is never appended to the value (this also lets a
+    // parent component own up/down for list navigation).
+    if (key.upArrow || key.downArrow) return;
 
     if (key.backspace || key.delete) {
       if (cursor === 0) return;
@@ -150,6 +156,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   password = false,
   focus = true,
   label,
+  prompt = "❯ ",
   theme = darkTheme,
 }) => {
   const { isRawModeSupported } = useStdin();
@@ -158,7 +165,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   return (
     <Box>
       {label ? <Text color={theme.colors.muted}>{label} </Text> : null}
-      <Text color={theme.colors.border}>{"❯ "}</Text>
+      <Text color={theme.colors.border}>{prompt}</Text>
       {canFocus ? (
         <FocusedInput
           value={value}
