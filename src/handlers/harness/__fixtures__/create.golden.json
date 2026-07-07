@@ -1,12 +1,12 @@
 {
   "harness": {
-    "harnessId": "AgentCoreCliE2E-yh6crQ9sBH",
+    "harnessId": "AgentCoreCliE2E-W21v24kBuV",
     "harnessName": "AgentCoreCliE2E",
-    "arn": "arn:aws:bedrock-agentcore:us-west-2:501930284170:harness/AgentCoreCliE2E-yh6crQ9sBH",
+    "arn": "arn:aws:bedrock-agentcore:us-west-2:501930284170:harness/AgentCoreCliE2E-W21v24kBuV",
     "status": "CREATING",
     "executionRoleArn": "arn:aws:iam::501930284170:role/AgentCoreHarness-AgentCoreCliE2E",
-    "createdAt": "2026-07-07T16:14:39.707Z",
-    "updatedAt": "2026-07-07T16:14:39.707Z",
+    "createdAt": "2026-07-07T23:10:13.675Z",
+    "updatedAt": "2026-07-07T23:10:13.675Z",
     "model": {
       "bedrockModelConfig": {
         "modelId": "global.anthropic.claude-sonnet-4-6",

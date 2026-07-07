@@ -12,8 +12,7 @@ import { useFinishFlow } from "../../../../components/useFinishFlow";
 
 // HarnessUpdateEndpointScreen is the interactive endpoint update flow: pick the
 // harness, pick the endpoint, then run the endpoint wizard prefilled with the
-// endpoint's current target version and description, ending in an
-// UpdateHarnessEndpoint call.
+// endpoint's current target version, ending in an UpdateHarnessEndpoint call.
 export function HarnessUpdateEndpointScreen(props: ScreenProps) {
   const navigate = useNavigate();
   const { harnessId, endpointName } = useParams();
@@ -90,7 +89,6 @@ function UpdateWizard({
         // A settled endpoint reports only liveVersion (targetVersion clears
         // once the transition finishes), so fall back to what's serving.
         version: endpoint?.targetVersion ?? endpoint?.liveVersion ?? "",
-        description: endpoint?.description ?? "",
       }}
       onDone={(name) => finishFlow(`/agentcore/harness/endpoint/get/${harnessId}/${name}`)}
     />

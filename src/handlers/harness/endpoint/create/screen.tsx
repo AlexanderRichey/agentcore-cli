@@ -6,7 +6,7 @@ import { useFinishFlow } from "../../../../components/useFinishFlow";
 
 // HarnessCreateEndpointScreen is the interactive endpoint create flow. Without
 // a `:harnessId` route value it renders a harness picker; with one it runs the
-// endpoint wizard (name → version → description → review) ending in a
+// endpoint wizard (name → version → review) ending in a
 // CreateHarnessEndpoint call. Success lands on the endpoint's detail.
 export function HarnessCreateEndpointScreen(props: ScreenProps) {
   const navigate = useNavigate();

@@ -14,8 +14,7 @@ import {
 afterEach(cleanupScreens);
 
 // Behavior tests for the endpoint update wizard: harness picker → endpoint
-// picker → version/description steps prefilled → review → submit (changed
-// fields only).
+// picker → version step prefilled → review → submit (changed fields only).
 
 function version(v: string): HarnessVersionSummary {
   return {
@@ -96,11 +95,6 @@ describe("harness endpoint update wizard", () => {
     await waitForText(r.lastFrame, "● version 2");
     await r.press("return");
 
-    // Description is prefilled; keep it.
-    await waitForText(r.lastFrame, "A short note about this endpoint");
-    expect(r.lastFrame()).toContain("old description");
-    await r.press("return");
-
     await waitForText(r.lastFrame, "Review");
     await r.press("return");
     await waitForText(r.lastFrame, "Endpoint updated");
@@ -114,15 +108,12 @@ describe("harness endpoint update wizard", () => {
     r.unmount();
   });
 
-  test("editing the description submits it alongside the endpoint identity", async () => {
+  test("keeping the version unchanged submits only the endpoint identity", async () => {
     const core = coreForUpdate();
     const r = renderScreen("/agentcore/harness/endpoint/update/MyHarness-abc123/prod", { core });
 
     await waitForText(r.lastFrame, "● version 1");
     await r.press("return"); // keep version
-    await waitForText(r.lastFrame, "A short note about this endpoint");
-    await r.write(" (updated)");
-    await r.press("return");
     await waitForText(r.lastFrame, "Review");
     await r.press("return");
 
@@ -131,7 +122,6 @@ describe("harness endpoint update wizard", () => {
     expect(call.args[0]).toEqual({
       harnessId: "MyHarness-abc123",
       endpointName: "prod",
-      description: "old description (updated)",
     });
     r.unmount();
   });

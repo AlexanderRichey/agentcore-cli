@@ -22,7 +22,6 @@ const theme = darkTheme;
 export interface EndpointFormValues {
   name: string;
   version: string;
-  description: string;
 }
 
 type WizardPhase =
@@ -47,8 +46,8 @@ const NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{0,47}$/;
 
 // EndpointWizard is the interactive step flow behind `harness endpoint create`
 // and `harness endpoint update`: name → target version (picked from the
-// harness's actual versions) → description → review → submit. Update mode skips
-// the name step (endpoints cannot be renamed).
+// harness's actual versions) → review → submit. Update mode skips the name
+// step (endpoints cannot be renamed).
 export function EndpointWizard({
   ctx,
   core,
@@ -66,15 +65,12 @@ export function EndpointWizard({
     const all: Step[] = [
       { key: "name", title: "Name" },
       { key: "version", title: "Version" },
-      { key: "description", title: "Description", optional: true },
       { key: "review", title: "Review" },
     ];
     return mode === "create" ? all : all.filter((step) => step.key !== "name");
   }, [mode]);
 
-  const [initialValues] = useState<EndpointFormValues>(
-    () => initial ?? { name: "", version: "", description: "" },
-  );
+  const [initialValues] = useState<EndpointFormValues>(() => initial ?? { name: "", version: "" });
   const [values, setValues] = useState<EndpointFormValues>(initialValues);
   const [stepIndex, setStepIndex] = useState(0);
   const [phase, setPhase] = useState<WizardPhase>({ kind: "form" });
@@ -98,15 +94,11 @@ export function EndpointWizard({
         harnessId,
         endpointName: values.name,
         targetVersion: values.version || undefined,
-        description: values.description || undefined,
       };
     }
     const update: UpdateHarnessEndpointRequest = { harnessId, endpointName: endpointName! };
     if (values.version !== initialValues.version && values.version !== "") {
       update.targetVersion = values.version;
-    }
-    if (values.description !== initialValues.description) {
-      update.description = values.description;
     }
     return update;
   }, [mode, values, harnessId, endpointName, initialValues]);
@@ -159,14 +151,6 @@ export function EndpointWizard({
             value={values.version}
             versions={versions}
             onChange={(version) => setValues((v) => ({ ...v, version }))}
-            onNext={next}
-            onBack={back}
-          />
-        )}
-        {phase.kind === "form" && stepKey === "description" && (
-          <DescriptionStep
-            value={values.description}
-            onChange={(description) => setValues((v) => ({ ...v, description }))}
             onNext={next}
             onBack={back}
           />
@@ -373,36 +357,6 @@ function VersionStep({
           })}
         </Box>
       )}
-    </Box>
-  );
-}
-
-function DescriptionStep({
-  value,
-  onChange,
-  onNext,
-  onBack,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onNext: () => void;
-  onBack: () => void;
-}) {
-  useInput((_input, key) => {
-    if (key.escape) {
-      onBack();
-      return;
-    }
-    if (key.return) onNext();
-  });
-
-  return (
-    <Box flexDirection="column">
-      <StepHeading
-        title="Description"
-        hint="A short note about this endpoint. Leave empty to skip."
-      />
-      <TextInput value={value} onChange={onChange} placeholder="serves production traffic" />
     </Box>
   );
 }

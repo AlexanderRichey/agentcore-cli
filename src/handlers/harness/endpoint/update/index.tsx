@@ -12,7 +12,6 @@ export const createUpdateEndpointHandler = (core: Core) =>
       flag("id", "the ID of the harness", z.string().max(48).optional()),
       flag("qualifier", "the endpoint name (qualifier)", z.string().optional()),
       flag("target-version", "the harness version the endpoint points to", z.string().optional()),
-      flag("description", "a description of the endpoint", z.string().optional()),
       flag("client-token", "idempotency token", z.string().optional()),
     ],
     handle: async (ctx, flags) => {
@@ -30,7 +29,6 @@ export const createUpdateEndpointHandler = (core: Core) =>
           harnessId: flags["id"],
           endpointName: flags["qualifier"],
           targetVersion: flags["target-version"],
-          description: flags["description"],
           clientToken: flags["client-token"],
         },
         coreOptsFromCtx(ctx),

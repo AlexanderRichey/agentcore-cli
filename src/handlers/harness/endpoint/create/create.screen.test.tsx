@@ -14,7 +14,7 @@ import {
 afterEach(cleanupScreens);
 
 // Behavior tests for the endpoint create wizard: name → target version (picked
-// from the harness's real versions) → description → review → submit.
+// from the harness's real versions) → review → submit.
 
 function version(v: string): HarnessVersionSummary {
   return {
@@ -71,7 +71,7 @@ describe("harness endpoint create wizard", () => {
     r.unmount();
   });
 
-  test("walks name → version → description → review and creates", async () => {
+  test("walks name → version → review and creates", async () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/endpoint/create/MyHarness-abc123", { core });
 
@@ -88,10 +88,6 @@ describe("harness endpoint create wizard", () => {
     await waitForText(r.lastFrame, "● version 2");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "A short note about this endpoint");
-    await r.write("serves prod traffic");
-    await r.press("return");
-
     await waitForText(r.lastFrame, "Review");
     expect(r.lastFrame()).toContain('"endpointName"');
     await r.press("return");
@@ -102,7 +98,6 @@ describe("harness endpoint create wizard", () => {
       harnessId: "MyHarness-abc123",
       endpointName: "prod",
       targetVersion: "2",
-      description: "serves prod traffic",
     });
 
     // Enter lands on the endpoint's detail.
@@ -131,8 +126,6 @@ describe("harness endpoint create wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "● latest");
     await r.press("return");
-    await waitForText(r.lastFrame, "A short note about this endpoint");
-    await r.press("return"); // empty description
     await waitForText(r.lastFrame, "Review");
     await r.press("return");
 

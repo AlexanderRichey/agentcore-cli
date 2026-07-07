@@ -299,8 +299,6 @@ describe("harness write flow", () => {
         ENDPOINT_NAME,
         "--target-version",
         "1",
-        "--description",
-        "e2e endpoint",
       ]);
       matchGolden(FIXTURES, "endpoint-create.golden.json", out);
 
@@ -329,8 +327,6 @@ describe("harness write flow", () => {
         ENDPOINT_NAME,
         "--target-version",
         "2",
-        "--description",
-        "e2e endpoint on v2",
       ]);
       matchGolden(FIXTURES, "endpoint-update.golden.json", out);
 
