@@ -143,8 +143,11 @@ describe("harness invoke", () => {
     await expect(run(["harness", "invoke", "--prompt", "hi"])).rejects.toThrow(/--id/);
   });
 
-  test("errors when --prompt is omitted", async () => {
-    await expect(run(["harness", "invoke", "--id", "MyHarness-abc123"])).rejects.toThrow(
+  // Without --prompt (and outside JSON mode) the handler opens the interactive
+  // chat instead — that path is covered by the screen tests, since the test IO
+  // streams cannot host an Ink render.
+  test("errors when --prompt is omitted in JSON mode", async () => {
+    await expect(run(["harness", "invoke", "--id", "MyHarness-abc123", "--json"])).rejects.toThrow(
       /--prompt/,
     );
   });

@@ -1,11 +1,12 @@
 import z from "zod";
-import { createHandler, flag } from "../../../router";
-import type { Core } from "../../types.tsx";
+import { createHandler, flag, PathKey } from "../../../router";
+import type { AppIO, Core } from "../../types.tsx";
 import { coreOptsFromCtx } from "../../utils.tsx";
-import { JsonRendererKey } from "../../../tui";
+import { JsonKey } from "../../keys.tsx";
+import { JsonRendererKey, renderTuiAt } from "../../../tui";
 import { applyExecEvent, finishExec, newExecItem } from "../invoke/transcript.tsx";
 
-export const createExecHarnessHandler = (core: Core) =>
+export const createExecHarnessHandler = (core: Core, io: AppIO) =>
   createHandler({
     name: "exec",
     description: "run a shell command in a harness",
@@ -30,8 +31,21 @@ export const createExecHarnessHandler = (core: Core) =>
       if (!flags["id"]) {
         throw new TypeError("required option '--id <id>' not specified");
       }
+      // Without a command, open the interactive exec screen at this harness —
+      // resuming the given session when one is passed. The one-shot CLI run
+      // below needs --command (and is the only shape JSON mode supports).
       if (!flags["command"]) {
-        throw new TypeError("required option '--command <command>' not specified");
+        if (ctx.require(JsonKey)) {
+          throw new TypeError("required option '--command <command>' not specified");
+        }
+        const base = `${ctx.require(PathKey)}/${flags["id"]}`;
+        await renderTuiAt(
+          flags["session-id"] ? `${base}/${flags["session-id"]}` : base,
+          ctx,
+          core,
+          io,
+        );
+        return;
       }
 
       const opts = coreOptsFromCtx(ctx);

@@ -100,6 +100,19 @@ describe("exec screen", () => {
     r.unmount();
   });
 
+  test("a session id in the route resumes that session", async () => {
+    const resumed = "resumed-session-0123456789abcdefghijklmn"; // 33+ chars
+    const core = execCore();
+    const r = renderScreen(`${EXEC_PATH}/${resumed}`, { core });
+
+    await waitForText(r.lastFrame, `session: ${resumed}`);
+    await type(r, "pwd");
+    await waitFor(() => core.harness.calls.some((c) => c.method === "invokeAgentRuntimeCommand"));
+    const call = core.harness.calls.find((c) => c.method === "invokeAgentRuntimeCommand")!;
+    expect((call.args[0] as InvokeAgentRuntimeCommandRequest).runtimeSessionId).toBe(resumed);
+    r.unmount();
+  });
+
   test("a failing command shows its output and exit code in red", async () => {
     const core = execCore();
     core.harness.setExecEvents(

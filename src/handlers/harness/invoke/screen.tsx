@@ -30,9 +30,10 @@ const theme = darkTheme;
 
 // HarnessInvokeScreen is the interactive chat for `harness invoke`. Without a
 // `:harnessId` route value it renders a picker (choose which harness to chat
-// with); with one it renders the chat itself.
+// with); with one it renders the chat itself. A `:sessionId` route value
+// resumes that runtime session instead of starting a fresh one.
 export function HarnessInvokeScreen(props: ScreenProps) {
-  const { harnessId } = useParams();
+  const { harnessId, sessionId } = useParams();
   const navigate = useNavigate();
 
   if (!harnessId) {
@@ -45,7 +46,9 @@ export function HarnessInvokeScreen(props: ScreenProps) {
       />
     );
   }
-  return <HarnessChat {...props} harnessId={harnessId} variant="invoke" />;
+  return (
+    <HarnessChat {...props} harnessId={harnessId} initialSessionId={sessionId} variant="invoke" />
+  );
 }
 
 // ─── chat ─────────────────────────────────────────────────────────────────────
@@ -56,6 +59,10 @@ type Mode = "chat" | "exec";
 
 export interface HarnessChatProps extends ScreenProps {
   harnessId: string;
+  // initialSessionId resumes an existing runtime session; omitted, the chat
+  // starts a fresh one. The service holds conversation state server-side, so
+  // resuming continues the agent's context (the transcript view starts empty).
+  initialSessionId?: string;
   // variant is the command hosting the chat: it names the breadcrumb and picks
   // the starting mode ("exec" starts in exec mode; "invoke" in chat mode).
   variant: "invoke" | "exec";
@@ -66,7 +73,7 @@ export interface HarnessChatProps extends ScreenProps {
 // bottom. One runtime session spans the whole chat — the service keeps
 // conversation state server-side, so each send carries only the new user
 // message, and exec-mode commands run in that same session's container.
-export function HarnessChat({ ctx, core, harnessId, variant }: HarnessChatProps) {
+export function HarnessChat({ ctx, core, harnessId, initialSessionId, variant }: HarnessChatProps) {
   const opts = coreOptsFromCtx(ctx);
   const { columns, rows } = useWindowSize();
   const navigate = useNavigate();
@@ -76,7 +83,7 @@ export function HarnessChat({ ctx, core, harnessId, variant }: HarnessChatProps)
     queryFn: () => core.harness.getHarness(harnessId, opts),
   });
 
-  const [sessionId] = useState(newSessionId);
+  const [sessionId] = useState(() => initialSessionId ?? newSessionId());
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [mode, setMode] = useState<Mode>(variant === "exec" ? "exec" : "chat");

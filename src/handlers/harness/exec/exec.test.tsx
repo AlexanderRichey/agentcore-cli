@@ -114,7 +114,12 @@ describe("harness exec", () => {
     await expect(run(["harness", "exec", "--command", "ls"])).rejects.toThrow(/--id/);
   });
 
-  test("errors when --command is omitted", async () => {
-    await expect(run(["harness", "exec", "--id", "MyHarness-abc123"])).rejects.toThrow(/--command/);
+  // Without --command (and outside JSON mode) the handler opens the interactive
+  // exec screen instead — that path is covered by the screen tests, since the
+  // test IO streams cannot host an Ink render.
+  test("errors when --command is omitted in JSON mode", async () => {
+    await expect(run(["harness", "exec", "--id", "MyHarness-abc123", "--json"])).rejects.toThrow(
+      /--command/,
+    );
   });
 });

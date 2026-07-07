@@ -1,7 +1,14 @@
 import React from "react";
 import { render } from "ink";
 import { Root } from "../components/Root";
-import { type DefaultHandle, PathKey, CommandKey, contextKey, type ContextKey } from "../router";
+import {
+  type Context,
+  type DefaultHandle,
+  PathKey,
+  CommandKey,
+  contextKey,
+  type ContextKey,
+} from "../router";
 import type { AppIO, Core } from "../handlers/types";
 import { JsonKey } from "../handlers/keys";
 
@@ -26,6 +33,26 @@ export interface JsonRenderer {
 // the withJsonRenderer middleware at the root; read by any leaf that emits JSON.
 export const JsonRendererKey: ContextKey<JsonRenderer> = contextKey<JsonRenderer>("json.renderer");
 
+// renderTuiAt mounts the Ink React tree at an explicit route path and resolves
+// once the app exits. Handlers use it to deep-link into a TUI screen (e.g.
+// `invoke --id X --session-id Y` opens the chat at that harness and session).
+export async function renderTuiAt(
+  path: string,
+  ctx: Context,
+  core: Core,
+  io: AppIO,
+): Promise<void> {
+  // alternateScreen switches the terminal to its alternate buffer so the TUI
+  // takes over the screen and the prior scrollback is restored on exit (like Vim).
+  const { waitUntilExit } = render(<Root path={path} ctx={ctx} core={core} />, {
+    stdin: io.stdin,
+    stdout: io.stdout,
+    stderr: io.stderr,
+    alternateScreen: true,
+  });
+  await waitUntilExit();
+}
+
 // renderTui builds the root DefaultHandle that mounts the Ink React tree. It
 // reads the command path from the context and passes it, along with the injected
 // `core` clients, into the Root component. Ink reads/writes through the injected
@@ -40,15 +67,6 @@ export function renderTui(core: Core, io: AppIO): DefaultHandle {
       return;
     }
 
-    const path = ctx.require(PathKey);
-    // alternateScreen switches the terminal to its alternate buffer so the TUI
-    // takes over the screen and the prior scrollback is restored on exit (like Vim).
-    const { waitUntilExit } = render(<Root path={path} ctx={ctx} core={core} />, {
-      stdin: io.stdin,
-      stdout: io.stdout,
-      stderr: io.stderr,
-      alternateScreen: true,
-    });
-    await waitUntilExit();
+    await renderTuiAt(ctx.require(PathKey), ctx, core, io);
   };
 }

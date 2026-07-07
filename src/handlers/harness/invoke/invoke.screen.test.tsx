@@ -152,6 +152,22 @@ describe("invoke chat screen", () => {
     r.unmount();
   });
 
+  test("a session id in the route resumes that session", async () => {
+    const resumed = "resumed-session-0123456789abcdefghijklmn"; // 33+ chars
+    const core = chatCore();
+    const r = renderScreen(`${CHAT_PATH}/${resumed}`, { core });
+
+    // The bottom bar shows the resumed session immediately.
+    await waitForText(r.lastFrame, `session: ${resumed}`);
+
+    // Sends carry the resumed session id, not a fresh one.
+    await sendMessage(r, "continue where we left off");
+    await waitFor(() => core.harness.calls.some((c) => c.method === "invokeHarness"));
+    const invoke = core.harness.calls.find((c) => c.method === "invokeHarness")!;
+    expect((invoke.args[0] as InvokeHarnessRequest).runtimeSessionId).toBe(resumed);
+    r.unmount();
+  });
+
   test("renders reasoning, a successful tool, and a failed tool with result previews", async () => {
     const core = chatCore();
     core.harness.setInvokeEvents(

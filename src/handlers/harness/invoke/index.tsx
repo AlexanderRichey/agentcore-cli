@@ -1,8 +1,9 @@
 import z from "zod";
-import { createHandler, flag } from "../../../router";
-import type { Core } from "../../types.tsx";
+import { createHandler, flag, PathKey } from "../../../router";
+import type { AppIO, Core } from "../../types.tsx";
 import { coreOptsFromCtx } from "../../utils.tsx";
-import { JsonRendererKey } from "../../../tui";
+import { JsonKey } from "../../keys.tsx";
+import { JsonRendererKey, renderTuiAt } from "../../../tui";
 import {
   applyEvent,
   finishTurn,
@@ -11,7 +12,7 @@ import {
   type TranscriptItem,
 } from "./transcript.tsx";
 
-export const createInvokeHarnessHandler = (core: Core) =>
+export const createInvokeHarnessHandler = (core: Core, io: AppIO) =>
   createHandler({
     name: "invoke",
     description: "invoke a harness",
@@ -31,8 +32,21 @@ export const createInvokeHarnessHandler = (core: Core) =>
       if (!flags["id"]) {
         throw new TypeError("required option '--id <id>' not specified");
       }
+      // Without a prompt, open the interactive chat at this harness — resuming
+      // the given session when one is passed. The one-shot CLI transcript
+      // below needs --prompt (and is the only shape JSON mode supports).
       if (!flags["prompt"]) {
-        throw new TypeError("required option '--prompt <text>' not specified");
+        if (ctx.require(JsonKey)) {
+          throw new TypeError("required option '--prompt <text>' not specified");
+        }
+        const base = `${ctx.require(PathKey)}/${flags["id"]}`;
+        await renderTuiAt(
+          flags["session-id"] ? `${base}/${flags["session-id"]}` : base,
+          ctx,
+          core,
+          io,
+        );
+        return;
       }
 
       const opts = coreOptsFromCtx(ctx);

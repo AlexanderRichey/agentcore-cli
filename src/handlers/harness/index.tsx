@@ -26,8 +26,8 @@ export function createHarnessHandler(core: Core, io: AppIO): Router {
   harness.handler(createCreateHarnessHandler(core));
   harness.handler(createUpdateHarnessHandler(core));
   harness.handler(createDeleteHarnessHandler(core));
-  harness.handler(createInvokeHarnessHandler(core));
-  harness.handler(createExecHarnessHandler(core));
+  harness.handler(createInvokeHarnessHandler(core, io));
+  harness.handler(createExecHarnessHandler(core, io));
 
   // Endpoint and version commands live under their own sub-routers, e.g.
   // `agentcore harness endpoint create`.

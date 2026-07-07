@@ -98,12 +98,21 @@ export function Root({ path, ctx, core, queryClient }: RootProps) {
             path="agentcore/harness/invoke/:harnessId"
             element={<HarnessInvokeScreen ctx={ctx} core={core} />}
           />
+          {/* Deep link that resumes an existing runtime session in the chat. */}
+          <Route
+            path="agentcore/harness/invoke/:harnessId/:sessionId"
+            element={<HarnessInvokeScreen ctx={ctx} core={core} />}
+          />
           <Route
             path="agentcore/harness/exec"
             element={<HarnessExecScreen ctx={ctx} core={core} />}
           />
           <Route
             path="agentcore/harness/exec/:harnessId"
+            element={<HarnessExecScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/exec/:harnessId/:sessionId"
             element={<HarnessExecScreen ctx={ctx} core={core} />}
           />
           <Route
