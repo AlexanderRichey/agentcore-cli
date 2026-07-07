@@ -61,88 +61,90 @@ describe("harness get", () => {
   });
 });
 
-describe("harness list-endpoints", () => {
+describe("harness endpoint list", () => {
   test("prints the harness's endpoints as JSON for a given id", async () => {
-    const out = await run(["harness", "list-endpoints", "--id", "MyPDXHarness-rhkXkAE1IS"]);
-    matchGolden(FIXTURES, "list-endpoints.golden.json", out);
+    const out = await run(["harness", "endpoint", "list", "--id", "MyPDXHarness-rhkXkAE1IS"]);
+    matchGolden(FIXTURES, "endpoint-list.golden.json", out);
   });
 
   test("output is valid JSON containing an endpoints array", async () => {
-    const out = await run(["harness", "list-endpoints", "--id", "MyPDXHarness-rhkXkAE1IS"]);
+    const out = await run(["harness", "endpoint", "list", "--id", "MyPDXHarness-rhkXkAE1IS"]);
     const parsed = JSON.parse(out);
     expect(Array.isArray(parsed.endpoints)).toBe(true);
   });
 
   test("errors when --id is omitted (leaf requires it)", async () => {
-    await expect(run(["harness", "list-endpoints", "--id", ""])).rejects.toThrow(/--id/);
+    await expect(run(["harness", "endpoint", "list", "--id", ""])).rejects.toThrow(/--id/);
   });
 });
 
-describe("harness get-endpoint", () => {
+describe("harness endpoint get", () => {
   test("prints the endpoint detail as JSON for a given id and qualifier", async () => {
     const out = await run([
       "harness",
-      "get-endpoint",
+      "endpoint",
+      "get",
       "--id",
       "MyPDXHarness-rhkXkAE1IS",
       "--qualifier",
       "DEFAULT",
     ]);
-    matchGolden(FIXTURES, "get-endpoint.golden.json", out);
+    matchGolden(FIXTURES, "endpoint-get.golden.json", out);
   });
 
   test("errors when --id is omitted (leaf requires it)", async () => {
     await expect(
-      run(["harness", "get-endpoint", "--id", "", "--qualifier", "DEFAULT"]),
+      run(["harness", "endpoint", "get", "--id", "", "--qualifier", "DEFAULT"]),
     ).rejects.toThrow(/--id/);
   });
 
   test("errors when --qualifier is omitted (leaf requires it)", async () => {
     await expect(
-      run(["harness", "get-endpoint", "--id", "MyPDXHarness-rhkXkAE1IS", "--qualifier", ""]),
+      run(["harness", "endpoint", "get", "--id", "MyPDXHarness-rhkXkAE1IS", "--qualifier", ""]),
     ).rejects.toThrow(/--qualifier/);
   });
 });
 
-describe("harness list-versions", () => {
+describe("harness version list", () => {
   test("prints the harness's versions as JSON for a given id", async () => {
-    const out = await run(["harness", "list-versions", "--id", "MyPDXHarness-rhkXkAE1IS"]);
-    matchGolden(FIXTURES, "list-versions.golden.json", out);
+    const out = await run(["harness", "version", "list", "--id", "MyPDXHarness-rhkXkAE1IS"]);
+    matchGolden(FIXTURES, "version-list.golden.json", out);
   });
 
   test("output is valid JSON containing a harnessVersions array", async () => {
-    const out = await run(["harness", "list-versions", "--id", "MyPDXHarness-rhkXkAE1IS"]);
+    const out = await run(["harness", "version", "list", "--id", "MyPDXHarness-rhkXkAE1IS"]);
     const parsed = JSON.parse(out);
     expect(Array.isArray(parsed.harnessVersions)).toBe(true);
   });
 
   test("errors when --id is omitted (leaf requires it)", async () => {
-    await expect(run(["harness", "list-versions", "--id", ""])).rejects.toThrow(/--id/);
+    await expect(run(["harness", "version", "list", "--id", ""])).rejects.toThrow(/--id/);
   });
 });
 
-describe("harness get-version", () => {
+describe("harness version get", () => {
   test("prints the harness detail as JSON for a given id and version", async () => {
     const out = await run([
       "harness",
-      "get-version",
+      "version",
+      "get",
       "--id",
       "MyPDXHarness-rhkXkAE1IS",
       "--version",
       "1",
     ]);
-    matchGolden(FIXTURES, "get-version.golden.json", out);
+    matchGolden(FIXTURES, "version-get.golden.json", out);
   });
 
   test("errors when --id is omitted (leaf requires it)", async () => {
-    await expect(run(["harness", "get-version", "--id", "", "--version", "1"])).rejects.toThrow(
+    await expect(run(["harness", "version", "get", "--id", "", "--version", "1"])).rejects.toThrow(
       /--id/,
     );
   });
 
   test("errors when --version is omitted (leaf requires it)", async () => {
     await expect(
-      run(["harness", "get-version", "--id", "MyPDXHarness-rhkXkAE1IS", "--version", ""]),
+      run(["harness", "version", "get", "--id", "MyPDXHarness-rhkXkAE1IS", "--version", ""]),
     ).rejects.toThrow(/--version/);
   });
 });
@@ -162,24 +164,24 @@ describe("write command validation", () => {
     await expect(run(["harness", "delete", "--id", ""])).rejects.toThrow(/--id/);
   });
 
-  test("`harness create-endpoint` errors when --id or --name is omitted", async () => {
-    await expect(run(["harness", "create-endpoint", "--id", ""])).rejects.toThrow(/--id/);
-    await expect(run(["harness", "create-endpoint", "--id", "h-1", "--name", ""])).rejects.toThrow(
-      /--name/,
-    );
+  test("`harness endpoint create` errors when --id or --name is omitted", async () => {
+    await expect(run(["harness", "endpoint", "create", "--id", ""])).rejects.toThrow(/--id/);
+    await expect(
+      run(["harness", "endpoint", "create", "--id", "h-1", "--name", ""]),
+    ).rejects.toThrow(/--name/);
   });
 
-  test("`harness update-endpoint` errors when --id or --qualifier is omitted", async () => {
-    await expect(run(["harness", "update-endpoint", "--id", ""])).rejects.toThrow(/--id/);
+  test("`harness endpoint update` errors when --id or --qualifier is omitted", async () => {
+    await expect(run(["harness", "endpoint", "update", "--id", ""])).rejects.toThrow(/--id/);
     await expect(
-      run(["harness", "update-endpoint", "--id", "h-1", "--qualifier", ""]),
+      run(["harness", "endpoint", "update", "--id", "h-1", "--qualifier", ""]),
     ).rejects.toThrow(/--qualifier/);
   });
 
-  test("`harness delete-endpoint` errors when --id or --qualifier is omitted", async () => {
-    await expect(run(["harness", "delete-endpoint", "--id", ""])).rejects.toThrow(/--id/);
+  test("`harness endpoint delete` errors when --id or --qualifier is omitted", async () => {
+    await expect(run(["harness", "endpoint", "delete", "--id", ""])).rejects.toThrow(/--id/);
     await expect(
-      run(["harness", "delete-endpoint", "--id", "h-1", "--qualifier", ""]),
+      run(["harness", "endpoint", "delete", "--id", "h-1", "--qualifier", ""]),
     ).rejects.toThrow(/--qualifier/);
   });
 
@@ -285,11 +287,12 @@ describe("harness write flow", () => {
   );
 
   test(
-    "`harness create-endpoint` points a named endpoint at version 1",
+    "`harness endpoint create` points a named endpoint at version 1",
     async () => {
       const out = await run([
         "harness",
-        "create-endpoint",
+        "endpoint",
+        "create",
         "--id",
         state.harnessId!,
         "--name",
@@ -299,14 +302,14 @@ describe("harness write flow", () => {
         "--description",
         "e2e endpoint",
       ]);
-      matchGolden(FIXTURES, "create-endpoint.golden.json", out);
+      matchGolden(FIXTURES, "endpoint-create.golden.json", out);
 
       const parsed = JSON.parse(out);
       expect(parsed.endpoint.endpointName).toBe(ENDPOINT_NAME);
       expect(parsed.endpoint.targetVersion).toBe("1");
 
       await pollUntil(
-        ["harness", "get-endpoint", "--id", state.harnessId!, "--qualifier", ENDPOINT_NAME],
+        ["harness", "endpoint", "get", "--id", state.harnessId!, "--qualifier", ENDPOINT_NAME],
         (o) => o.endpoint.status === "READY",
       );
     },
@@ -314,11 +317,12 @@ describe("harness write flow", () => {
   );
 
   test(
-    "`harness update-endpoint` repoints the endpoint at version 2",
+    "`harness endpoint update` repoints the endpoint at version 2",
     async () => {
       const out = await run([
         "harness",
-        "update-endpoint",
+        "endpoint",
+        "update",
         "--id",
         state.harnessId!,
         "--qualifier",
@@ -328,13 +332,13 @@ describe("harness write flow", () => {
         "--description",
         "e2e endpoint on v2",
       ]);
-      matchGolden(FIXTURES, "update-endpoint.golden.json", out);
+      matchGolden(FIXTURES, "endpoint-update.golden.json", out);
 
       const parsed = JSON.parse(out);
       expect(parsed.endpoint.targetVersion).toBe("2");
 
       await pollUntil(
-        ["harness", "get-endpoint", "--id", state.harnessId!, "--qualifier", ENDPOINT_NAME],
+        ["harness", "endpoint", "get", "--id", state.harnessId!, "--qualifier", ENDPOINT_NAME],
         (o) => o.endpoint.status === "READY" && o.endpoint.liveVersion === "2",
       );
     },
@@ -342,17 +346,18 @@ describe("harness write flow", () => {
   );
 
   test(
-    "`harness delete-endpoint` deletes the endpoint",
+    "`harness endpoint delete` deletes the endpoint",
     async () => {
       const out = await run([
         "harness",
-        "delete-endpoint",
+        "endpoint",
+        "delete",
         "--id",
         state.harnessId!,
         "--qualifier",
         ENDPOINT_NAME,
       ]);
-      matchGolden(FIXTURES, "delete-endpoint.golden.json", out);
+      matchGolden(FIXTURES, "endpoint-delete.golden.json", out);
       expect(JSON.parse(out).endpoint.status).toBe("DELETING");
     },
     FLOW_TIMEOUT,

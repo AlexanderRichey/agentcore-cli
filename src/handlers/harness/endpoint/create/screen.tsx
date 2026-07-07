@@ -1,9 +1,9 @@
 import { useNavigate, useParams } from "react-router";
-import type { ScreenProps } from "../../types";
-import { HarnessPicker } from "../../../components/HarnessPicker";
-import { EndpointWizard } from "../../../components/EndpointWizard";
+import type { ScreenProps } from "../../../types";
+import { HarnessPicker } from "../../../../components/HarnessPicker";
+import { EndpointWizard } from "../../../../components/EndpointWizard";
 
-// HarnessCreateEndpointScreen is the interactive create-endpoint flow. Without
+// HarnessCreateEndpointScreen is the interactive endpoint create flow. Without
 // a `:harnessId` route value it renders a harness picker; with one it runs the
 // endpoint wizard (name → version → description → review) ending in a
 // CreateHarnessEndpoint call. Success lands on the endpoint's detail.
@@ -15,9 +15,9 @@ export function HarnessCreateEndpointScreen(props: ScreenProps) {
     return (
       <HarnessPicker
         {...props}
-        breadcrumb={["agentcore", "harness", "create-endpoint"]}
+        breadcrumb={["agentcore", "harness", "endpoint", "create"]}
         description="choose a harness to create an endpoint for"
-        onSelect={(id) => navigate(`/agentcore/harness/create-endpoint/${id}`)}
+        onSelect={(id) => navigate(`/agentcore/harness/endpoint/create/${id}`)}
       />
     );
   }
@@ -27,9 +27,9 @@ export function HarnessCreateEndpointScreen(props: ScreenProps) {
       {...props}
       mode="create"
       harnessId={harnessId}
-      breadcrumb={["agentcore", "harness", "create-endpoint", harnessId]}
+      breadcrumb={["agentcore", "harness", "endpoint", "create", harnessId]}
       onDone={(endpointName) =>
-        navigate(`/agentcore/harness/get-endpoint/${harnessId}/${endpointName}`)
+        navigate(`/agentcore/harness/endpoint/get/${harnessId}/${endpointName}`)
       }
     />
   );

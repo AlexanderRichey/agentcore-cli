@@ -1,12 +1,12 @@
 import z from "zod";
-import { createHandler, flag } from "../../../router";
-import type { Core } from "../../types.tsx";
-import { coreOptsFromCtx, parseJsonFlag } from "../../utils.tsx";
-import { JsonRendererKey } from "../../../tui";
+import { createHandler, flag } from "../../../../router";
+import type { Core } from "../../../types.tsx";
+import { coreOptsFromCtx, parseJsonFlag } from "../../../utils.tsx";
+import { JsonRendererKey } from "../../../../tui";
 
 export const createCreateEndpointHandler = (core: Core) =>
   createHandler({
-    name: "create-endpoint",
+    name: "create",
     description: "create a harness endpoint",
     flags: [
       flag("id", "the ID of the harness", z.string().max(48).optional()),
@@ -22,7 +22,7 @@ export const createCreateEndpointHandler = (core: Core) =>
     ],
     handle: async (ctx, flags) => {
       // Required at runtime but declared optional so that a bare
-      // `harness create-endpoint` falls through to the TUI middleware instead.
+      // `harness endpoint create` falls through to the TUI middleware instead.
       if (!flags["id"]) {
         throw new TypeError("required option '--id <id>' not specified");
       }

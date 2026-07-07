@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
-import type { ScreenProps } from "../../types";
-import { coreOptsFromCtx } from "../../utils";
-import { HarnessPicker } from "../../../components/HarnessPicker";
-import { EndpointPicker } from "../../../components/EndpointPicker";
-import { ConfirmAction } from "../../../components/ConfirmAction";
+import type { ScreenProps } from "../../../types";
+import { coreOptsFromCtx } from "../../../utils";
+import { HarnessPicker } from "../../../../components/HarnessPicker";
+import { EndpointPicker } from "../../../../components/EndpointPicker";
+import { ConfirmAction } from "../../../../components/ConfirmAction";
 
 // HarnessDeleteEndpointScreen deletes a harness endpoint. It walks the user
 // from a harness picker to an endpoint picker to a confirmation, then calls
@@ -17,9 +17,9 @@ export function HarnessDeleteEndpointScreen(props: ScreenProps) {
     return (
       <HarnessPicker
         {...props}
-        breadcrumb={["agentcore", "harness", "delete-endpoint"]}
+        breadcrumb={["agentcore", "harness", "endpoint", "delete"]}
         description="choose the harness the endpoint belongs to"
-        onSelect={(id) => navigate(`/agentcore/harness/delete-endpoint/${id}`)}
+        onSelect={(id) => navigate(`/agentcore/harness/endpoint/delete/${id}`)}
       />
     );
   }
@@ -28,9 +28,9 @@ export function HarnessDeleteEndpointScreen(props: ScreenProps) {
       <EndpointPicker
         {...props}
         harnessId={harnessId}
-        breadcrumb={["agentcore", "harness", "delete-endpoint", harnessId]}
+        breadcrumb={["agentcore", "harness", "endpoint", "delete", harnessId]}
         description="choose an endpoint to delete"
-        onSelect={(name) => navigate(`/agentcore/harness/delete-endpoint/${harnessId}/${name}`)}
+        onSelect={(name) => navigate(`/agentcore/harness/endpoint/delete/${harnessId}/${name}`)}
       />
     );
   }
@@ -54,7 +54,7 @@ function DeleteConfirm({
 
   return (
     <ConfirmAction
-      breadcrumb={["agentcore", "harness", "delete-endpoint", harnessId, endpointName]}
+      breadcrumb={["agentcore", "harness", "endpoint", "delete", harnessId, endpointName]}
       title={endpoint?.endpointName ?? endpointName}
       rows={[
         { label: "arn", value: endpoint?.arn ?? "-" },
@@ -76,7 +76,7 @@ function DeleteConfirm({
       }}
       successTitle="Endpoint deletion started"
       runningLabel="Deleting endpoint…"
-      onDone={() => navigate(`/agentcore/harness/list-endpoints/${harnessId}`)}
+      onDone={() => navigate(`/agentcore/harness/endpoint/list/${harnessId}`)}
     />
   );
 }

@@ -6,7 +6,7 @@ import {
   waitFor,
   cleanupScreens,
   TestCoreClient,
-} from "../../../testing";
+} from "../../../../testing";
 
 afterEach(cleanupScreens);
 
@@ -47,10 +47,10 @@ function coreWithEndpoints(endpoints: HarnessEndpoint[]): TestCoreClient {
   return core;
 }
 
-describe("harness list-endpoints screen", () => {
+describe("harness endpoint list screen", () => {
   test("without a harness id, picking a harness lists its endpoints", async () => {
     const core = coreWithEndpoints([endpoint()]);
-    const r = renderScreen("/agentcore/harness/list-endpoints", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/list", { core });
 
     // Harness picker first.
     await waitForText(r.lastFrame, "MyHarness");
@@ -68,7 +68,7 @@ describe("harness list-endpoints screen", () => {
       endpoint(),
       endpoint({ endpointName: "staging", targetVersion: "2", status: "UPDATING" }),
     ]);
-    const r = renderScreen("/agentcore/harness/list-endpoints/MyHarness-abc123", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/list/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "prod");
     const frame = r.lastFrame()!;
@@ -80,7 +80,7 @@ describe("harness list-endpoints screen", () => {
 
   test("says so when the harness has no endpoints", async () => {
     const core = coreWithEndpoints([]);
-    const r = renderScreen("/agentcore/harness/list-endpoints/MyHarness-abc123", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/list/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "no endpoints");
     r.unmount();
@@ -89,12 +89,12 @@ describe("harness list-endpoints screen", () => {
   test("enter on a row opens the endpoint's JSON detail", async () => {
     const core = coreWithEndpoints([endpoint()]);
     core.harness.setGetEndpointResponse({ endpoint: endpoint() });
-    const r = renderScreen("/agentcore/harness/list-endpoints/MyHarness-abc123", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/list/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "prod");
     await r.press("return");
     await waitForText(r.lastFrame, '"endpointName"');
-    expect(r.lastFrame()).toContain("get-endpoint → MyHarness-abc123 → prod");
+    expect(r.lastFrame()).toContain("endpoint → get → MyHarness-abc123 → prod");
     const call = core.harness.calls.find((c) => c.method === "getHarnessEndpoint")!;
     expect(call.args[0]).toBe("MyHarness-abc123");
     expect(call.args[1]).toBe("prod");
@@ -104,7 +104,7 @@ describe("harness list-endpoints screen", () => {
   test("shows the error message when the list call fails", async () => {
     const core = new TestCoreClient();
     core.harness.setError(new Error("access denied"));
-    const r = renderScreen("/agentcore/harness/list-endpoints/MyHarness-abc123", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/list/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "Error:");
     expect(r.lastFrame()).toContain("access denied");

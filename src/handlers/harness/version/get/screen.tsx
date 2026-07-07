@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router";
-import type { ScreenProps } from "../../types";
-import { coreOptsFromCtx } from "../../utils";
-import { JsonDetail } from "../../../components/JsonDetail";
+import type { ScreenProps } from "../../../types";
+import { coreOptsFromCtx } from "../../../utils";
+import { JsonDetail } from "../../../../components/JsonDetail";
 
 // HarnessGetVersionScreen shows one harness version's full definition as
 // scrollable JSON. The harness ID and version come from the route path values.
@@ -18,7 +18,7 @@ export function HarnessGetVersionScreen({ ctx, core }: ScreenProps) {
 
   return (
     <JsonDetail
-      breadcrumb={["agentcore", "harness", "get-version", harnessId ?? "", version ?? ""]}
+      breadcrumb={["agentcore", "harness", "version", "get", harnessId ?? "", version ?? ""]}
       isPending={detail.isPending}
       error={detail.isError ? (detail.error as Error) : null}
       data={detail.data?.harness}

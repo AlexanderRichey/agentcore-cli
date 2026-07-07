@@ -45,8 +45,8 @@ export interface EndpointWizardProps extends ScreenProps {
 
 const NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{0,47}$/;
 
-// EndpointWizard is the interactive step flow behind `harness create-endpoint`
-// and `harness update-endpoint`: name → target version (picked from the
+// EndpointWizard is the interactive step flow behind `harness endpoint create`
+// and `harness endpoint update`: name → target version (picked from the
 // harness's actual versions) → description → review → submit. Update mode skips
 // the name step (endpoints cannot be renamed).
 export function EndpointWizard({

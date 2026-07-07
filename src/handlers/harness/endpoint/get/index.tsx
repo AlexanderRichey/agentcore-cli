@@ -1,12 +1,12 @@
 import z from "zod";
-import { createHandler, flag } from "../../../router";
-import type { Core } from "../../types.tsx";
-import { coreOptsFromCtx } from "../../utils.tsx";
-import { JsonRendererKey } from "../../../tui";
+import { createHandler, flag } from "../../../../router";
+import type { Core } from "../../../types.tsx";
+import { coreOptsFromCtx } from "../../../utils.tsx";
+import { JsonRendererKey } from "../../../../tui";
 
 export const createGetEndpointHandler = (core: Core) =>
   createHandler({
-    name: "get-endpoint",
+    name: "get",
     description: "get a harness endpoint",
     flags: [
       flag("id", "the ID of the harness", z.string().max(48).optional()),

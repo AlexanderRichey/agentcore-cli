@@ -10,13 +10,15 @@ import { HarnessUpdateScreen } from "../handlers/harness/update/screen.tsx";
 import { HarnessDeleteScreen } from "../handlers/harness/delete/screen.tsx";
 import { HarnessInvokeScreen } from "../handlers/harness/invoke/screen.tsx";
 import { HarnessExecScreen } from "../handlers/harness/exec/screen.tsx";
-import { HarnessCreateEndpointScreen } from "../handlers/harness/create-endpoint/screen.tsx";
-import { HarnessGetEndpointScreen } from "../handlers/harness/get-endpoint/screen.tsx";
-import { HarnessListEndpointsScreen } from "../handlers/harness/list-endpoints/screen.tsx";
-import { HarnessUpdateEndpointScreen } from "../handlers/harness/update-endpoint/screen.tsx";
-import { HarnessDeleteEndpointScreen } from "../handlers/harness/delete-endpoint/screen.tsx";
-import { HarnessGetVersionScreen } from "../handlers/harness/get-version/screen.tsx";
-import { HarnessListVersionsScreen } from "../handlers/harness/list-versions/screen.tsx";
+import { HarnessEndpointScreen } from "../handlers/harness/endpoint/screen.tsx";
+import { HarnessCreateEndpointScreen } from "../handlers/harness/endpoint/create/screen.tsx";
+import { HarnessGetEndpointScreen } from "../handlers/harness/endpoint/get/screen.tsx";
+import { HarnessListEndpointsScreen } from "../handlers/harness/endpoint/list/screen.tsx";
+import { HarnessUpdateEndpointScreen } from "../handlers/harness/endpoint/update/screen.tsx";
+import { HarnessDeleteEndpointScreen } from "../handlers/harness/endpoint/delete/screen.tsx";
+import { HarnessVersionScreen } from "../handlers/harness/version/screen.tsx";
+import { HarnessGetVersionScreen } from "../handlers/harness/version/get/screen.tsx";
+import { HarnessListVersionsScreen } from "../handlers/harness/version/list/screen.tsx";
 import { RootScreen, HelpScreen } from "../handlers/screen.tsx";
 import type { Context } from "../router";
 
@@ -105,69 +107,77 @@ export function Root({ path, ctx, core, queryClient }: RootProps) {
             element={<HarnessExecScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/create-endpoint"
+            path="agentcore/harness/endpoint"
+            element={<HarnessEndpointScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/harness/endpoint/create"
             element={<HarnessCreateEndpointScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/create-endpoint/:harnessId"
+            path="agentcore/harness/endpoint/create/:harnessId"
             element={<HarnessCreateEndpointScreen ctx={ctx} core={core} />}
           />
-          {/* Bare `get-endpoint` (no target) has nothing to show — send the
-              user to the endpoint listing (same idea for get-version). */}
+          {/* Bare `endpoint get` (no target) has nothing to show — send the
+              user to the endpoint listing (same idea for `version get`). */}
           <Route
-            path="agentcore/harness/get-endpoint"
-            element={<Navigate to="/agentcore/harness/list-endpoints" replace />}
+            path="agentcore/harness/endpoint/get"
+            element={<Navigate to="/agentcore/harness/endpoint/list" replace />}
           />
           <Route
-            path="agentcore/harness/get-endpoint/:harnessId/:endpointName"
+            path="agentcore/harness/endpoint/get/:harnessId/:endpointName"
             element={<HarnessGetEndpointScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/list-endpoints"
+            path="agentcore/harness/endpoint/list"
             element={<HarnessListEndpointsScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/list-endpoints/:harnessId"
+            path="agentcore/harness/endpoint/list/:harnessId"
             element={<HarnessListEndpointsScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/update-endpoint"
+            path="agentcore/harness/endpoint/update"
             element={<HarnessUpdateEndpointScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/update-endpoint/:harnessId"
+            path="agentcore/harness/endpoint/update/:harnessId"
             element={<HarnessUpdateEndpointScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/update-endpoint/:harnessId/:endpointName"
+            path="agentcore/harness/endpoint/update/:harnessId/:endpointName"
             element={<HarnessUpdateEndpointScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/delete-endpoint"
+            path="agentcore/harness/endpoint/delete"
             element={<HarnessDeleteEndpointScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/delete-endpoint/:harnessId"
+            path="agentcore/harness/endpoint/delete/:harnessId"
             element={<HarnessDeleteEndpointScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/delete-endpoint/:harnessId/:endpointName"
+            path="agentcore/harness/endpoint/delete/:harnessId/:endpointName"
             element={<HarnessDeleteEndpointScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/get-version"
-            element={<Navigate to="/agentcore/harness/list-versions" replace />}
+            path="agentcore/harness/version"
+            element={<HarnessVersionScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/get-version/:harnessId/:version"
+            path="agentcore/harness/version/get"
+            element={<Navigate to="/agentcore/harness/version/list" replace />}
+          />
+          <Route
+            path="agentcore/harness/version/get/:harnessId/:version"
             element={<HarnessGetVersionScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/list-versions"
+            path="agentcore/harness/version/list"
             element={<HarnessListVersionsScreen ctx={ctx} core={core} />}
           />
           <Route
-            path="agentcore/harness/list-versions/:harnessId"
+            path="agentcore/harness/version/list/:harnessId"
             element={<HarnessListVersionsScreen ctx={ctx} core={core} />}
           />
           <Route path="*" element={<HelpScreen ctx={ctx} core={core} />} />

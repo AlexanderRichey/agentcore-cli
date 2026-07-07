@@ -6,11 +6,11 @@ import {
   waitFor,
   cleanupScreens,
   TestCoreClient,
-} from "../../../testing";
+} from "../../../../testing";
 
 afterEach(cleanupScreens);
 
-// Behavior tests for the delete-endpoint flow: harness picker → endpoint
+// Behavior tests for the endpoint delete flow: harness picker → endpoint
 // picker → summary + confirmation → DeleteHarnessEndpoint call → result.
 
 function endpoint(): HarnessEndpoint {
@@ -50,10 +50,10 @@ function coreWithEndpoint(): TestCoreClient {
   return core;
 }
 
-describe("harness delete-endpoint screen", () => {
+describe("harness endpoint delete screen", () => {
   test("walks from harness picker to endpoint picker to confirmation", async () => {
     const core = coreWithEndpoint();
-    const r = renderScreen("/agentcore/harness/delete-endpoint", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/delete", { core });
 
     await waitForText(r.lastFrame, "MyHarness");
     await r.press("return");
@@ -66,7 +66,7 @@ describe("harness delete-endpoint screen", () => {
 
   test("`y` calls DeleteHarnessEndpoint and shows the result", async () => {
     const core = coreWithEndpoint();
-    const r = renderScreen("/agentcore/harness/delete-endpoint/MyHarness-abc123/prod", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/delete/MyHarness-abc123/prod", { core });
 
     await waitForText(r.lastFrame, "Delete endpoint prod?");
     await r.write("y");
@@ -80,7 +80,7 @@ describe("harness delete-endpoint screen", () => {
 
   test("`n` cancels without calling DeleteHarnessEndpoint", async () => {
     const core = coreWithEndpoint();
-    const r = renderScreen("/agentcore/harness/delete-endpoint/MyHarness-abc123/prod", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/delete/MyHarness-abc123/prod", { core });
 
     await waitForText(r.lastFrame, "Delete endpoint prod?");
     await r.write("n");

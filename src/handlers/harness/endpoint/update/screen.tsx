@@ -1,15 +1,15 @@
 import { Text } from "ink";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
-import type { ScreenProps } from "../../types";
-import { coreOptsFromCtx } from "../../utils";
-import { HarnessPicker } from "../../../components/HarnessPicker";
-import { EndpointPicker } from "../../../components/EndpointPicker";
-import { EndpointWizard } from "../../../components/EndpointWizard";
-import { Layout } from "../../../components/Layout";
-import { Spinner } from "../../../components/ui/spinner";
+import type { ScreenProps } from "../../../types";
+import { coreOptsFromCtx } from "../../../utils";
+import { HarnessPicker } from "../../../../components/HarnessPicker";
+import { EndpointPicker } from "../../../../components/EndpointPicker";
+import { EndpointWizard } from "../../../../components/EndpointWizard";
+import { Layout } from "../../../../components/Layout";
+import { Spinner } from "../../../../components/ui/spinner";
 
-// HarnessUpdateEndpointScreen is the interactive update-endpoint flow: pick the
+// HarnessUpdateEndpointScreen is the interactive endpoint update flow: pick the
 // harness, pick the endpoint, then run the endpoint wizard prefilled with the
 // endpoint's current target version and description, ending in an
 // UpdateHarnessEndpoint call.
@@ -21,9 +21,9 @@ export function HarnessUpdateEndpointScreen(props: ScreenProps) {
     return (
       <HarnessPicker
         {...props}
-        breadcrumb={["agentcore", "harness", "update-endpoint"]}
+        breadcrumb={["agentcore", "harness", "endpoint", "update"]}
         description="choose the harness the endpoint belongs to"
-        onSelect={(id) => navigate(`/agentcore/harness/update-endpoint/${id}`)}
+        onSelect={(id) => navigate(`/agentcore/harness/endpoint/update/${id}`)}
       />
     );
   }
@@ -32,9 +32,9 @@ export function HarnessUpdateEndpointScreen(props: ScreenProps) {
       <EndpointPicker
         {...props}
         harnessId={harnessId}
-        breadcrumb={["agentcore", "harness", "update-endpoint", harnessId]}
+        breadcrumb={["agentcore", "harness", "endpoint", "update", harnessId]}
         description="choose an endpoint to update"
-        onSelect={(name) => navigate(`/agentcore/harness/update-endpoint/${harnessId}/${name}`)}
+        onSelect={(name) => navigate(`/agentcore/harness/endpoint/update/${harnessId}/${name}`)}
       />
     );
   }
@@ -60,7 +60,7 @@ function UpdateWizard({
   if (detail.isPending || detail.isError) {
     return (
       <Layout
-        breadcrumb={["agentcore", "harness", "update-endpoint", harnessId, endpointName]}
+        breadcrumb={["agentcore", "harness", "endpoint", "update", harnessId, endpointName]}
         keyHints={[
           { key: "esc", label: "back" },
           { key: "ctl+c", label: "quit" },
@@ -83,7 +83,7 @@ function UpdateWizard({
       mode="update"
       harnessId={harnessId}
       endpointName={endpointName}
-      breadcrumb={["agentcore", "harness", "update-endpoint", harnessId, endpointName]}
+      breadcrumb={["agentcore", "harness", "endpoint", "update", harnessId, endpointName]}
       initial={{
         name: endpointName,
         // A settled endpoint reports only liveVersion (targetVersion clears
@@ -91,7 +91,7 @@ function UpdateWizard({
         version: endpoint?.targetVersion ?? endpoint?.liveVersion ?? "",
         description: endpoint?.description ?? "",
       }}
-      onDone={(name) => navigate(`/agentcore/harness/get-endpoint/${harnessId}/${name}`)}
+      onDone={(name) => navigate(`/agentcore/harness/endpoint/get/${harnessId}/${name}`)}
     />
   );
 }

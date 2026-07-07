@@ -9,11 +9,11 @@ import {
   waitFor,
   cleanupScreens,
   TestCoreClient,
-} from "../../../testing";
+} from "../../../../testing";
 
 afterEach(cleanupScreens);
 
-// Behavior tests for the update-endpoint wizard: harness picker → endpoint
+// Behavior tests for the endpoint update wizard: harness picker → endpoint
 // picker → version/description steps prefilled → review → submit (changed
 // fields only).
 
@@ -70,10 +70,10 @@ function coreForUpdate(): TestCoreClient {
   return core;
 }
 
-describe("harness update-endpoint wizard", () => {
+describe("harness endpoint update wizard", () => {
   test("walks harness picker → endpoint picker → wizard", async () => {
     const core = coreForUpdate();
-    const r = renderScreen("/agentcore/harness/update-endpoint", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/update", { core });
 
     await waitForText(r.lastFrame, "MyHarness");
     await r.press("return");
@@ -86,7 +86,7 @@ describe("harness update-endpoint wizard", () => {
 
   test("repointing at a new version submits only targetVersion", async () => {
     const core = coreForUpdate();
-    const r = renderScreen("/agentcore/harness/update-endpoint/MyHarness-abc123/prod", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/update/MyHarness-abc123/prod", { core });
 
     // The endpoint's current target (version 1) is preselected; no "latest"
     // option exists in update mode.
@@ -116,7 +116,7 @@ describe("harness update-endpoint wizard", () => {
 
   test("editing the description submits it alongside the endpoint identity", async () => {
     const core = coreForUpdate();
-    const r = renderScreen("/agentcore/harness/update-endpoint/MyHarness-abc123/prod", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/update/MyHarness-abc123/prod", { core });
 
     await waitForText(r.lastFrame, "● version 1");
     await r.press("return"); // keep version

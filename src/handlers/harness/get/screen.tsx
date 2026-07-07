@@ -22,12 +22,12 @@ const ACTIONS: { name: string; description: string; to: (id: string) => string }
   {
     name: "endpoints",
     description: "list this harness's endpoints",
-    to: (id) => `/agentcore/harness/list-endpoints/${id}`,
+    to: (id) => `/agentcore/harness/endpoint/list/${id}`,
   },
   {
     name: "versions",
     description: "list this harness's versions",
-    to: (id) => `/agentcore/harness/list-versions/${id}`,
+    to: (id) => `/agentcore/harness/version/list/${id}`,
   },
   {
     name: "invoke",

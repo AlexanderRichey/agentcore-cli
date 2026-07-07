@@ -9,11 +9,11 @@ import {
   waitFor,
   cleanupScreens,
   TestCoreClient,
-} from "../../../testing";
+} from "../../../../testing";
 
 afterEach(cleanupScreens);
 
-// Behavior tests for the create-endpoint wizard: name → target version (picked
+// Behavior tests for the endpoint create wizard: name → target version (picked
 // from the harness's real versions) → description → review → submit.
 
 function version(v: string): HarnessVersionSummary {
@@ -59,10 +59,10 @@ function coreForCreate(): TestCoreClient {
   return core;
 }
 
-describe("harness create-endpoint wizard", () => {
+describe("harness endpoint create wizard", () => {
   test("without a harness id, picking a harness opens the wizard", async () => {
     const core = coreForCreate();
-    const r = renderScreen("/agentcore/harness/create-endpoint", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/create", { core });
 
     await waitForText(r.lastFrame, "MyHarness");
     expect(r.lastFrame()).toContain("choose a harness to create an endpoint for");
@@ -73,7 +73,7 @@ describe("harness create-endpoint wizard", () => {
 
   test("walks name → version → description → review and creates", async () => {
     const core = coreForCreate();
-    const r = renderScreen("/agentcore/harness/create-endpoint/MyHarness-abc123", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/create/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "What should this endpoint be called?");
     await r.write("prod");
@@ -118,13 +118,13 @@ describe("harness create-endpoint wizard", () => {
       },
     });
     await r.press("return");
-    await waitForText(r.lastFrame, "get-endpoint → MyHarness-abc123 → prod");
+    await waitForText(r.lastFrame, "endpoint → get → MyHarness-abc123 → prod");
     r.unmount();
   });
 
   test("keeping `latest` omits targetVersion from the request", async () => {
     const core = coreForCreate();
-    const r = renderScreen("/agentcore/harness/create-endpoint/MyHarness-abc123", { core });
+    const r = renderScreen("/agentcore/harness/endpoint/create/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "What should this endpoint be called?");
     await r.write("prod");

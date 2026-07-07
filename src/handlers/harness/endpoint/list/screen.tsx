@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from "react-router";
-import type { ScreenProps } from "../../types";
-import { HarnessPicker } from "../../../components/HarnessPicker";
-import { EndpointPicker } from "../../../components/EndpointPicker";
+import type { ScreenProps } from "../../../types";
+import { HarnessPicker } from "../../../../components/HarnessPicker";
+import { EndpointPicker } from "../../../../components/EndpointPicker";
 
 // HarnessListEndpointsScreen lists a harness's endpoints. Without a `:harnessId`
 // route value it renders a harness picker first; with one it lists that
@@ -14,9 +14,9 @@ export function HarnessListEndpointsScreen(props: ScreenProps) {
     return (
       <HarnessPicker
         {...props}
-        breadcrumb={["agentcore", "harness", "list-endpoints"]}
+        breadcrumb={["agentcore", "harness", "endpoint", "list"]}
         description="choose a harness to list endpoints for"
-        onSelect={(id) => navigate(`/agentcore/harness/list-endpoints/${id}`)}
+        onSelect={(id) => navigate(`/agentcore/harness/endpoint/list/${id}`)}
       />
     );
   }
@@ -25,9 +25,9 @@ export function HarnessListEndpointsScreen(props: ScreenProps) {
     <EndpointPicker
       {...props}
       harnessId={harnessId}
-      breadcrumb={["agentcore", "harness", "list-endpoints", harnessId]}
+      breadcrumb={["agentcore", "harness", "endpoint", "list", harnessId]}
       onSelect={(endpointName) =>
-        navigate(`/agentcore/harness/get-endpoint/${harnessId}/${endpointName}`)
+        navigate(`/agentcore/harness/endpoint/get/${harnessId}/${endpointName}`)
       }
     />
   );

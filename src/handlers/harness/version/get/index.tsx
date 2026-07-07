@@ -1,12 +1,12 @@
 import z from "zod";
-import { createHandler, flag } from "../../../router";
-import type { Core } from "../../types.tsx";
-import { coreOptsFromCtx } from "../../utils.tsx";
-import { JsonRendererKey } from "../../../tui";
+import { createHandler, flag } from "../../../../router";
+import type { Core } from "../../../types.tsx";
+import { coreOptsFromCtx } from "../../../utils.tsx";
+import { JsonRendererKey } from "../../../../tui";
 
 export const createGetVersionHandler = (core: Core) =>
   createHandler({
-    name: "get-version",
+    name: "get",
     description: "get a specific version of a harness",
     flags: [
       flag("id", "the ID of the harness", z.string().max(48).optional()),

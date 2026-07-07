@@ -43,8 +43,9 @@ export interface HarnessPickerProps extends ScreenProps {
 
 // HarnessPicker fetches the caller's harnesses and renders them as a navigable
 // table. It is the shared body of every "pick a harness" screen (list, invoke);
-// hosts differ only in breadcrumb, subtitle, and what selection does. Esc always
-// returns to the harness menu.
+// hosts differ only in breadcrumb, subtitle, and what selection does. Esc
+// returns to the parent menu, derived from the breadcrumb (e.g. the endpoint
+// menu for [..., "endpoint", "list"]).
 export function HarnessPicker({
   ctx,
   core,
@@ -95,7 +96,7 @@ export function HarnessPicker({
           onSelect={(row) => {
             if (row.harnessId) onSelect(row.harnessId);
           }}
-          onEscape={() => navigate("/agentcore/harness")}
+          onEscape={() => navigate("/" + breadcrumb.slice(0, -1).join("/"))}
         />
       )}
     </Layout>

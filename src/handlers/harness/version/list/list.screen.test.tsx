@@ -6,7 +6,7 @@ import {
   waitFor,
   cleanupScreens,
   TestCoreClient,
-} from "../../../testing";
+} from "../../../../testing";
 
 afterEach(cleanupScreens);
 
@@ -45,10 +45,10 @@ function coreWithVersions(versions: HarnessVersionSummary[]): TestCoreClient {
   return core;
 }
 
-describe("harness list-versions screen", () => {
+describe("harness version list screen", () => {
   test("without a harness id, picking a harness lists its versions", async () => {
     const core = coreWithVersions([version()]);
-    const r = renderScreen("/agentcore/harness/list-versions", { core });
+    const r = renderScreen("/agentcore/harness/version/list", { core });
 
     await waitForText(r.lastFrame, "MyHarness");
     expect(r.lastFrame()).toContain("choose a harness to list versions for");
@@ -62,7 +62,7 @@ describe("harness list-versions screen", () => {
 
   test("renders versions newest first", async () => {
     const core = coreWithVersions([version(), version({ harnessVersion: "2" })]);
-    const r = renderScreen("/agentcore/harness/list-versions/MyHarness-abc123", { core });
+    const r = renderScreen("/agentcore/harness/version/list/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "READY");
     const frame = r.lastFrame()!;
@@ -82,12 +82,12 @@ describe("harness list-versions screen", () => {
         status: "READY",
       },
     } as Awaited<ReturnType<TestCoreClient["harness"]["getHarnessVersion"]>>);
-    const r = renderScreen("/agentcore/harness/list-versions/MyHarness-abc123", { core });
+    const r = renderScreen("/agentcore/harness/version/list/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "READY");
     await r.press("return");
     await waitForText(r.lastFrame, '"harnessVersion"');
-    expect(r.lastFrame()).toContain("get-version → MyHarness-abc123 → 2");
+    expect(r.lastFrame()).toContain("version → get → MyHarness-abc123 → 2");
     const call = core.harness.calls.find((c) => c.method === "getHarnessVersion")!;
     expect(call.args[0]).toBe("MyHarness-abc123");
     expect(call.args[1]).toBe("2");
@@ -97,7 +97,7 @@ describe("harness list-versions screen", () => {
   test("shows the error message when the list call fails", async () => {
     const core = new TestCoreClient();
     core.harness.setError(new Error("access denied"));
-    const r = renderScreen("/agentcore/harness/list-versions/MyHarness-abc123", { core });
+    const r = renderScreen("/agentcore/harness/version/list/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "Error:");
     expect(r.lastFrame()).toContain("access denied");

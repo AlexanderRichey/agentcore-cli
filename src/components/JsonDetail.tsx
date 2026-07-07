@@ -7,7 +7,7 @@ import { Spinner } from "./ui/spinner";
 import { CodeBlock } from "./ui/code-block";
 
 export interface JsonDetailProps {
-  // breadcrumb labels the screen (e.g. [..., "get-endpoint", id, name]).
+  // breadcrumb labels the screen (e.g. [..., "endpoint", "get", id, name]).
   breadcrumb: string[];
   // The query state driving the view, in react-query's vocabulary.
   isPending: boolean;
