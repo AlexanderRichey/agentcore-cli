@@ -1,13 +1,41 @@
-import { createHandler } from "../../../router";
+import z from "zod";
+import { createHandler, flag } from "../../../router";
 import type { Core } from "../../types.tsx";
+import { coreOptsFromCtx } from "../../utils.tsx";
+import { JsonRendererKey } from "../../../tui";
 
-export const createUpdateEndpointHandler = (_core: Core) =>
+export const createUpdateEndpointHandler = (core: Core) =>
   createHandler({
     name: "update-endpoint",
     description: "update a harness endpoint",
-    // TODO: declare flags (--id, --qualifier) and implement.
-    handle: async () => {
-      throw new Error("Not implemented");
+    flags: [
+      flag("id", "the ID of the harness", z.string().max(48).optional()),
+      flag("qualifier", "the endpoint name (qualifier)", z.string().optional()),
+      flag("target-version", "the harness version the endpoint points to", z.string().optional()),
+      flag("description", "a description of the endpoint", z.string().optional()),
+      flag("client-token", "idempotency token", z.string().optional()),
+    ],
+    handle: async (ctx, flags) => {
+      // Required at runtime but declared optional so that a bare
+      // `harness update-endpoint` falls through to the TUI middleware instead.
+      if (!flags["id"]) {
+        throw new TypeError("required option '--id <id>' not specified");
+      }
+      if (!flags["qualifier"]) {
+        throw new TypeError("required option '--qualifier <qualifier>' not specified");
+      }
+
+      const response = await core.harness.updateHarnessEndpoint(
+        {
+          harnessId: flags["id"],
+          endpointName: flags["qualifier"],
+          targetVersion: flags["target-version"],
+          description: flags["description"],
+          clientToken: flags["client-token"],
+        },
+        coreOptsFromCtx(ctx),
+      );
+      ctx.require(JsonRendererKey).renderJson(response);
     },
   });
 

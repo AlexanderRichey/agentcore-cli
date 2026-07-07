@@ -1,13 +1,47 @@
-import { createHandler } from "../../../router";
+import z from "zod";
+import { createHandler, flag } from "../../../router";
 import type { Core } from "../../types.tsx";
+import { coreOptsFromCtx, parseJsonFlag } from "../../utils.tsx";
+import { JsonRendererKey } from "../../../tui";
 
-export const createCreateEndpointHandler = (_core: Core) =>
+export const createCreateEndpointHandler = (core: Core) =>
   createHandler({
     name: "create-endpoint",
     description: "create a harness endpoint",
-    // TODO: declare flags (--id) and implement.
-    handle: async () => {
-      throw new Error("Not implemented");
+    flags: [
+      flag("id", "the ID of the harness", z.string().max(48).optional()),
+      flag("name", "the name of the endpoint", z.string().optional()),
+      flag(
+        "target-version",
+        "the harness version the endpoint points to (defaults to the latest)",
+        z.string().optional(),
+      ),
+      flag("description", "a description of the endpoint", z.string().optional()),
+      flag("tags", "tags to apply (JSON object of key/value strings)", z.string().optional()),
+      flag("client-token", "idempotency token", z.string().optional()),
+    ],
+    handle: async (ctx, flags) => {
+      // Required at runtime but declared optional so that a bare
+      // `harness create-endpoint` falls through to the TUI middleware instead.
+      if (!flags["id"]) {
+        throw new TypeError("required option '--id <id>' not specified");
+      }
+      if (!flags["name"]) {
+        throw new TypeError("required option '--name <name>' not specified");
+      }
+
+      const response = await core.harness.createHarnessEndpoint(
+        {
+          harnessId: flags["id"],
+          endpointName: flags["name"],
+          targetVersion: flags["target-version"],
+          description: flags["description"],
+          tags: parseJsonFlag<Record<string, string>>("tags", flags["tags"]),
+          clientToken: flags["client-token"],
+        },
+        coreOptsFromCtx(ctx),
+      );
+      ctx.require(JsonRendererKey).renderJson(response);
     },
   });
 

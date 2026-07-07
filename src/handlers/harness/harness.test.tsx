@@ -2,7 +2,7 @@ import { test, expect, describe } from "bun:test";
 import { join } from "node:path";
 import { CoreClient } from "../../core";
 import { createRootHandler } from "../index";
-import { fixtureFactories, matchGolden, testIO } from "../../testing";
+import { fixtureFactories, isRecording, matchGolden, testIO } from "../../testing";
 
 // End-to-end command-flow tests for the `harness` subtree.
 //
@@ -23,8 +23,8 @@ const REGION = "us-west-2";
 // keeps tests isolated) over an in-memory io, routes `args` beneath `agentcore`,
 // and returns whatever the command wrote to stdout.
 async function run(args: string[]): Promise<string> {
-  const { createControlClient, createDataClient } = fixtureFactories(FIXTURES);
-  const core = new CoreClient(createControlClient, createDataClient);
+  const { createControlClient, createDataClient, createIamClient } = fixtureFactories(FIXTURES);
+  const core = new CoreClient(createControlClient, createDataClient, createIamClient);
   const io = testIO();
   const root = createRootHandler(core, io.io);
   await root.route(["node", "agentcore", ...args, "--region", REGION]);
@@ -147,20 +147,226 @@ describe("harness get-version", () => {
   });
 });
 
-describe("unimplemented harness subcommands", () => {
-  // These leaves are scaffolded but not yet implemented. Locking in their
-  // current behavior documents the surface and flags the day they change.
-  for (const cmd of [
-    "create",
-    "update",
-    "delete",
-    "create-endpoint",
-    "update-endpoint",
-    "delete-endpoint",
-  ]) {
-    test(`\`harness ${cmd}\` reports not implemented`, async () => {
-      // Pass a throwaway flag so the empty-args TUI middleware doesn't engage.
-      await expect(run(["harness", cmd, "--json"])).rejects.toThrow(/Not implemented/);
-    });
+describe("write command validation", () => {
+  // Each write leaf declares its identifying flags optional (so a bare
+  // invocation opens the TUI) but requires them at runtime.
+  test("`harness create` errors when --name is omitted", async () => {
+    await expect(run(["harness", "create", "--name", ""])).rejects.toThrow(/--name/);
+  });
+
+  test("`harness update` errors when --id is omitted", async () => {
+    await expect(run(["harness", "update", "--id", ""])).rejects.toThrow(/--id/);
+  });
+
+  test("`harness delete` errors when --id is omitted", async () => {
+    await expect(run(["harness", "delete", "--id", ""])).rejects.toThrow(/--id/);
+  });
+
+  test("`harness create-endpoint` errors when --id or --name is omitted", async () => {
+    await expect(run(["harness", "create-endpoint", "--id", ""])).rejects.toThrow(/--id/);
+    await expect(run(["harness", "create-endpoint", "--id", "h-1", "--name", ""])).rejects.toThrow(
+      /--name/,
+    );
+  });
+
+  test("`harness update-endpoint` errors when --id or --qualifier is omitted", async () => {
+    await expect(run(["harness", "update-endpoint", "--id", ""])).rejects.toThrow(/--id/);
+    await expect(
+      run(["harness", "update-endpoint", "--id", "h-1", "--qualifier", ""]),
+    ).rejects.toThrow(/--qualifier/);
+  });
+
+  test("`harness delete-endpoint` errors when --id or --qualifier is omitted", async () => {
+    await expect(run(["harness", "delete-endpoint", "--id", ""])).rejects.toThrow(/--id/);
+    await expect(
+      run(["harness", "delete-endpoint", "--id", "h-1", "--qualifier", ""]),
+    ).rejects.toThrow(/--qualifier/);
+  });
+
+  test("`harness create` rejects malformed JSON flags", async () => {
+    await expect(
+      run(["harness", "create", "--name", "Broken", "--tools", "{not json"]),
+    ).rejects.toThrow(/Invalid JSON for option '--tools'/);
+  });
+});
+
+// ─── write flow (create → update → endpoint lifecycle → delete) ───────────────
+//
+// These tests drive the full lifecycle of a real harness, in order, through the
+// top-level route(). In record mode they hit the live control plane (and IAM,
+// for the default execution role) and persist every exchange; replays are
+// offline and instant. The suite deletes everything it creates, so re-recording
+// from a steady state converges. Later tests consume ids parsed from earlier
+// output, which replays identically from the fixtures.
+
+const E2E_NAME = "AgentCoreCliE2E";
+const ENDPOINT_NAME = "live";
+// Generous timeouts: in record mode, readiness polls wait on real control-plane
+// transitions (a create takes ~30s). Replay never sleeps.
+const FLOW_TIMEOUT = 600_000;
+
+// state threads the created harness's id through the ordered flow tests.
+const state: { harnessId?: string } = {};
+
+// pollUntil re-runs `command` until `done(parsed output)` is true. Polling only
+// sleeps in record mode; in replay the fixture already holds the settled state
+// (the last recorded poll), so the first read satisfies `done`.
+async function pollUntil(command: string[], done: (output: any) => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const parsed = JSON.parse(await run(command));
+    if (done(parsed)) return;
+    if (!isRecording()) {
+      throw new Error(
+        `Replayed fixture for \`${command.join(" ")}\` is not in the awaited state; re-record.`,
+      );
+    }
+    await Bun.sleep(5_000);
   }
+  throw new Error(`Timed out waiting for \`${command.join(" ")}\``);
+}
+
+describe("harness write flow", () => {
+  test(
+    "`harness create` provisions a default execution role and creates the harness",
+    async () => {
+      const out = await run([
+        "harness",
+        "create",
+        "--name",
+        E2E_NAME,
+        "--system-prompt",
+        "You are a concise assistant used in an end-to-end CLI test.",
+        "--max-iterations",
+        "25",
+        "--tags",
+        '{"created-by":"agentcore-cli-e2e"}',
+      ]);
+      matchGolden(FIXTURES, "create.golden.json", out);
+
+      const parsed = JSON.parse(out);
+      expect(parsed.harness.harnessName).toBe(E2E_NAME);
+      // No --execution-role-arn was passed: the default role was provisioned.
+      expect(parsed.harness.executionRoleArn).toContain(`AgentCoreHarness-${E2E_NAME}`);
+      expect(parsed.harness.harnessId).toBeDefined();
+      state.harnessId = parsed.harness.harnessId;
+
+      await pollUntil(
+        ["harness", "get", "--id", state.harnessId!],
+        (o) => o.harness.status === "READY",
+      );
+    },
+    FLOW_TIMEOUT,
+  );
+
+  test(
+    "`harness update` updates the prompt and creates version 2",
+    async () => {
+      const out = await run([
+        "harness",
+        "update",
+        "--id",
+        state.harnessId!,
+        "--system-prompt",
+        "You are an updated assistant used in an end-to-end CLI test.",
+        "--max-iterations",
+        "30",
+      ]);
+      matchGolden(FIXTURES, "update.golden.json", out);
+
+      const parsed = JSON.parse(out);
+      expect(parsed.harness.harnessVersion).toBe("2");
+
+      await pollUntil(
+        ["harness", "get", "--id", state.harnessId!],
+        (o) => o.harness.status === "READY",
+      );
+    },
+    FLOW_TIMEOUT,
+  );
+
+  test(
+    "`harness create-endpoint` points a named endpoint at version 1",
+    async () => {
+      const out = await run([
+        "harness",
+        "create-endpoint",
+        "--id",
+        state.harnessId!,
+        "--name",
+        ENDPOINT_NAME,
+        "--target-version",
+        "1",
+        "--description",
+        "e2e endpoint",
+      ]);
+      matchGolden(FIXTURES, "create-endpoint.golden.json", out);
+
+      const parsed = JSON.parse(out);
+      expect(parsed.endpoint.endpointName).toBe(ENDPOINT_NAME);
+      expect(parsed.endpoint.targetVersion).toBe("1");
+
+      await pollUntil(
+        ["harness", "get-endpoint", "--id", state.harnessId!, "--qualifier", ENDPOINT_NAME],
+        (o) => o.endpoint.status === "READY",
+      );
+    },
+    FLOW_TIMEOUT,
+  );
+
+  test(
+    "`harness update-endpoint` repoints the endpoint at version 2",
+    async () => {
+      const out = await run([
+        "harness",
+        "update-endpoint",
+        "--id",
+        state.harnessId!,
+        "--qualifier",
+        ENDPOINT_NAME,
+        "--target-version",
+        "2",
+        "--description",
+        "e2e endpoint on v2",
+      ]);
+      matchGolden(FIXTURES, "update-endpoint.golden.json", out);
+
+      const parsed = JSON.parse(out);
+      expect(parsed.endpoint.targetVersion).toBe("2");
+
+      await pollUntil(
+        ["harness", "get-endpoint", "--id", state.harnessId!, "--qualifier", ENDPOINT_NAME],
+        (o) => o.endpoint.status === "READY" && o.endpoint.liveVersion === "2",
+      );
+    },
+    FLOW_TIMEOUT,
+  );
+
+  test(
+    "`harness delete-endpoint` deletes the endpoint",
+    async () => {
+      const out = await run([
+        "harness",
+        "delete-endpoint",
+        "--id",
+        state.harnessId!,
+        "--qualifier",
+        ENDPOINT_NAME,
+      ]);
+      matchGolden(FIXTURES, "delete-endpoint.golden.json", out);
+      expect(JSON.parse(out).endpoint.status).toBe("DELETING");
+    },
+    FLOW_TIMEOUT,
+  );
+
+  test(
+    "`harness delete` deletes the harness",
+    async () => {
+      // Endpoint deletion must settle before the harness itself can go.
+      if (isRecording()) await Bun.sleep(10_000);
+      const out = await run(["harness", "delete", "--id", state.harnessId!]);
+      matchGolden(FIXTURES, "delete.golden.json", out);
+      expect(JSON.parse(out).harness.status).toBe("DELETING");
+    },
+    FLOW_TIMEOUT,
+  );
 });
