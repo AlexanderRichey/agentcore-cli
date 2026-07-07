@@ -3,6 +3,7 @@ import type {
   GetHarnessEndpointResponse,
   ListHarnessesResponse,
   ListHarnessEndpointsResponse,
+  ListHarnessVersionsResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import type {
   InvokeHarnessRequest,
@@ -37,6 +38,7 @@ export interface RecordedCall {
 const DEFAULT_LIST_RESPONSE: ListHarnessesResponse = { harnesses: [] };
 const DEFAULT_GET_RESPONSE: GetHarnessResponse = {} as GetHarnessResponse;
 const DEFAULT_LIST_ENDPOINTS_RESPONSE: ListHarnessEndpointsResponse = { endpoints: [] };
+const DEFAULT_LIST_VERSIONS_RESPONSE: ListHarnessVersionsResponse = { harnessVersions: [] };
 const DEFAULT_GET_ENDPOINT_RESPONSE: GetHarnessEndpointResponse = {} as GetHarnessEndpointResponse;
 
 // abortError mirrors the error the SDK's abort handling rejects with.
@@ -84,6 +86,7 @@ export class TestHarnessClient implements CoreHarnessClient {
   private getResponse: GetHarnessResponse = DEFAULT_GET_RESPONSE;
   private getEndpointResponse: GetHarnessEndpointResponse = DEFAULT_GET_ENDPOINT_RESPONSE;
   private listEndpointsResponse: ListHarnessEndpointsResponse = DEFAULT_LIST_ENDPOINTS_RESPONSE;
+  private listVersionsResponse: ListHarnessVersionsResponse = DEFAULT_LIST_VERSIONS_RESPONSE;
   private invokeEvents: InvokeHarnessStreamOutput[] = [];
   private invokeStreams: AsyncIterable<InvokeHarnessStreamOutput>[] = [];
   private error?: Error;
@@ -111,6 +114,13 @@ export class TestHarnessClient implements CoreHarnessClient {
   // not erroring).
   setListEndpointsResponse(response: ListHarnessEndpointsResponse): this {
     this.listEndpointsResponse = response;
+    return this;
+  }
+
+  // setListVersionsResponse sets what listHarnessVersions resolves to (when not
+  // erroring).
+  setListVersionsResponse(response: ListHarnessVersionsResponse): this {
+    this.listVersionsResponse = response;
     return this;
   }
 
@@ -174,6 +184,20 @@ export class TestHarnessClient implements CoreHarnessClient {
     });
     if (this.error) throw this.error;
     return this.listEndpointsResponse;
+  }
+
+  async listHarnessVersions(
+    id: string,
+    nextToken: string | undefined,
+    maxResults: number | undefined,
+    options: CoreOptions,
+  ): Promise<ListHarnessVersionsResponse> {
+    this.calls.push({
+      method: "listHarnessVersions",
+      args: [id, nextToken, maxResults, options],
+    });
+    if (this.error) throw this.error;
+    return this.listVersionsResponse;
   }
 
   async invokeHarness(

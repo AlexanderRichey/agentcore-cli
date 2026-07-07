@@ -104,6 +104,23 @@ describe("harness get-endpoint", () => {
   });
 });
 
+describe("harness list-versions", () => {
+  test("prints the harness's versions as JSON for a given id", async () => {
+    const out = await run(["harness", "list-versions", "--id", "MyPDXHarness-rhkXkAE1IS"]);
+    matchGolden(FIXTURES, "list-versions.golden.json", out);
+  });
+
+  test("output is valid JSON containing a harnessVersions array", async () => {
+    const out = await run(["harness", "list-versions", "--id", "MyPDXHarness-rhkXkAE1IS"]);
+    const parsed = JSON.parse(out);
+    expect(Array.isArray(parsed.harnessVersions)).toBe(true);
+  });
+
+  test("errors when --id is omitted (leaf requires it)", async () => {
+    await expect(run(["harness", "list-versions", "--id", ""])).rejects.toThrow(/--id/);
+  });
+});
+
 describe("unimplemented harness subcommands", () => {
   // These leaves are scaffolded but not yet implemented. Locking in their
   // current behavior documents the surface and flags the day they change.
@@ -116,7 +133,6 @@ describe("unimplemented harness subcommands", () => {
     "update-endpoint",
     "delete-endpoint",
     "get-versions",
-    "list-versions",
   ]) {
     test(`\`harness ${cmd}\` reports not implemented`, async () => {
       // Pass a throwaway flag so the empty-args TUI middleware doesn't engage.

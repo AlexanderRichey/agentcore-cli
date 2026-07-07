@@ -1,13 +1,30 @@
-import { createHandler } from "../../../router";
+import z from "zod";
+import { createHandler, flag } from "../../../router";
 import type { Core } from "../../types.tsx";
+import { coreOptsFromCtx } from "../../utils.tsx";
+import { JsonRendererKey } from "../../../tui";
 
-export const createListVersionsHandler = (_core: Core) =>
+export const createListVersionsHandler = (core: Core) =>
   createHandler({
     name: "list-versions",
     description: "list a harness's versions",
-    // TODO: declare flags (--id) and implement.
-    handle: async () => {
-      throw new Error("Not implemented");
+    flags: [
+      flag("id", "the ID of the harness", z.string().max(48).optional()),
+      flag("next-token", "next token to use on paginated", z.string().optional()),
+      flag("max-results", "max number of items to return", z.number().optional()),
+    ],
+    handle: async (ctx, flags) => {
+      if (!flags["id"]) {
+        throw new TypeError("required option '--id <id>' not specified");
+      }
+
+      const versions = await core.harness.listHarnessVersions(
+        flags["id"],
+        flags["next-token"],
+        flags["max-results"],
+        coreOptsFromCtx(ctx),
+      );
+      ctx.require(JsonRendererKey).renderJson(versions);
     },
   });
 

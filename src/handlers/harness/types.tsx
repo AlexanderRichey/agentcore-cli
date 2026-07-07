@@ -3,6 +3,7 @@ import type {
   GetHarnessEndpointResponse,
   ListHarnessesResponse,
   ListHarnessEndpointsResponse,
+  ListHarnessVersionsResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import type {
   InvokeHarnessRequest,
@@ -28,6 +29,12 @@ export interface CoreHarnessClient {
     maxResults: number | undefined,
     options: CoreOptions,
   ): Promise<ListHarnessEndpointsResponse>;
+  listHarnessVersions(
+    id: string,
+    nextToken: string | undefined,
+    maxResults: number | undefined,
+    options: CoreOptions,
+  ): Promise<ListHarnessVersionsResponse>;
   invokeHarness(
     request: InvokeHarnessRequest,
     options: CoreOptions,

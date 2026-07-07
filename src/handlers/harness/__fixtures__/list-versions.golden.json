@@ -1,0 +1,13 @@
+{
+  "harnessVersions": [
+    {
+      "harnessId": "MyPDXHarness-rhkXkAE1IS",
+      "harnessName": "MyPDXHarness",
+      "arn": "arn:aws:bedrock-agentcore:us-west-2:501930284170:harness/MyPDXHarness-rhkXkAE1IS",
+      "harnessVersion": "1",
+      "status": "READY",
+      "createdAt": "2026-04-22T21:53:06.235Z",
+      "updatedAt": "2026-04-22T21:53:27.062Z"
+    }
+  ]
+}
