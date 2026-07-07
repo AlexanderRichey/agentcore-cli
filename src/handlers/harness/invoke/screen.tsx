@@ -198,28 +198,35 @@ function InvokeChat({ ctx, core, harnessId }: ScreenProps & { harnessId: string 
         <Text color="red">Error: {(detail.error as Error).message}</Text>
       ) : (
         <Box flexDirection="column">
-          <Box height={rows - 7} flexDirection="column">
+          <Box height={rows - 8} flexDirection="column">
             <ScrollView ref={scrollRef}>
               {items.map((item, i) => (
-                <ItemView key={i} item={item} width={columns} />
+                <Box paddingBottom={1}>
+                  <ItemView key={i} item={item} width={columns} />
+                </Box>
               ))}
             </ScrollView>
           </Box>
+
           <Divider />
-          <Box height={1} paddingX={1}>
-            {streaming ? (
-              <Spinner label="Working… (esc to interrupt)" />
-            ) : (
-              <Text color={theme.colors.muted}>session {sessionId.slice(0, 8)}</Text>
-            )}
-          </Box>
-          <Box paddingX={1}>
+
+          <Box>
             <TextInput
               value={input}
               onChange={setInput}
               onSubmit={(value) => void send(value)}
-              placeholder="Send a message…"
+              placeholder="send a message…"
             />
+          </Box>
+
+          <Divider />
+
+          <Box height={1}>
+            {streaming ? (
+              <Spinner label="working… (esc to interrupt)" />
+            ) : (
+              <Text color={theme.colors.muted}>session: {sessionId}</Text>
+            )}
           </Box>
         </Box>
       )}
@@ -253,14 +260,24 @@ const TOOL_STATUS: Record<string, StatusValue> = {
 function ItemView({ item, width }: { item: TranscriptItem; width: number }) {
   switch (item.kind) {
     case "user":
-      return <Text color={theme.colors.muted}>❯ {item.text}</Text>;
+      return (
+        <Box>
+          <Text color={theme.colors.text}>❯ </Text>
+          <Box width={width - 4}>
+            <Text color={theme.colors.text}>{item.text}</Text>
+          </Box>
+        </Box>
+      );
     case "text":
       if (item.streaming) {
         return (
-          <Text>
-            ⏺ {item.text}
-            <Text color={theme.colors.muted}>▌</Text>
-          </Text>
+          <Box>
+            <Text>⏺ </Text>
+            <Box width={width - 4}>
+              <Text>{item.text}</Text>
+              <Text color={theme.colors.text}>▌</Text>
+            </Box>
+          </Box>
         );
       }
       return (
@@ -279,7 +296,7 @@ function ItemView({ item, width }: { item: TranscriptItem; width: number }) {
         </Text>
       );
     case "tool": {
-      const label = `${item.serverName ? `${item.serverName}:` : ""}${item.name}(${truncate(item.input, 60)})`;
+      const label = `${item.serverName ? `${item.serverName}:` : ""}${item.name}`;
       return (
         <Box flexDirection="column">
           <StatusIndicator status={TOOL_STATUS[item.status]!} label={label} />
@@ -295,6 +312,10 @@ function ItemView({ item, width }: { item: TranscriptItem; width: number }) {
     case "error":
       return <Text color={theme.colors.error}>✗ {item.message}</Text>;
     case "notice":
-      return <Text color={theme.colors.muted}>{item.text}</Text>;
+      return (
+        <Box paddingLeft={2}>
+          <Text color={theme.colors.muted}>{item.text}</Text>
+        </Box>
+      );
   }
 }
