@@ -3,11 +3,10 @@ import { Box, Text, useInput, useWindowSize } from "ink";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
 import { ScrollView, type ScrollViewRef } from "ink-scroll-view";
-import type { HarnessSummary } from "@aws-sdk/client-bedrock-agentcore-control";
 import type { ScreenProps } from "../../types";
 import { coreOptsFromCtx } from "../../utils";
+import { HarnessPicker } from "../HarnessPicker";
 import { Layout } from "../../../components/Layout";
-import { DataTable } from "../../../components/ui/data-table";
 import { Divider } from "../../../components/ui/divider";
 import { Markdown } from "../../../components/ui/markdown";
 import { Spinner } from "../../../components/ui/spinner";
@@ -31,76 +30,19 @@ const theme = darkTheme;
 // with); with one it renders the chat itself.
 export function HarnessInvokeScreen(props: ScreenProps) {
   const { harnessId } = useParams();
-  if (!harnessId) return <InvokePicker {...props} />;
-  return <InvokeChat {...props} harnessId={harnessId} />;
-}
-
-// ─── picker ───────────────────────────────────────────────────────────────────
-
-// PickerRow flattens a HarnessSummary for the DataTable (mirrors the list
-// screen's row shape).
-interface PickerRow extends Record<string, unknown> {
-  harnessId: string;
-  harnessName: string;
-  updatedAt: string;
-  status: string;
-}
-
-function toRow(h: HarnessSummary): PickerRow {
-  return {
-    harnessId: h.harnessId!,
-    harnessName: h.harnessName!,
-    updatedAt: h.updatedAt!.toISOString(),
-    status: h.status!,
-  };
-}
-
-// InvokePicker lists the caller's harnesses; selecting one opens the chat for it.
-function InvokePicker({ ctx, core }: ScreenProps) {
-  const opts = coreOptsFromCtx(ctx);
-  const { columns } = useWindowSize();
   const navigate = useNavigate();
 
-  const list = useQuery({
-    queryKey: ["harnesses", opts.region],
-    queryFn: () => core.harness.listHarnesses(undefined, undefined, opts),
-  });
-
-  return (
-    <Layout
-      breadcrumb={["agentcore", "harness", "invoke"]}
-      description="choose a harness to chat with"
-      keyHints={[
-        { key: "↑↓/jk", label: "navigate" },
-        { key: "enter", label: "select" },
-        { key: "esc", label: "back" },
-        { key: "ctl+c", label: "quit" },
-      ]}
-    >
-      {list.isPending ? (
-        <Spinner label="Loading harnesses…" />
-      ) : list.isError ? (
-        <Text color="red">Error: {(list.error as Error).message}</Text>
-      ) : (
-        <DataTable
-          borderStyle="none"
-          borderTop={false}
-          borderBottom={false}
-          borderRight={false}
-          showFooter={false}
-          showDivider={true}
-          columns={[
-            { key: "harnessName", header: "Name", width: columns - 52 },
-            { key: "updatedAt", header: "UpdatedAt", width: 30 },
-            { key: "status", header: "Status", width: 20 },
-          ]}
-          data={(list.data.harnesses ?? []).map(toRow)}
-          onSelect={(row) => navigate(`/agentcore/harness/invoke/${row.harnessId}`)}
-          onEscape={() => navigate("/agentcore/harness")}
-        />
-      )}
-    </Layout>
-  );
+  if (!harnessId) {
+    return (
+      <HarnessPicker
+        {...props}
+        breadcrumb={["agentcore", "harness", "invoke"]}
+        description="choose a harness to chat with"
+        onSelect={(id) => navigate(`/agentcore/harness/invoke/${id}`)}
+      />
+    );
+  }
+  return <InvokeChat {...props} harnessId={harnessId} />;
 }
 
 // ─── chat ─────────────────────────────────────────────────────────────────────
