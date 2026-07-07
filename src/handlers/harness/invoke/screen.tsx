@@ -15,7 +15,10 @@ import { TextInput } from "../../../components/ui/text-input";
 import { darkTheme } from "../../../components/ui/_core.js";
 import {
   applyEvent,
+  applyExecEvent,
+  finishExec,
   finishTurn,
+  newExecItem,
   newSessionId,
   newTurn,
   turnSummary,
@@ -42,16 +45,28 @@ export function HarnessInvokeScreen(props: ScreenProps) {
       />
     );
   }
-  return <InvokeChat {...props} harnessId={harnessId} />;
+  return <HarnessChat {...props} harnessId={harnessId} variant="invoke" />;
 }
 
 // ─── chat ─────────────────────────────────────────────────────────────────────
 
-// InvokeChat is the conversation view: a scrollable transcript, a one-row status
-// line, and the prompt pinned at the bottom. One runtime session spans the whole
-// chat — the service keeps conversation state server-side, so each send carries
-// only the new user message.
-function InvokeChat({ ctx, core, harnessId }: ScreenProps & { harnessId: string }) {
+// Mode is what enter does with the prompt: "chat" sends a message to the agent,
+// "exec" runs a shell command in the session's container. Ctrl+E toggles.
+type Mode = "chat" | "exec";
+
+export interface HarnessChatProps extends ScreenProps {
+  harnessId: string;
+  // variant is the command hosting the chat: it names the breadcrumb and picks
+  // the starting mode ("exec" starts in exec mode; "invoke" in chat mode).
+  variant: "invoke" | "exec";
+}
+
+// HarnessChat is the conversation view shared by `invoke` and `exec`: a
+// scrollable transcript, a one-row status line, and the prompt pinned at the
+// bottom. One runtime session spans the whole chat — the service keeps
+// conversation state server-side, so each send carries only the new user
+// message, and exec-mode commands run in that same session's container.
+export function HarnessChat({ ctx, core, harnessId, variant }: HarnessChatProps) {
   const opts = coreOptsFromCtx(ctx);
   const { columns, rows } = useWindowSize();
   const navigate = useNavigate();
@@ -64,6 +79,7 @@ function InvokeChat({ ctx, core, harnessId }: ScreenProps & { harnessId: string 
   const [sessionId] = useState(newSessionId);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [mode, setMode] = useState<Mode>(variant === "exec" ? "exec" : "chat");
   const [items, setItems] = useState<TranscriptItem[]>([]);
 
   // The stream loop is async and outlives any single render, so everything it
@@ -72,6 +88,7 @@ function InvokeChat({ ctx, core, harnessId }: ScreenProps & { harnessId: string 
   const historyRef = useRef<TranscriptItem[]>([]);
   const turnRef = useRef<Turn | null>(null);
   const streamingRef = useRef(false);
+  const modeRef = useRef(variant === "exec" ? ("exec" as Mode) : ("chat" as Mode));
   const aliveRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<ScrollViewRef>(null);
@@ -152,10 +169,78 @@ function InvokeChat({ ctx, core, harnessId }: ScreenProps & { harnessId: string 
     }
   };
 
-  // Esc interrupts a running turn or pops back when idle; arrows scroll the
-  // transcript. Text editing and enter-to-send belong to the TextInput below —
-  // the two handlers own disjoint keys.
-  useInput((_input, key) => {
+  // runExec runs a shell command in the chat session's container (exec mode)
+  // and folds the streamed stdout/stderr into an exec transcript item.
+  const runExec = async (text: string) => {
+    const command = text.trim();
+    const arn = detail.data?.harness?.arn;
+    if (command === "" || streamingRef.current || !arn) return;
+
+    setInput("");
+    stickRef.current = true;
+    const item = newExecItem(command);
+    historyRef.current.push(item);
+    streamingRef.current = true;
+    setStreaming(true);
+    sync();
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const response = await core.harness.invokeAgentRuntimeCommand(
+        // The chat's own session id: the command runs in the same container
+        // the conversation runs in.
+        { agentRuntimeArn: arn, runtimeSessionId: sessionId, body: { command } },
+        opts,
+        controller.signal,
+      );
+      for await (const event of response.stream ?? []) {
+        if (!aliveRef.current) return;
+        applyExecEvent(item, event);
+        sync();
+      }
+      finishExec(item);
+    } catch (error) {
+      finishExec(item);
+      if (controller.signal.aborted || (error as Error)?.name === "AbortError") {
+        historyRef.current.push({ kind: "notice", text: "interrupted" });
+      } else {
+        historyRef.current.push({
+          kind: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } finally {
+      abortRef.current = null;
+      streamingRef.current = false;
+      if (aliveRef.current) {
+        setStreaming(false);
+        sync();
+      }
+    }
+  };
+
+  // submit routes enter by the current mode: chat sends to the agent, exec runs
+  // a command.
+  const submit = (value: string) => {
+    void (modeRef.current === "exec" ? runExec(value) : send(value));
+  };
+
+  const toggleMode = () => {
+    const next: Mode = modeRef.current === "exec" ? "chat" : "exec";
+    modeRef.current = next;
+    setMode(next);
+  };
+
+  // Esc interrupts a running turn or pops back when idle; ctrl+e flips between
+  // chat and exec mode; arrows scroll the transcript. Text editing and
+  // enter-to-send belong to the TextInput below — the two handlers own
+  // disjoint keys.
+  useInput((input, key) => {
+    if (key.ctrl && input === "e") {
+      toggleMode();
+      return;
+    }
     if (key.escape) {
       if (streamingRef.current) abortRef.current?.abort();
       else navigate(-1);
@@ -177,7 +262,7 @@ function InvokeChat({ ctx, core, harnessId }: ScreenProps & { harnessId: string 
 
   return (
     <Layout
-      breadcrumb={["agentcore", "harness", "invoke", harnessId]}
+      breadcrumb={["agentcore", "harness", variant, harnessId]}
       keyHints={
         streaming
           ? [
@@ -185,7 +270,8 @@ function InvokeChat({ ctx, core, harnessId }: ScreenProps & { harnessId: string 
               { key: "ctl+c", label: "quit" },
             ]
           : [
-              { key: "enter", label: "send" },
+              { key: "enter", label: mode === "exec" ? "run" : "send" },
+              { key: "ctl+e", label: mode === "exec" ? "chat mode" : "exec mode" },
               { key: "↑↓", label: "scroll" },
               { key: "esc", label: "back" },
               { key: "ctl+c", label: "quit" },
@@ -214,8 +300,9 @@ function InvokeChat({ ctx, core, harnessId }: ScreenProps & { harnessId: string 
             <TextInput
               value={input}
               onChange={setInput}
-              onSubmit={(value) => void send(value)}
-              placeholder="send a message…"
+              onSubmit={submit}
+              prompt={mode === "exec" ? "$ " : "❯ "}
+              placeholder={mode === "exec" ? "run a command…" : "send a message…"}
             />
           </Box>
 
@@ -309,6 +396,30 @@ function ItemView({ item, width }: { item: TranscriptItem; width: number }) {
         </Box>
       );
     }
+    case "exec":
+      return (
+        <Box flexDirection="column">
+          <Box>
+            <Text color={theme.colors.text}>$ </Text>
+            <Box width={width - 4}>
+              <Text color={theme.colors.text}>{item.command}</Text>
+            </Box>
+          </Box>
+          {item.output !== "" || item.status === "running" ? (
+            <Box paddingLeft={2} width={width - 2}>
+              <Text color={item.status === "error" ? theme.colors.error : theme.colors.muted}>
+                {item.output.trimEnd()}
+                {item.status === "running" ? "▌" : ""}
+              </Text>
+            </Box>
+          ) : null}
+          {item.status === "error" && item.exitCode !== undefined && item.exitCode !== 0 ? (
+            <Box paddingLeft={2}>
+              <Text color={theme.colors.error}>exit {item.exitCode}</Text>
+            </Box>
+          ) : null}
+        </Box>
+      );
     case "error":
       return <Text color={theme.colors.error}>✗ {item.message}</Text>;
     case "notice":

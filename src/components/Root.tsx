@@ -89,6 +89,10 @@ export function Root({ path, ctx, core, queryClient }: RootProps) {
             element={<HarnessExecScreen ctx={ctx} core={core} />}
           />
           <Route
+            path="agentcore/harness/exec/:harnessId"
+            element={<HarnessExecScreen ctx={ctx} core={core} />}
+          />
+          <Route
             path="agentcore/harness/create-endpoint"
             element={<HarnessCreateEndpointScreen ctx={ctx} core={core} />}
           />
