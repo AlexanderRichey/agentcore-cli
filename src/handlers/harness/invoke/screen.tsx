@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Text, useInput, useWindowSize } from "ink";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ScrollView, type ScrollViewRef } from "ink-scroll-view";
 import type { ScreenProps } from "../../types";
 import { coreOptsFromCtx } from "../../utils";
 import { HarnessPicker } from "../../../components/HarnessPicker";
+import { EndpointPicker } from "../../../components/EndpointPicker";
 import { Layout } from "../../../components/Layout";
 import { Divider } from "../../../components/ui/divider";
 import { Markdown } from "../../../components/ui/markdown";
@@ -31,9 +32,11 @@ const theme = darkTheme;
 // HarnessInvokeScreen is the interactive chat for `harness invoke`. Without a
 // `:harnessId` route value it renders a picker (choose which harness to chat
 // with); with one it renders the chat itself. A `:sessionId` route value
-// resumes that runtime session instead of starting a fresh one.
+// resumes that runtime session instead of starting a fresh one, and a
+// `?qualifier=` search value targets that endpoint.
 export function HarnessInvokeScreen(props: ScreenProps) {
   const { harnessId, sessionId } = useParams();
+  const [search] = useSearchParams();
   const navigate = useNavigate();
 
   if (!harnessId) {
@@ -47,7 +50,13 @@ export function HarnessInvokeScreen(props: ScreenProps) {
     );
   }
   return (
-    <HarnessChat {...props} harnessId={harnessId} initialSessionId={sessionId} variant="invoke" />
+    <HarnessChat
+      {...props}
+      harnessId={harnessId}
+      initialSessionId={sessionId}
+      initialQualifier={search.get("qualifier") ?? undefined}
+      variant="invoke"
+    />
   );
 }
 
@@ -63,6 +72,9 @@ export interface HarnessChatProps extends ScreenProps {
   // starts a fresh one. The service holds conversation state server-side, so
   // resuming continues the agent's context (the transcript view starts empty).
   initialSessionId?: string;
+  // initialQualifier is the endpoint the session targets (default DEFAULT,
+  // which every harness has). Ctrl+T switches endpoints mid-chat.
+  initialQualifier?: string;
   // variant is the command hosting the chat: it names the breadcrumb and picks
   // the starting mode ("exec" starts in exec mode; "invoke" in chat mode).
   variant: "invoke" | "exec";
@@ -73,7 +85,14 @@ export interface HarnessChatProps extends ScreenProps {
 // bottom. One runtime session spans the whole chat — the service keeps
 // conversation state server-side, so each send carries only the new user
 // message, and exec-mode commands run in that same session's container.
-export function HarnessChat({ ctx, core, harnessId, initialSessionId, variant }: HarnessChatProps) {
+export function HarnessChat({
+  ctx,
+  core,
+  harnessId,
+  initialSessionId,
+  initialQualifier,
+  variant,
+}: HarnessChatProps) {
   const opts = coreOptsFromCtx(ctx);
   const { columns, rows } = useWindowSize();
   const navigate = useNavigate();
@@ -84,6 +103,8 @@ export function HarnessChat({ ctx, core, harnessId, initialSessionId, variant }:
   });
 
   const [sessionId] = useState(() => initialSessionId ?? newSessionId());
+  const [qualifier, setQualifier] = useState(initialQualifier ?? "DEFAULT");
+  const [pickingEndpoint, setPickingEndpoint] = useState(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [mode, setMode] = useState<Mode>(variant === "exec" ? "exec" : "chat");
@@ -141,6 +162,7 @@ export function HarnessChat({ ctx, core, harnessId, initialSessionId, variant }:
       const response = await core.harness.invokeHarness(
         {
           harnessArn: arn,
+          qualifier,
           runtimeSessionId: sessionId,
           messages: [{ role: "user", content: [{ text: trimmed }] }],
         },
@@ -197,7 +219,7 @@ export function HarnessChat({ ctx, core, harnessId, initialSessionId, variant }:
       const response = await core.harness.invokeAgentRuntimeCommand(
         // The chat's own session id: the command runs in the same container
         // the conversation runs in.
-        { agentRuntimeArn: arn, runtimeSessionId: sessionId, body: { command } },
+        { agentRuntimeArn: arn, qualifier, runtimeSessionId: sessionId, body: { command } },
         opts,
         controller.signal,
       );
@@ -240,32 +262,59 @@ export function HarnessChat({ ctx, core, harnessId, initialSessionId, variant }:
   };
 
   // Esc interrupts a running turn or pops back when idle; ctrl+e flips between
-  // chat and exec mode; arrows scroll the transcript. Text editing and
-  // enter-to-send belong to the TextInput below — the two handlers own
-  // disjoint keys.
-  useInput((input, key) => {
-    if (key.ctrl && input === "e") {
-      toggleMode();
-      return;
-    }
-    if (key.escape) {
-      if (streamingRef.current) abortRef.current?.abort();
-      else navigate(-1);
-      return;
-    }
-    const view = scrollRef.current;
-    if (!view) return;
-    if (key.upArrow) {
-      const offset = view.getScrollOffset();
-      view.scrollBy(-1);
-      if (offset - 1 < view.getBottomOffset()) stickRef.current = false;
-    }
-    if (key.downArrow) {
-      const offset = view.getScrollOffset();
-      view.scrollBy(1);
-      if (offset + 1 >= view.getBottomOffset()) stickRef.current = true;
-    }
-  });
+  // chat and exec mode; ctrl+t opens the endpoint switcher when idle; arrows
+  // scroll the transcript. Text editing and enter-to-send belong to the
+  // TextInput below — the two handlers own disjoint keys. The whole handler
+  // stands down while the endpoint picker overlay owns the keys.
+  useInput(
+    (input, key) => {
+      if (key.ctrl && input === "e") {
+        toggleMode();
+        return;
+      }
+      if (key.ctrl && input === "t") {
+        if (!streamingRef.current) setPickingEndpoint(true);
+        return;
+      }
+      if (key.escape) {
+        if (streamingRef.current) abortRef.current?.abort();
+        else navigate(-1);
+        return;
+      }
+      const view = scrollRef.current;
+      if (!view) return;
+      if (key.upArrow) {
+        const offset = view.getScrollOffset();
+        view.scrollBy(-1);
+        if (offset - 1 < view.getBottomOffset()) stickRef.current = false;
+      }
+      if (key.downArrow) {
+        const offset = view.getScrollOffset();
+        view.scrollBy(1);
+        if (offset + 1 >= view.getBottomOffset()) stickRef.current = true;
+      }
+    },
+    { isActive: !pickingEndpoint },
+  );
+
+  // The ctrl+t endpoint switcher: pick an endpoint and later sends target its
+  // qualifier; esc closes the overlay with the qualifier unchanged.
+  if (pickingEndpoint) {
+    return (
+      <EndpointPicker
+        ctx={ctx}
+        core={core}
+        harnessId={harnessId}
+        breadcrumb={["agentcore", "harness", variant, harnessId, "endpoint"]}
+        description="choose the endpoint to use"
+        onSelect={(endpointName) => {
+          setQualifier(endpointName);
+          setPickingEndpoint(false);
+        }}
+        onEscape={() => setPickingEndpoint(false)}
+      />
+    );
+  }
 
   return (
     <Layout
@@ -279,6 +328,7 @@ export function HarnessChat({ ctx, core, harnessId, initialSessionId, variant }:
           : [
               { key: "enter", label: mode === "exec" ? "run" : "send" },
               { key: "ctl+e", label: mode === "exec" ? "chat mode" : "exec mode" },
+              { key: "ctl+t", label: "endpoint" },
               { key: "↑↓", label: "scroll" },
               { key: "esc", label: "back" },
               { key: "ctl+c", label: "quit" },
@@ -319,7 +369,9 @@ export function HarnessChat({ ctx, core, harnessId, initialSessionId, variant }:
             {streaming ? (
               <Spinner label="working… (esc to interrupt)" />
             ) : (
-              <Text color={theme.colors.muted}>session: {sessionId}</Text>
+              <Text color={theme.colors.muted}>
+                session: {sessionId} · qualifier: {qualifier}
+              </Text>
             )}
           </Box>
         </Box>

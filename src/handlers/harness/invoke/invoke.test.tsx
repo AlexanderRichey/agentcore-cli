@@ -77,7 +77,8 @@ describe("harness invoke", () => {
     const invoke = core.harness.calls.find((c) => c.method === "invokeHarness")!;
     const request = invoke.args[0] as InvokeHarnessRequest;
     expect(request.harnessArn).toBe(ARN);
-    expect(request.qualifier).toBeUndefined();
+    // Omitting --qualifier targets the DEFAULT endpoint explicitly.
+    expect(request.qualifier).toBe("DEFAULT");
     expect(request.messages).toEqual([{ role: "user", content: [{ text: "hi" }] }]);
     expect(request.runtimeSessionId!.length).toBeGreaterThanOrEqual(33);
     expect(request.runtimeSessionId!.length).toBeLessThanOrEqual(100);

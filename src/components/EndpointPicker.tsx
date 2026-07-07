@@ -38,6 +38,10 @@ export interface EndpointPickerProps extends ScreenProps {
   description?: string;
   // onSelect receives the chosen endpoint's name.
   onSelect: (endpointName: string) => void;
+  // onEscape overrides what esc does (default: pop back in history). Hosts
+  // that embed the picker as an overlay (e.g. the chat's ctrl+t endpoint
+  // switch) pass a closer instead.
+  onEscape?: () => void;
 }
 
 // EndpointPicker fetches a harness's endpoints and renders them as a navigable
@@ -50,6 +54,7 @@ export function EndpointPicker({
   breadcrumb,
   description,
   onSelect,
+  onEscape,
 }: EndpointPickerProps) {
   const opts = coreOptsFromCtx(ctx);
   const { columns } = useWindowSize();
@@ -107,7 +112,7 @@ export function EndpointPicker({
             onSelect={(row) => {
               if (row.endpointName) onSelect(row.endpointName);
             }}
-            onEscape={() => navigate(-1)}
+            onEscape={onEscape ?? (() => navigate(-1))}
             onPrevPage={paging.pageIndex > 0 ? paging.prev : undefined}
             onNextPage={nextToken ? () => paging.next(nextToken) : undefined}
           />

@@ -18,7 +18,11 @@ export const createExecHarnessHandler = (core: Core, io: AppIO) =>
         "the runtime session ID to run in (33-100 characters)",
         z.string().min(33).max(100).optional(),
       ),
-      flag("qualifier", "the harness endpoint qualifier", z.string().optional()),
+      flag(
+        "qualifier",
+        "the harness endpoint qualifier to run in (default DEFAULT)",
+        z.string().optional(),
+      ),
       flag(
         "timeout",
         "seconds to wait for the command (1-3600)",
@@ -32,19 +36,17 @@ export const createExecHarnessHandler = (core: Core, io: AppIO) =>
         throw new TypeError("required option '--id <id>' not specified");
       }
       // Without a command, open the interactive exec screen at this harness —
-      // resuming the given session when one is passed. The one-shot CLI run
-      // below needs --command (and is the only shape JSON mode supports).
+      // resuming the given session and targeting the given qualifier when
+      // passed. The one-shot CLI run below needs --command (and is the only
+      // shape JSON mode supports).
       if (!flags["command"]) {
         if (ctx.require(JsonKey)) {
           throw new TypeError("required option '--command <command>' not specified");
         }
-        const base = `${ctx.require(PathKey)}/${flags["id"]}`;
-        await renderTuiAt(
-          flags["session-id"] ? `${base}/${flags["session-id"]}` : base,
-          ctx,
-          core,
-          io,
-        );
+        let path = `${ctx.require(PathKey)}/${flags["id"]}`;
+        if (flags["session-id"]) path += `/${flags["session-id"]}`;
+        if (flags["qualifier"]) path += `?qualifier=${encodeURIComponent(flags["qualifier"])}`;
+        await renderTuiAt(path, ctx, core, io);
         return;
       }
 
@@ -56,7 +58,7 @@ export const createExecHarnessHandler = (core: Core, io: AppIO) =>
           // A harness-managed runtime cannot be addressed by its own runtime
           // ARN; the service expects the harness ARN here.
           agentRuntimeArn: detail.harness?.arn,
-          qualifier: flags["qualifier"],
+          qualifier: flags["qualifier"] ?? "DEFAULT",
           runtimeSessionId: flags["session-id"],
           body: { command: flags["command"], timeout: flags["timeout"] },
         },

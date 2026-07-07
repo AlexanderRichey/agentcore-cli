@@ -24,7 +24,11 @@ export const createInvokeHarnessHandler = (core: Core, io: AppIO) =>
         "the runtime session ID to continue (33-100 characters)",
         z.string().min(33).max(100).optional(),
       ),
-      flag("qualifier", "the harness endpoint qualifier", z.string().optional()),
+      flag(
+        "qualifier",
+        "the harness endpoint qualifier to invoke (default DEFAULT)",
+        z.string().optional(),
+      ),
     ],
     handle: async (ctx, flags) => {
       // These are required at runtime but declared optional so that a bare
@@ -33,19 +37,17 @@ export const createInvokeHarnessHandler = (core: Core, io: AppIO) =>
         throw new TypeError("required option '--id <id>' not specified");
       }
       // Without a prompt, open the interactive chat at this harness — resuming
-      // the given session when one is passed. The one-shot CLI transcript
-      // below needs --prompt (and is the only shape JSON mode supports).
+      // the given session and targeting the given qualifier when passed. The
+      // one-shot CLI transcript below needs --prompt (and is the only shape
+      // JSON mode supports).
       if (!flags["prompt"]) {
         if (ctx.require(JsonKey)) {
           throw new TypeError("required option '--prompt <text>' not specified");
         }
-        const base = `${ctx.require(PathKey)}/${flags["id"]}`;
-        await renderTuiAt(
-          flags["session-id"] ? `${base}/${flags["session-id"]}` : base,
-          ctx,
-          core,
-          io,
-        );
+        let path = `${ctx.require(PathKey)}/${flags["id"]}`;
+        if (flags["session-id"]) path += `/${flags["session-id"]}`;
+        if (flags["qualifier"]) path += `?qualifier=${encodeURIComponent(flags["qualifier"])}`;
+        await renderTuiAt(path, ctx, core, io);
         return;
       }
 
@@ -56,7 +58,7 @@ export const createInvokeHarnessHandler = (core: Core, io: AppIO) =>
       const response = await core.harness.invokeHarness(
         {
           harnessArn: detail.harness?.arn,
-          qualifier: flags["qualifier"],
+          qualifier: flags["qualifier"] ?? "DEFAULT",
           runtimeSessionId: sessionId,
           messages: [{ role: "user", content: [{ text: flags["prompt"] }] }],
         },

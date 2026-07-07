@@ -168,6 +168,88 @@ describe("invoke chat screen", () => {
     r.unmount();
   });
 
+  test("ctrl+t picks an endpoint and later sends target its qualifier", async () => {
+    const core = chatCore();
+    core.harness.setListEndpointsResponse({
+      endpoints: [
+        {
+          harnessId: "MyHarness-abc123",
+          harnessName: "MyHarness",
+          endpointName: "DEFAULT",
+          arn: "arn:aws:bedrock-agentcore:us-east-1:123:harness-endpoint/DEFAULT",
+          status: "READY",
+          liveVersion: "1",
+          createdAt: new Date("2026-04-22T21:53:06.235Z"),
+          updatedAt: new Date("2026-04-22T21:53:27.062Z"),
+        },
+        {
+          harnessId: "MyHarness-abc123",
+          harnessName: "MyHarness",
+          endpointName: "prod",
+          arn: "arn:aws:bedrock-agentcore:us-east-1:123:harness-endpoint/prod",
+          status: "READY",
+          liveVersion: "2",
+          createdAt: new Date("2026-04-22T21:53:06.235Z"),
+          updatedAt: new Date("2026-04-22T21:53:27.062Z"),
+        },
+      ],
+    });
+    const r = renderScreen(CHAT_PATH, { core });
+
+    await waitForText(r.lastFrame, "send a message…");
+    expect(r.lastFrame()).toContain("qualifier: DEFAULT");
+
+    await r.write("\x14"); // ctrl+t
+    await waitForText(r.lastFrame, "choose the endpoint to use");
+    await r.press("down"); // prod
+    await r.press("return");
+    await waitForText(r.lastFrame, "qualifier: prod");
+
+    await sendMessage(r, "hi");
+    await waitFor(() => core.harness.calls.some((c) => c.method === "invokeHarness"));
+    const invoke = core.harness.calls.find((c) => c.method === "invokeHarness")!;
+    expect((invoke.args[0] as InvokeHarnessRequest).qualifier).toBe("prod");
+    r.unmount();
+  });
+
+  test("esc closes the endpoint picker with the qualifier unchanged", async () => {
+    const core = chatCore();
+    core.harness.setListEndpointsResponse({
+      endpoints: [
+        {
+          harnessId: "MyHarness-abc123",
+          harnessName: "MyHarness",
+          endpointName: "prod",
+          arn: "arn:aws:bedrock-agentcore:us-east-1:123:harness-endpoint/prod",
+          status: "READY",
+          createdAt: new Date("2026-04-22T21:53:06.235Z"),
+          updatedAt: new Date("2026-04-22T21:53:27.062Z"),
+        },
+      ],
+    });
+    const r = renderScreen(CHAT_PATH, { core });
+
+    await waitForText(r.lastFrame, "send a message…");
+    await r.write("\x14"); // ctrl+t
+    await waitForText(r.lastFrame, "choose the endpoint to use");
+    await r.press("escape");
+    await waitForText(r.lastFrame, "send a message…");
+    expect(r.lastFrame()).toContain("qualifier: DEFAULT");
+    r.unmount();
+  });
+
+  test("a qualifier in the route targets that endpoint", async () => {
+    const core = chatCore();
+    const r = renderScreen(`${CHAT_PATH}?qualifier=canary`, { core });
+
+    await waitForText(r.lastFrame, "qualifier: canary");
+    await sendMessage(r, "hi");
+    await waitFor(() => core.harness.calls.some((c) => c.method === "invokeHarness"));
+    const invoke = core.harness.calls.find((c) => c.method === "invokeHarness")!;
+    expect((invoke.args[0] as InvokeHarnessRequest).qualifier).toBe("canary");
+    r.unmount();
+  });
+
   test("renders reasoning, a successful tool, and a failed tool with result previews", async () => {
     const core = chatCore();
     core.harness.setInvokeEvents(

@@ -110,6 +110,7 @@ describe("exec screen", () => {
     await waitFor(() => core.harness.calls.some((c) => c.method === "invokeAgentRuntimeCommand"));
     const call = core.harness.calls.find((c) => c.method === "invokeAgentRuntimeCommand")!;
     expect((call.args[0] as InvokeAgentRuntimeCommandRequest).runtimeSessionId).toBe(resumed);
+    expect((call.args[0] as InvokeAgentRuntimeCommandRequest).qualifier).toBe("DEFAULT");
     r.unmount();
   });
 
