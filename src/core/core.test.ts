@@ -1,6 +1,7 @@
 import { test, expect } from "bun:test";
 import type { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
 import {
+  InvokeAgentRuntimeCommandCommand,
   InvokeHarnessCommand,
   type BedrockAgentCoreClient,
 } from "@aws-sdk/client-bedrock-agentcore";
@@ -143,6 +144,34 @@ test("invokeHarness stream iteration rejects promptly when aborted mid-stream", 
   const pending = iterator.next();
   controller.abort();
   expect(pending).rejects.toMatchObject({ name: "AbortError" });
+});
+
+test("invokeAgentRuntimeCommand sends the command on the data client with the abort signal", async () => {
+  const sent: { command: unknown; options: unknown }[] = [];
+  const core = new CoreClient(
+    fakeControl,
+    (config) =>
+      ({
+        config,
+        kind: "data",
+        send: async (command: unknown, options: unknown) => {
+          sent.push({ command, options });
+          return { statusCode: 200, stream: undefined };
+        },
+      }) as unknown as BedrockAgentCoreClient,
+  );
+
+  const request = {
+    agentRuntimeArn: "arn:aws:bedrock-agentcore:us-east-1:123:harness/h-1",
+    body: { command: "ls" },
+  };
+  const controller = new AbortController();
+  await core.harness.invokeAgentRuntimeCommand(request, { region: "us-east-1" }, controller.signal);
+
+  expect(sent).toHaveLength(1);
+  expect(sent[0]!.command).toBeInstanceOf(InvokeAgentRuntimeCommandCommand);
+  expect((sent[0]!.command as InvokeAgentRuntimeCommandCommand).input).toEqual(request);
+  expect(sent[0]!.options).toEqual({ abortSignal: controller.signal });
 });
 
 test("invokeHarness returns the stream untouched when no abort signal is given", async () => {

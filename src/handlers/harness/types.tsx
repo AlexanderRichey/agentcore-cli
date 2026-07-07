@@ -6,6 +6,8 @@ import type {
   ListHarnessVersionsResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import type {
+  InvokeAgentRuntimeCommandRequest,
+  InvokeAgentRuntimeCommandResponse,
   InvokeHarnessRequest,
   InvokeHarnessResponse,
 } from "@aws-sdk/client-bedrock-agentcore";
@@ -41,4 +43,9 @@ export interface CoreHarnessClient {
     options: CoreOptions,
     abortSignal?: AbortSignal,
   ): Promise<InvokeHarnessResponse>;
+  invokeAgentRuntimeCommand(
+    request: InvokeAgentRuntimeCommandRequest,
+    options: CoreOptions,
+    abortSignal?: AbortSignal,
+  ): Promise<InvokeAgentRuntimeCommandResponse>;
 }

@@ -6,6 +6,9 @@ import type {
   ListHarnessVersionsResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import type {
+  InvokeAgentRuntimeCommandRequest,
+  InvokeAgentRuntimeCommandResponse,
+  InvokeAgentRuntimeCommandStreamOutput,
   InvokeHarnessRequest,
   InvokeHarnessResponse,
   InvokeHarnessStreamOutput,
@@ -91,6 +94,8 @@ export class TestHarnessClient implements CoreHarnessClient {
   private listVersionsResponse: ListHarnessVersionsResponse = DEFAULT_LIST_VERSIONS_RESPONSE;
   private invokeEvents: InvokeHarnessStreamOutput[] = [];
   private invokeStreams: AsyncIterable<InvokeHarnessStreamOutput>[] = [];
+  private execEvents: InvokeAgentRuntimeCommandStreamOutput[] = [];
+  private execStreams: AsyncIterable<InvokeAgentRuntimeCommandStreamOutput>[] = [];
   private error?: Error;
 
   // setListResponse sets what listHarnesses resolves to (when not erroring).
@@ -145,6 +150,20 @@ export class TestHarnessClient implements CoreHarnessClient {
   // Pass a StreamController to hold the stream open and pump it by hand.
   queueInvokeStream(stream: AsyncIterable<InvokeHarnessStreamOutput>): this {
     this.invokeStreams.push(stream);
+    return this;
+  }
+
+  // setExecEvents sets the canned stream every invokeAgentRuntimeCommand call
+  // yields (unless a queued stream takes precedence).
+  setExecEvents(...events: InvokeAgentRuntimeCommandStreamOutput[]): this {
+    this.execEvents = events;
+    return this;
+  }
+
+  // queueExecStream enqueues a stream for a single invokeAgentRuntimeCommand
+  // call, FIFO before the canned events — same contract as queueInvokeStream.
+  queueExecStream(stream: AsyncIterable<InvokeAgentRuntimeCommandStreamOutput>): this {
+    this.execStreams.push(stream);
     return this;
   }
 
@@ -228,6 +247,25 @@ export class TestHarnessClient implements CoreHarnessClient {
     if (this.error) throw this.error;
     const stream = this.invokeStreams.shift() ?? events(this.invokeEvents);
     return { stream: abortable(stream, abortSignal) };
+  }
+
+  async invokeAgentRuntimeCommand(
+    request: InvokeAgentRuntimeCommandRequest,
+    options: CoreOptions,
+    abortSignal?: AbortSignal,
+  ): Promise<InvokeAgentRuntimeCommandResponse> {
+    this.calls.push({
+      method: "invokeAgentRuntimeCommand",
+      args: [request, options, abortSignal],
+    });
+    if (this.error) throw this.error;
+    const stream = this.execStreams.shift() ?? events(this.execEvents);
+    return {
+      contentType: "application/json",
+      statusCode: 200,
+      runtimeSessionId: request.runtimeSessionId,
+      stream: abortable(stream, abortSignal),
+    };
   }
 }
 

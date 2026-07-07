@@ -1,12 +1,19 @@
 import { test, expect, describe } from "bun:test";
-import type { InvokeHarnessStreamOutput } from "@aws-sdk/client-bedrock-agentcore";
+import type {
+  InvokeAgentRuntimeCommandStreamOutput,
+  InvokeHarnessStreamOutput,
+} from "@aws-sdk/client-bedrock-agentcore";
 import {
   applyEvent,
+  applyExecEvent,
   compactJson,
+  finishExec,
   finishTurn,
+  newExecItem,
   newSessionId,
   newTurn,
   turnSummary,
+  type ExecItem,
   type Turn,
 } from "./transcript";
 
@@ -305,6 +312,76 @@ describe("stream errors and unknown events", () => {
       blockStop(9),
     ]);
     expect(turn.items).toEqual([]);
+  });
+});
+
+describe("exec command stream", () => {
+  function foldExec(command: string, events: InvokeAgentRuntimeCommandStreamOutput[]): ExecItem {
+    const item = newExecItem(command);
+    for (const event of events) applyExecEvent(item, event);
+    return item;
+  }
+
+  test("stdout and stderr interleave in arrival order and exit 0 succeeds", () => {
+    const item = foldExec("ls /", [
+      { chunk: { contentStart: {} } },
+      { chunk: { contentDelta: { stdout: "bin\n" } } },
+      { chunk: { contentDelta: { stderr: "warning: slow disk\n" } } },
+      { chunk: { contentDelta: { stdout: "usr\n" } } },
+      { chunk: { contentStop: { exitCode: 0, status: "COMPLETED" } } },
+    ]);
+
+    expect(item).toEqual({
+      kind: "exec",
+      command: "ls /",
+      output: "bin\nwarning: slow disk\nusr\n",
+      exitCode: 0,
+      status: "success",
+    });
+  });
+
+  test("a non-zero exit code fails the item", () => {
+    const item = foldExec("false", [
+      { chunk: { contentDelta: { stderr: "nope\n" } } },
+      { chunk: { contentStop: { exitCode: 2, status: "COMPLETED" } } },
+    ]);
+    expect(item).toMatchObject({ status: "error", exitCode: 2, output: "nope\n" });
+  });
+
+  test("a timed-out command fails with a note in the output", () => {
+    const item = foldExec("sleep 999", [
+      { chunk: { contentStop: { exitCode: -1, status: "TIMED_OUT" } } },
+    ]);
+    expect(item).toMatchObject({ status: "error", exitCode: -1 });
+    expect(item.output).toContain("command timed out");
+  });
+
+  test("stream-borne errors fail the item with the message in its output", () => {
+    const item = foldExec("ls", [
+      {
+        validationException: { message: "bad session" },
+      } as unknown as InvokeAgentRuntimeCommandStreamOutput,
+    ]);
+    expect(item.status).toBe("error");
+    expect(item.output).toContain("bad session");
+  });
+
+  test("unknown events are ignored and finishExec settles a dangling command", () => {
+    const item = foldExec("ls", [
+      { $unknown: ["future", {}] } as unknown as InvokeAgentRuntimeCommandStreamOutput,
+      { chunk: { contentDelta: { stdout: "partial" } } },
+    ]);
+    expect(item.status).toBe("running");
+
+    finishExec(item);
+    expect(item.status).toBe("error");
+
+    // A settled item is left alone.
+    const done = foldExec("true", [
+      { chunk: { contentStop: { exitCode: 0, status: "COMPLETED" } } },
+    ]);
+    finishExec(done);
+    expect(done.status).toBe("success");
   });
 });
 

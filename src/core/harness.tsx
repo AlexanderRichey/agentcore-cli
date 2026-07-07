@@ -11,7 +11,10 @@ import {
   type ListHarnessVersionsResponse,
 } from "@aws-sdk/client-bedrock-agentcore-control";
 import {
+  InvokeAgentRuntimeCommandCommand,
   InvokeHarnessCommand,
+  type InvokeAgentRuntimeCommandRequest,
+  type InvokeAgentRuntimeCommandResponse,
   type InvokeHarnessRequest,
   type InvokeHarnessResponse,
 } from "@aws-sdk/client-bedrock-agentcore";
@@ -97,6 +100,19 @@ export class HarnessClient implements CoreHarnessClient {
     // iteration down — consumers awaiting the next event would hang until the
     // turn ran to completion. Racing each read against the signal keeps abort
     // (esc in the TUI) responsive mid-stream.
+    return { ...response, stream: abortable(response.stream, abortSignal) };
+  }
+
+  async invokeAgentRuntimeCommand(
+    request: InvokeAgentRuntimeCommandRequest,
+    options: CoreOptions,
+    abortSignal?: AbortSignal,
+  ): Promise<InvokeAgentRuntimeCommandResponse> {
+    const response = await this.clients
+      .data(toClientConfig(options))
+      .send(new InvokeAgentRuntimeCommandCommand(request), { abortSignal });
+    if (!response.stream || !abortSignal) return response;
+    // Same mid-stream abort gap as invokeHarness; see above.
     return { ...response, stream: abortable(response.stream, abortSignal) };
   }
 }

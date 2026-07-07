@@ -154,7 +154,6 @@ describe("unimplemented harness subcommands", () => {
     "create",
     "update",
     "delete",
-    "exec",
     "create-endpoint",
     "update-endpoint",
     "delete-endpoint",
