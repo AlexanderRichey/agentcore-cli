@@ -1,6 +1,7 @@
 import { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
 import { BedrockAgentCoreClient } from "@aws-sdk/client-bedrock-agentcore";
 import { IAMClient } from "@aws-sdk/client-iam";
+import { STSClient } from "@aws-sdk/client-sts";
 import { HarnessClient } from "./harness";
 import type {
   AwsClients,
@@ -8,7 +9,9 @@ import type {
   CreateControlClient,
   CreateDataClient,
   CreateIamClient,
+  CreateStsClient,
 } from "./types";
+import { StsClient } from "./sts";
 
 export type {
   AwsClients,
@@ -16,6 +19,7 @@ export type {
   CreateControlClient,
   CreateDataClient,
   CreateIamClient,
+  CreateStsClient,
 } from "./types";
 
 // CoreClient is the single entry point to the Bedrock AgentCore APIs. It owns the
@@ -26,6 +30,7 @@ export class CoreClient implements AwsClients {
   private controlClients = new Map<string, BedrockAgentCoreControlClient>();
   private dataClients = new Map<string, BedrockAgentCoreClient>();
   private iamClients = new Map<string, IAMClient>();
+  private stsClients = new Map<string, STSClient>();
 
   // Feature-scoped sub-clients. Access as e.g. `coreClient.harness.getHarness(...)`.
   readonly harness: HarnessClient = new HarnessClient(this);
@@ -34,6 +39,7 @@ export class CoreClient implements AwsClients {
     private readonly createControlClient: CreateControlClient,
     private readonly createDataClient: CreateDataClient,
     private readonly createIamClient: CreateIamClient,
+    private readonly createStsClient: CreateStsClient,
   ) {}
 
   // control returns the control-plane client for `config`, creating and caching it
@@ -68,6 +74,17 @@ export class CoreClient implements AwsClients {
     if (!client) {
       client = this.createIamClient(config);
       this.iamClients.set(key, client);
+    }
+    return client;
+  }
+
+  /** Returns the STS client for `config`, creating and caching it on first use. */
+  sts(config: ClientConfig): STSClient {
+    const key = cacheKey(config);
+    let client = this.stsClients.get(key);
+    if (!client) {
+      client = this.createStsClient(config);
+      this.stsClients.set(key, client);
     }
     return client;
   }

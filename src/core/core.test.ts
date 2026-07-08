@@ -1,6 +1,7 @@
 import { test, expect } from "bun:test";
 import type { BedrockAgentCoreControlClient } from "@aws-sdk/client-bedrock-agentcore-control";
 import type { IAMClient } from "@aws-sdk/client-iam";
+import type { STSClient } from "@aws-sdk/client-sts";
 import {
   InvokeAgentRuntimeCommandCommand,
   InvokeHarnessCommand,
@@ -21,6 +22,9 @@ function fakeData(config: ClientConfig): BedrockAgentCoreClient {
 function fakeIam(config: ClientConfig): IAMClient {
   return { config, kind: "iam" } as unknown as IAMClient;
 }
+function fakeSts(config: ClientConfig): STSClient {
+  return { config, kind: "sts" } as unknown as STSClient;
+}
 
 test("control() constructs a client once per config and caches it", () => {
   let built = 0;
@@ -31,6 +35,7 @@ test("control() constructs a client once per config and caches it", () => {
     },
     fakeData,
     fakeIam,
+    fakeSts,
   );
 
   const a = core.control({ region: "us-east-1" });
@@ -49,6 +54,7 @@ test("control() builds a distinct client per distinct config", () => {
     },
     fakeData,
     fakeIam,
+    fakeSts,
   );
 
   core.control({ region: "us-east-1" });
@@ -71,6 +77,7 @@ test("data() caches independently of control()", () => {
       return fakeData(config);
     },
     fakeIam,
+    fakeSts,
   );
 
   core.control({ region: "us-east-1" });
@@ -83,7 +90,7 @@ test("data() caches independently of control()", () => {
 });
 
 test("exposes a harness sub-client", () => {
-  const core = new CoreClient(fakeControl, fakeData, fakeIam);
+  const core = new CoreClient(fakeControl, fakeData, fakeIam, fakeSts);
   expect(core.harness).toBeDefined();
 });
 
@@ -107,6 +114,7 @@ test("invokeHarness sends an InvokeHarnessCommand on the data client with the ab
       } as unknown as BedrockAgentCoreClient;
     },
     fakeIam,
+    fakeSts,
   );
 
   const request = {
@@ -147,6 +155,7 @@ test("invokeHarness stream iteration rejects promptly when aborted mid-stream", 
         send: async () => ({ stream: hangingStream }),
       }) as unknown as BedrockAgentCoreClient,
     fakeIam,
+    fakeSts,
   );
 
   const controller = new AbortController();
@@ -178,6 +187,7 @@ test("invokeAgentRuntimeCommand sends the command on the data client with the ab
         },
       }) as unknown as BedrockAgentCoreClient,
     fakeIam,
+    fakeSts,
   );
 
   const request = {
@@ -204,6 +214,7 @@ test("invokeHarness returns the stream untouched when no abort signal is given",
         send: async () => ({ stream }),
       }) as unknown as BedrockAgentCoreClient,
     fakeIam,
+    fakeSts,
   );
 
   const response = await core.harness.invokeHarness(

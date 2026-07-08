@@ -26,7 +26,10 @@ import type {
 } from "@aws-sdk/client-bedrock-agentcore";
 import type { Core } from "../handlers/types";
 import type { CoreHarnessClient, CreateHarnessInput } from "../handlers/harness/types";
+import type { ProjectAccessor } from "../handlers/project/types";
 import type { CoreOptions } from "../core/types";
+import { LocalProjectAccessor } from "../core/project";
+import { getDefaultFs } from "../env";
 
 // TestCoreClient is a hand-controllable `Core` for tests. It implements the same
 // interface the real CoreClient satisfies, so it drops straight into
@@ -407,4 +410,14 @@ export class TestHarnessClient implements CoreHarnessClient {
 // TestCoreClient implements the Core contract with fully controllable sub-clients.
 export class TestCoreClient implements Core {
   readonly harness = new TestHarnessClient();
+  readonly projectAccessor: ProjectAccessor = new LocalProjectAccessor({
+    env: {
+      fs: getDefaultFs(),
+      getCurrentDirectory: () => process.cwd(),
+    },
+  });
+
+  sts = {
+    getCallerIdentity: async () => ({ account: undefined }),
+  };
 }

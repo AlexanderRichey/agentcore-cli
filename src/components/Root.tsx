@@ -20,6 +20,12 @@ import { HarnessVersionScreen } from "../handlers/harness/version/screen.tsx";
 import { HarnessGetVersionScreen } from "../handlers/harness/version/get/screen.tsx";
 import { HarnessListVersionsScreen } from "../handlers/harness/version/list/screen.tsx";
 import { RootScreen, HelpScreen } from "../handlers/screen.tsx";
+import { ProjectScreen } from "../handlers/project/screen.tsx";
+import { AddScreen } from "../handlers/project/add/screen.tsx";
+import { AddAgentScreen } from "../handlers/project/add/agent/screen.tsx";
+import { RemoveScreen } from "../handlers/project/remove/screen.tsx";
+import { RemoveAgentScreen } from "../handlers/project/remove/agent/screen.tsx";
+import { CreateProjectScreen } from "../handlers/project/create/screen.tsx";
 import type { Context } from "../router";
 
 export interface RootProps {
@@ -188,6 +194,21 @@ export function Root({ path, ctx, core, queryClient }: RootProps) {
           <Route
             path="agentcore/harness/version/list/:harnessId"
             element={<HarnessListVersionsScreen ctx={ctx} core={core} />}
+          />
+          <Route path="agentcore/project" element={<ProjectScreen ctx={ctx} core={core} />} />
+          <Route path="agentcore/project/add" element={<AddScreen ctx={ctx} core={core} />} />
+          <Route
+            path="agentcore/project/add/agent"
+            element={<AddAgentScreen ctx={ctx} core={core} />}
+          />
+          <Route path="agentcore/project/remove" element={<RemoveScreen ctx={ctx} core={core} />} />
+          <Route
+            path="agentcore/project/remove/agent"
+            element={<RemoveAgentScreen ctx={ctx} core={core} />}
+          />
+          <Route
+            path="agentcore/project/create"
+            element={<CreateProjectScreen ctx={ctx} core={core} />}
           />
           <Route path="*" element={<HelpScreen ctx={ctx} core={core} />} />
         </Routes>

@@ -1,6 +1,10 @@
 import { test, expect, describe } from "bun:test";
 import { join } from "node:path";
 import { CoreClient } from "../../core";
+import { createStsClient } from "../../core/factories";
+import { StsClient } from "../../core/sts";
+import { LocalProjectAccessor } from "../../core/project";
+import { getDefaultFs } from "../../env";
 import { createRootHandler } from "../index";
 import { fixtureFactories, isRecording, matchGolden, testIO } from "../../testing";
 
@@ -24,7 +28,19 @@ const REGION = "us-west-2";
 // and returns whatever the command wrote to stdout.
 async function run(args: string[]): Promise<string> {
   const { createControlClient, createDataClient, createIamClient } = fixtureFactories(FIXTURES);
-  const core = new CoreClient(createControlClient, createDataClient, createIamClient);
+  const coreClient = new CoreClient(
+    createControlClient,
+    createDataClient,
+    createIamClient,
+    createStsClient,
+  );
+  const core = {
+    harness: coreClient.harness,
+    projectAccessor: new LocalProjectAccessor({
+      env: { fs: getDefaultFs(), getCurrentDirectory: () => process.cwd() },
+    }),
+    sts: new StsClient(coreClient),
+  };
   const io = testIO();
   const root = createRootHandler(core, io.io);
   await root.route(["node", "agentcore", ...args, "--region", REGION]);

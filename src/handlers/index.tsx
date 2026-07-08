@@ -5,6 +5,7 @@ import { createConfigHandler } from "./config/";
 import { renderTui } from "../tui";
 import { withRegion, withJsonRenderer } from "../middleware";
 import type { AppIO, Core } from "./types.tsx";
+import { createProjectHandler } from "./project/";
 
 export function createRootHandler(core: Core, io: AppIO): Router {
   const root = new Router("agentcore", "the platform for production AI agents");
@@ -23,6 +24,7 @@ export function createRootHandler(core: Core, io: AppIO): Router {
   // Install sub handlers
   root.handler(createHarnessHandler(core, io));
   root.handler(createConfigHandler(io));
+  root.handler(createProjectHandler(core, io));
 
   // Invoking with no subcommand launches the interactive TUI.
   root.default(renderTui(core, io));

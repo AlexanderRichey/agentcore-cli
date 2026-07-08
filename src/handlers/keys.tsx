@@ -1,5 +1,6 @@
 import z from "zod";
-import { globalFlag } from "../router";
+import { contextKey, globalFlag } from "../router";
+import type { Project } from "./project/types";
 
 // These keys are group-level flags declared on the root router. Because a
 // GlobalFlag is also a typed ContextKey, handlers read its validated value back
@@ -18,3 +19,9 @@ export const EndpointKey = globalFlag(
   "endpoint URL override",
   z.string().optional(),
 );
+
+/** Resolved AWS account ID, pinned by withAccount middleware. */
+export const AccountKey = contextKey<string>("account");
+
+/** Resolved project, pinned by withProject middleware. */
+export const ProjectKey = contextKey<Project>("project");

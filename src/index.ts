@@ -5,7 +5,15 @@
 // when the file is run via `bun run src/index.ts`.
 
 import { CoreClient } from "./core";
-import { createControlClient, createDataClient, createIamClient } from "./core/factories";
+import {
+  createControlClient,
+  createDataClient,
+  createIamClient,
+  createStsClient,
+} from "./core/factories";
+import { StsClient } from "./core/sts";
+import { LocalProjectAccessor } from "./core/project";
+import { getDefaultFs } from "./env";
 import { createRootHandler } from "./handlers";
 import { runWithExitCode } from "./runnable";
 
@@ -14,16 +22,35 @@ process.exit(
     // Wrap the SDK clients in the CoreClient the handlers consume. Passing
     // factories (rather than instances) lets CoreClient build one client per
     // region on demand.
-    const coreClient = new CoreClient(createControlClient, createDataClient, createIamClient);
+    const coreClient = new CoreClient(
+      createControlClient,
+      createDataClient,
+      createIamClient,
+      createStsClient,
+    );
 
-    // Pass it to the root handler, along with the process's standard streams as
-    // the app's io. CoreClient exposes feature sub-clients (e.g. `.harness`), so
-    // it satisfies the Core contract directly.
-    const rootHandler = createRootHandler(coreClient, {
+    const io = {
       stdin: process.stdin,
       stdout: process.stdout,
       stderr: process.stderr,
+    };
+
+    const projectAccessor = new LocalProjectAccessor({
+      env: {
+        fs: getDefaultFs(),
+        getCurrentDirectory: () => process.cwd(),
+      },
     });
+
+    // Pass it to the root handler, along with the process's standard streams as
+    // the app's io.
+    const core = {
+      harness: coreClient.harness,
+      projectAccessor,
+      sts: new StsClient(coreClient),
+    };
+
+    const rootHandler = createRootHandler(core, io);
 
     // Handle the request
     await rootHandler.route(argv);

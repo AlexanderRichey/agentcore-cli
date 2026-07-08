@@ -1,8 +1,16 @@
 import type { CoreHarnessClient } from "./harness/types.tsx";
+import type { ProjectAccessor } from "./project/types.tsx";
 import type { Context } from "../router";
+
+/** Minimal STS interface for resolving caller identity. */
+export interface CoreStsClient {
+  getCallerIdentity(region: string): Promise<{ account?: string }>;
+}
 
 export interface Core {
   harness: CoreHarnessClient;
+  projectAccessor: ProjectAccessor;
+  sts: CoreStsClient;
 }
 
 // AppIO is the set of standard streams the app reads from and writes to. It is
