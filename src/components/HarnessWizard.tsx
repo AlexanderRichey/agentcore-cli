@@ -11,6 +11,7 @@ import type { CreateHarnessInput } from "../handlers/harness/types";
 import type { ScreenProps } from "../handlers/types";
 import { coreOptsFromCtx } from "../handlers/utils";
 import { Layout } from "./Layout";
+import { FormTextInput } from "./FormTextInput";
 import { Stepper, type Step } from "./ui/stepper";
 import { TextInput } from "./ui/text-input";
 import { Spinner } from "./ui/spinner";
@@ -579,43 +580,25 @@ function NameStep({
   onNext: () => void;
   onBack: () => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
-
   useInput((_input, key) => {
     if (key.escape) {
       onBack();
       return;
     }
-    if (key.return) {
-      if (NAME_PATTERN.test(value)) onNext();
-      else setError("must start with a letter; letters, numbers, and underscores only");
-    }
+    if (key.return && NAME_PATTERN.test(value)) onNext();
   });
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Box flexDirection="column">
-        <Text color={theme.colors.text}>the name of your harness</Text>
-        <Text color={theme.colors.muted}>
-          letters, numbers, underscores; must start with a letter
-        </Text>
-      </Box>
-      <Box
-        borderStyle="single"
-        borderColor={theme.colors.border}
-        borderLeft={false}
-        borderRight={false}
-      >
-        <TextInput
-          value={value}
-          onChange={(next) => {
-            onChange(next);
-            setError(null);
-          }}
-          placeholder="my_agent"
-        />
-      </Box>
-      {error && <Text color={theme.colors.error}>{"" + error}</Text>}
+      <FormTextInput
+        name="the name of your harness"
+        helpText="letters, numbers, underscores; must start with a letter"
+        errorText="must start with a letter; letters, numbers, and underscores only"
+        placeholder="my_agent"
+        value={value}
+        onChange={onChange}
+        pattern={NAME_PATTERN}
+      />
     </Box>
   );
 }

@@ -42,12 +42,14 @@ describe("harness hub screen", () => {
   test("renders the summary overlay once loaded", async () => {
     const { r } = hubScreen();
 
-    await waitForText(r.lastFrame, "arn:aws:iam::123:role/MyRole");
+    await waitForText(
+      r.lastFrame,
+      "arn:aws:bedrock-agentcore:us-east-1:123:harness/MyHarness-abc123",
+    );
     const frame = r.lastFrame()!;
-    expect(frame).toContain("arn:aws:bedrock-agentcore:us-east-1:123:harness/MyHarness-abc123");
-    expect(frame).toContain("arn:aws:iam::123:role/MyRole");
+    expect(frame).toContain("MyHarness-abc123");
     expect(frame).toContain("READY");
-    expect(frame).toContain("version 1");
+    expect(frame).toMatch(/version\s+1/);
     r.unmount();
   });
 

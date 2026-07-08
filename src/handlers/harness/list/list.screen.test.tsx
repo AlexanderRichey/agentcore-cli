@@ -53,8 +53,8 @@ describe("harness list screen", () => {
     expect(frame).toContain("beta");
     expect(frame).toContain("READY");
     // Column headers are present.
-    expect(frame).toContain("Name");
-    expect(frame).toContain("Status");
+    expect(frame).toContain("name");
+    expect(frame).toContain("status");
     r.unmount();
   });
 

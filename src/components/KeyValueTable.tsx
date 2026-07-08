@@ -22,7 +22,7 @@ export function KeyValueTable({ items }: KeyValueTableProps) {
   return (
     <Box flexDirection="column">
       {Object.entries(items).map(([key, value]) => (
-        <Text color={theme.colors.text}>
+        <Text key={key} color={theme.colors.text}>
           <Text color={theme.colors.muted}>{key.padEnd(columnWidth)}</Text>
           {value}
         </Text>

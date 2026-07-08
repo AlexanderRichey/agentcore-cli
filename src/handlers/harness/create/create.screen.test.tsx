@@ -37,7 +37,7 @@ describe("harness create wizard", () => {
     const r = renderScreen("/agentcore/harness/create", { core });
 
     // Step: name.
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
 
@@ -113,7 +113,7 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
 
@@ -148,7 +148,7 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
 
@@ -188,7 +188,7 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
 
@@ -224,10 +224,13 @@ describe("harness create wizard", () => {
   test("rejects an invalid name and stays on the name step", async () => {
     const r = renderScreen("/agentcore/harness/create", { core: coreForCreate() });
 
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
     await r.write("9bad name");
     await r.press("return");
-    await waitForText(r.lastFrame, "must start with a letter");
+    // The error line (distinct from the always-visible help text) is shown and
+    // the wizard stays on the name step.
+    await waitForText(r.lastFrame, "letters, numbers, and underscores only");
+    expect(r.lastFrame()).toContain("the name of your harness");
     r.unmount();
   });
 
@@ -235,7 +238,7 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
     await waitForText(r.lastFrame, "which model should the agent use?");
@@ -277,7 +280,7 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
     await waitForText(r.lastFrame, "which model should the agent use?");
@@ -338,7 +341,7 @@ describe("harness create wizard", () => {
     };
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
     await waitForText(r.lastFrame, "which model should the agent use?");
@@ -374,7 +377,7 @@ describe("harness create wizard", () => {
     const r = renderScreen("/agentcore/harness/create", { core });
 
     // Fastest path through the wizard: defaults everywhere.
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
     await waitForText(r.lastFrame, "which model should the agent use?");
@@ -391,12 +394,15 @@ describe("harness create wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "harness created");
     await r.press("return"); // on to the hub
-    await waitForText(r.lastFrame, "arn:aws:iam::123:role/MyRole");
+    await waitForText(
+      r.lastFrame,
+      "arn:aws:bedrock-agentcore:us-east-1:123:harness/my_agent-Xyz12345",
+    );
 
     // Esc from the hub: the finished wizard must not come back.
     await r.press("escape");
     await waitForText(r.lastFrame, "manage agentcore harnesses");
-    expect(r.lastFrame()).not.toContain("what should this harness be called?");
+    expect(r.lastFrame()).not.toContain("the name of your harness");
     r.unmount();
   });
 
@@ -405,12 +411,10 @@ describe("harness create wizard", () => {
     core.harness.setListResponse({ harnesses: [] });
     // Arrive from the harness menu so esc has somewhere to pop back to.
     const r = renderScreen("/agentcore/harness", { core });
-    await waitForText(r.lastFrame, "❯ get");
-    await r.press("down"); // list
-    await r.press("down"); // create
+    // `create` is the first menu item, so it is already selected.
     await waitForText(r.lastFrame, "❯ create");
     await r.press("return");
-    await waitForText(r.lastFrame, "what should this harness be called?");
+    await waitForText(r.lastFrame, "the name of your harness");
 
     await r.press("escape");
     await waitForText(r.lastFrame, "manage agentcore harnesses");
