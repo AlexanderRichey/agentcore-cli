@@ -34,7 +34,7 @@ export function createFileLogger(config: FileLoggerConfig): Logger {
   const bindings = config.bindings ?? {};
   return wrapPinoLogger(
     pino({
-      level: config.logLevel.name,
+      level: config.logLevel,
       base: undefined, // omit pid and hostname
       formatters: {
         level(label) {

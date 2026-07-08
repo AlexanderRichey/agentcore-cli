@@ -1,8 +1,8 @@
 import type { Logger, LogArgs } from "../logging";
-import type { LogLevelName } from "../logging/types";
+import type { LogLevel } from "../logging/types";
 
 export interface LogEntry {
-  level: LogLevelName;
+  level: LogLevel;
   args: LogArgs;
 }
 
@@ -15,7 +15,7 @@ export interface TestLogger extends Logger {
    *
    * @param level - The log level to filter by.
    */
-  atLevel(level: LogLevelName): LogEntry[];
+  atLevel(level: LogLevel): LogEntry[];
 
   /**
    * Returns true if any entry at {@link level} has a message (or object)
@@ -24,7 +24,7 @@ export interface TestLogger extends Logger {
    * @param level - The log level to search within.
    * @param pattern - A string or regex to match against log arguments.
    */
-  hasLog(level: LogLevelName, pattern: string | RegExp): boolean;
+  hasLog(level: LogLevel, pattern: string | RegExp): boolean;
 
   /** Clears all recorded entries. */
   clear(): void;
@@ -44,7 +44,7 @@ function matchesPattern(args: LogArgs, pattern: string | RegExp): boolean {
 export function createTestLogger(): TestLogger {
   const entries: LogEntry[] = [];
 
-  function log(level: LogLevelName) {
+  function log(level: LogLevel) {
     return (...args: LogArgs) => {
       entries.push({ level, args });
     };
