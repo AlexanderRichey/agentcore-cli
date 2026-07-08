@@ -895,6 +895,12 @@ function ModelStep({
         />
       ))}
       {error && <Text color={theme.colors.error}>{error}</Text>}
+      {index !== 0 && (
+        <Text color={theme.colors.info}>
+          use the command line to pass additional params, e.g.,{" "}
+          <Text color={theme.colors.primary}>agentcore harness create --name …</Text>
+        </Text>
+      )}
     </Box>
   );
 }
@@ -927,27 +933,43 @@ function MemoryStep({
   onBack: () => void;
 }) {
   const index = MEMORY_OPTIONS.findIndex((option) => option.kind === value.kind);
+  // editing is true while the byo arn field has focus; the radio list has
+  // focus otherwise.
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useInput((_input, key) => {
-    if (key.escape) {
-      onBack();
+    if (!editing) {
+      if (key.escape) {
+        onBack();
+        return;
+      }
+      if (key.upArrow) {
+        onChange({ ...value, kind: MEMORY_OPTIONS[Math.max(0, index - 1)]!.kind });
+        setError(null);
+        return;
+      }
+      if (key.downArrow) {
+        const next = MEMORY_OPTIONS[Math.min(MEMORY_OPTIONS.length - 1, index + 1)]!;
+        onChange({ ...value, kind: next.kind });
+        setError(null);
+        return;
+      }
+      if (key.return) {
+        if (value.kind === "byo") setEditing(true);
+        else onNext();
+      }
       return;
     }
-    if (key.upArrow) {
-      const next = MEMORY_OPTIONS[Math.max(0, index - 1)]!;
-      onChange({ ...value, kind: next.kind });
-      setError(null);
-      return;
-    }
-    if (key.downArrow) {
-      const next = MEMORY_OPTIONS[Math.min(MEMORY_OPTIONS.length - 1, index + 1)]!;
-      onChange({ ...value, kind: next.kind });
+
+    // The arn field is focused; its TextInput owns text editing.
+    if (key.escape || key.upArrow) {
+      setEditing(false);
       setError(null);
       return;
     }
     if (key.return) {
-      if (value.kind === "byo" && value.arn.trim() === "") {
+      if (value.arn.trim() === "") {
         setError("enter the arn of your agentcore memory resource");
         return;
       }
@@ -956,7 +978,7 @@ function MemoryStep({
   });
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" paddingX={1}>
       <FormRadioGroup
         name="choose a memory configuration"
         helpText="how should the harness remember conversations?"
@@ -964,17 +986,20 @@ function MemoryStep({
         selectedIndex={index}
       />
       {value.kind === "byo" && (
-        <TextInput
-          label="memory arn"
+        <FormTextInput
+          name="memory arn"
+          helpText="the arn of an existing agentcore memory resource"
+          placeholder="arn:aws:bedrock-agentcore:…:memory/…"
+          errorText=""
           value={value.arn}
           onChange={(arn) => {
             onChange({ ...value, arn });
             setError(null);
           }}
-          placeholder="arn:aws:bedrock-agentcore:…:memory/…"
+          focused={editing}
         />
       )}
-      {error && <Text color={theme.colors.error}>{"  " + error}</Text>}
+      {error && <Text color={theme.colors.error}>{error}</Text>}
     </Box>
   );
 }

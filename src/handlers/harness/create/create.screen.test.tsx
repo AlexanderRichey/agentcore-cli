@@ -306,7 +306,8 @@ describe("harness create wizard", () => {
     await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("down"); // bring your own
     await waitForText(r.lastFrame, "● bring your own");
-    await r.press("return"); // no arn yet → error
+    await r.press("return"); // focus the memory arn field
+    await r.press("return"); // empty → error
     await waitForText(r.lastFrame, "enter the arn");
     await r.write("arn:aws:bedrock-agentcore:us-east-1:123:memory/m-1");
     await r.press("return");

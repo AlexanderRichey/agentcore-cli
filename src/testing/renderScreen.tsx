@@ -98,6 +98,13 @@ export function renderScreen(path: string, options: RenderScreenOptions = {}): R
 
   const instance = render(<Root path={path} ctx={ctx} core={core} queryClient={queryClient} />);
 
+  // ink-testing-library's fake stdout reports columns=100 but no rows, so Ink
+  // falls back to the host terminal's height — making tests clip (and fail)
+  // differently per environment. Pin a fixed, realistically sized window and
+  // announce it; useWindowSize listens for "resize" and re-renders.
+  Object.defineProperty(instance.stdout, "rows", { value: 40 });
+  instance.stdout.emit("resize");
+
   return {
     core,
     lastFrame: instance.lastFrame,
