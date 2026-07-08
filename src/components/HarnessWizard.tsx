@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput, useWindowSize } from "ink";
 import { useNavigate } from "react-router";
 import type {
   Harness,
@@ -13,13 +13,15 @@ import { coreOptsFromCtx } from "../handlers/utils";
 import { Layout } from "./Layout";
 import { FormTextInput } from "./FormTextInput";
 import { FormRadioGroup, type FormRadioOption } from "./FormRadioGroup";
+import { FormCheckboxMultiSelect, type FormCheckboxOption } from "./FormCheckboxMultiSelect";
+import { FormTextArea } from "./FormTextArea";
 import { Stepper, type Step } from "./ui/stepper";
-import { TextInput } from "./ui/text-input";
 import { Spinner } from "./ui/spinner";
 import { CodeBlock } from "./ui/code-block";
 import { ScrollView } from "ink-scroll-view";
 import { darkTheme } from "./ui/_core.js";
 import { Divider } from "./ui/divider/Divider.js";
+import { KeyValueTable } from "./KeyValueTable.js";
 
 const theme = darkTheme;
 
@@ -43,23 +45,13 @@ export interface HarnessFormValues {
   memory: { kind: MemoryKind; arn: string };
   tools: {
     browser: boolean;
-    codeInterpreter: boolean;
     gatewayArn: string;
     mcpUrl: string;
   };
   systemPrompt: string;
-  advanced: {
-    executionRoleArn: string;
-    networkMode: "PUBLIC" | "VPC";
-    subnets: string;
-    securityGroups: string;
-    environmentVariables: string;
-    maxIterations: string;
-    maxTokens: string;
-    timeoutSeconds: string;
-  };
   // passthroughTools carries tools the form doesn't model (inline functions,
-  // additional MCP servers, ...) so an update never silently drops them.
+  // code interpreters, additional MCP servers, ...) so an update never
+  // silently drops them.
   passthroughTools: HarnessTool[];
 }
 
@@ -68,18 +60,8 @@ export function emptyHarnessForm(): HarnessFormValues {
     name: "",
     model: { kind: "default", modelId: "", apiKeyArn: "", apiBase: "" },
     memory: { kind: "managed", arn: "" },
-    tools: { browser: false, codeInterpreter: false, gatewayArn: "", mcpUrl: "" },
+    tools: { browser: true, gatewayArn: "", mcpUrl: "" },
     systemPrompt: "",
-    advanced: {
-      executionRoleArn: "",
-      networkMode: "PUBLIC",
-      subnets: "",
-      securityGroups: "",
-      environmentVariables: "",
-      maxIterations: "",
-      maxTokens: "",
-      timeoutSeconds: "",
-    },
     passthroughTools: [],
   };
 }
@@ -100,7 +82,6 @@ export function fromHarness(harness: Harness): HarnessFormValues {
 
   for (const tool of harness.tools ?? []) {
     if (tool.config?.agentCoreBrowser) values.tools.browser = true;
-    else if (tool.config?.agentCoreCodeInterpreter) values.tools.codeInterpreter = true;
     else if (tool.config?.agentCoreGateway && values.tools.gatewayArn === "") {
       values.tools.gatewayArn = tool.config.agentCoreGateway.gatewayArn ?? "";
     } else if (tool.config?.remoteMcp && values.tools.mcpUrl === "") {
@@ -115,16 +96,6 @@ export function fromHarness(harness: Harness): HarnessFormValues {
     .filter((text) => text !== "")
     .join("\n");
 
-  values.advanced.executionRoleArn = harness.executionRoleArn ?? "";
-  const network = harness.environment?.agentCoreRuntimeEnvironment?.networkConfiguration;
-  if (network?.networkMode === "VPC") {
-    values.advanced.networkMode = "VPC";
-    values.advanced.subnets = (network.networkModeConfig?.subnets ?? []).join(",");
-    values.advanced.securityGroups = (network.networkModeConfig?.securityGroups ?? []).join(",");
-  }
-  values.advanced.environmentVariables = Object.entries(harness.environmentVariables ?? {})
-    .map(([key, value]) => `${key}=${value}`)
-    .join(",");
   const model = harness.model;
   if (model?.bedrockModelConfig) {
     values.model = {
@@ -155,9 +126,6 @@ export function fromHarness(harness: Harness): HarnessFormValues {
       apiBase: model.liteLlmModelConfig.apiBase ?? "",
     };
   }
-  values.advanced.maxIterations = harness.maxIterations?.toString() ?? "";
-  values.advanced.maxTokens = harness.maxTokens?.toString() ?? "";
-  values.advanced.timeoutSeconds = harness.timeoutSeconds?.toString() ?? "";
   return values;
 }
 
@@ -203,12 +171,6 @@ function toTools(values: HarnessFormValues): HarnessTool[] {
   if (values.tools.browser) {
     tools.push({ type: "agentcore_browser", config: { agentCoreBrowser: {} } });
   }
-  if (values.tools.codeInterpreter) {
-    tools.push({
-      type: "agentcore_code_interpreter",
-      config: { agentCoreCodeInterpreter: {} },
-    });
-  }
   if (values.tools.gatewayArn !== "") {
     tools.push({
       type: "agentcore_gateway",
@@ -221,60 +183,16 @@ function toTools(values: HarnessFormValues): HarnessTool[] {
   return [...tools, ...values.passthroughTools];
 }
 
-function parseCsv(raw: string): string[] {
-  return raw
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part !== "");
-}
-
-function parseEnvVars(raw: string): Record<string, string> {
-  const vars: Record<string, string> = {};
-  for (const pair of parseCsv(raw)) {
-    const eq = pair.indexOf("=");
-    if (eq > 0) vars[pair.slice(0, eq)] = pair.slice(eq + 1);
-  }
-  return vars;
-}
-
-function toNumber(raw: string): number | undefined {
-  return raw === "" ? undefined : Number(raw);
-}
-
-// toEnvironment builds the environment provider request, or undefined when the
-// defaults (public networking) apply.
-function toEnvironment(values: HarnessFormValues): CreateHarnessInput["environment"] {
-  if (values.advanced.networkMode !== "VPC") return undefined;
-  return {
-    agentCoreRuntimeEnvironment: {
-      networkConfiguration: {
-        networkMode: "VPC",
-        networkModeConfig: {
-          subnets: parseCsv(values.advanced.subnets),
-          securityGroups: parseCsv(values.advanced.securityGroups),
-        },
-      },
-    },
-  };
-}
-
 // toCreateInput translates the form into the CreateHarness request. Fields left
 // at their defaults are omitted so the service applies its own defaults.
 export function toCreateInput(values: HarnessFormValues): CreateHarnessInput {
   const tools = toTools(values);
-  const envVars = parseEnvVars(values.advanced.environmentVariables);
   return {
     harnessName: values.name,
-    executionRoleArn: values.advanced.executionRoleArn || undefined,
     memory: toMemoryConfiguration(values),
     tools: tools.length > 0 ? tools : undefined,
     systemPrompt: values.systemPrompt !== "" ? [{ text: values.systemPrompt }] : undefined,
-    environment: toEnvironment(values),
-    environmentVariables: Object.keys(envVars).length > 0 ? envVars : undefined,
     model: toModelConfiguration(values),
-    maxIterations: toNumber(values.advanced.maxIterations),
-    maxTokens: toNumber(values.advanced.maxTokens),
-    timeoutSeconds: toNumber(values.advanced.timeoutSeconds),
   };
 }
 
@@ -305,30 +223,6 @@ export function toUpdateRequest(
     request.systemPrompt = [{ text: values.systemPrompt }];
   }
 
-  const advanced = values.advanced;
-  const before = initial.advanced;
-  if (advanced.executionRoleArn !== before.executionRoleArn && advanced.executionRoleArn !== "") {
-    request.executionRoleArn = advanced.executionRoleArn;
-  }
-  if (
-    advanced.networkMode !== before.networkMode ||
-    advanced.subnets !== before.subnets ||
-    advanced.securityGroups !== before.securityGroups
-  ) {
-    request.environment = toEnvironment(values) ?? {
-      agentCoreRuntimeEnvironment: { networkConfiguration: { networkMode: "PUBLIC" } },
-    };
-  }
-  if (advanced.environmentVariables !== before.environmentVariables) {
-    request.environmentVariables = parseEnvVars(advanced.environmentVariables);
-  }
-  if (advanced.maxIterations !== before.maxIterations) {
-    request.maxIterations = toNumber(advanced.maxIterations);
-  }
-  if (advanced.maxTokens !== before.maxTokens) request.maxTokens = toNumber(advanced.maxTokens);
-  if (advanced.timeoutSeconds !== before.timeoutSeconds) {
-    request.timeoutSeconds = toNumber(advanced.timeoutSeconds);
-  }
   return request;
 }
 
@@ -337,7 +231,7 @@ export function toUpdateRequest(
 type WizardPhase =
   | { kind: "form" }
   | { kind: "submitting" }
-  | { kind: "success"; harnessId: string; version?: string; status?: string }
+  | { kind: "success"; harnessId: string; version?: string; status?: string; arn?: string }
   | { kind: "error"; message: string };
 
 export interface HarnessWizardProps extends ScreenProps {
@@ -354,9 +248,9 @@ export interface HarnessWizardProps extends ScreenProps {
 const NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{0,47}$/;
 
 // HarnessWizard is the interactive step flow behind `harness create` and
-// `harness update`: name → model → memory → tools → prompt → advanced
-// (optional) → review, then submit. Update mode skips the name step (harnesses
-// cannot be renamed) and submits only what changed.
+// `harness update`: name → model → memory → tools → prompt → review, then
+// submit. Update mode skips the name step (harnesses cannot be renamed) and
+// submits only what changed.
 export function HarnessWizard({
   ctx,
   core,
@@ -376,7 +270,6 @@ export function HarnessWizard({
       { key: "memory", title: "memory" },
       { key: "tools", title: "tools" },
       { key: "prompt", title: "prompt" },
-      { key: "advanced", title: "advanced" },
       { key: "review", title: "review" },
     ];
     return mode === "create" ? all : all.filter((step) => step.key !== "name");
@@ -415,6 +308,7 @@ export function HarnessWizard({
           harnessId: response.harness?.harnessId ?? "",
           version: response.harness?.harnessVersion,
           status: response.harness?.status,
+          arn: response.harness?.arn,
         });
       } else {
         const response = await core.harness.updateHarness(
@@ -426,6 +320,7 @@ export function HarnessWizard({
           harnessId: response.harness?.harnessId ?? harnessId!,
           version: response.harness?.harnessVersion,
           status: response.harness?.status,
+          arn: response.harness?.arn,
         });
       }
     } catch (error) {
@@ -479,6 +374,7 @@ export function HarnessWizard({
             harnessId={phase.harnessId}
             version={phase.version}
             status={phase.status}
+            arn={phase.arn}
             onContinue={() => onDone(phase.harnessId)}
           />
         )}
@@ -521,8 +417,6 @@ function hintsFor(
       ];
     case "prompt":
       return [{ key: "enter", label: "newline" }, { key: "ctl+d", label: "continue" }, ...base];
-    case "advanced":
-      return [{ key: "↑↓", label: "move" }, { key: "enter", label: "select" }, ...base];
     case "review":
       return [{ key: "enter", label: verb }, { key: "↑↓", label: "scroll" }, ...base];
     default:
@@ -598,16 +492,6 @@ function WizardStep({
           onBack={onBack}
         />
       );
-    case "advanced":
-      return (
-        <AdvancedStep
-          mode={mode}
-          value={values.advanced}
-          onChange={(advanced) => patch({ advanced })}
-          onNext={onNext}
-          onBack={onBack}
-        />
-      );
     case "review":
       return <ReviewStep mode={mode} request={request} onSubmit={onSubmit} onBack={onBack} />;
     default:
@@ -616,13 +500,6 @@ function WizardStep({
 }
 
 // ─── step: name ───────────────────────────────────────────────────────────────
-
-// Question is the one-line prompt under the stepper. The stepper already names
-// the step, so the body opens with the question itself and lets the
-// interactive rows below carry the visual weight.
-function Question({ text }: { text: string }) {
-  return <Text color={theme.colors.muted}>{text}</Text>;
-}
 
 function NameStep({
   value,
@@ -1006,26 +883,43 @@ function MemoryStep({
 
 // ─── step: tools ──────────────────────────────────────────────────────────────
 
-type ToolRowKey = "browser" | "codeInterpreter" | "gateway" | "mcp";
+type ToolRowKey = "browser" | "gateway" | "mcp";
 
-const TOOL_ROWS: { key: ToolRowKey; label: string; description: string; input?: string }[] = [
+// TOOL_ROWS lists the tools the form models; gateway and mcp declare the field
+// their configuration needs.
+const TOOL_ROWS: {
+  key: ToolRowKey;
+  label: string;
+  description: string;
+  field?: {
+    valueKey: "gatewayArn" | "mcpUrl";
+    name: string;
+    helpText: string;
+    placeholder: string;
+  };
+}[] = [
   { key: "browser", label: "browser", description: "browse the web with agentcore browser" },
-  {
-    key: "codeInterpreter",
-    label: "code interpreter",
-    description: "run code in a sandbox",
-  },
   {
     key: "gateway",
     label: "gateway",
     description: "call tools through an agentcore gateway",
-    input: "gateway arn",
+    field: {
+      valueKey: "gatewayArn",
+      name: "gateway arn",
+      helpText: "the arn of the agentcore gateway to call tools through",
+      placeholder: "arn:aws:bedrock-agentcore:…:gateway/…",
+    },
   },
   {
     key: "mcp",
     label: "mcp server",
     description: "connect to a remote mcp server",
-    input: "server url",
+    field: {
+      valueKey: "mcpUrl",
+      name: "server url",
+      helpText: "the url of the remote mcp server",
+      placeholder: "https://…",
+    },
   },
 ];
 
@@ -1041,15 +935,14 @@ function ToolsStep({
   onBack: () => void;
 }) {
   const [cursor, setCursor] = useState(0);
+  // editing points at the tool whose field has focus; null while the checkbox
+  // list has focus.
   const [editing, setEditing] = useState<"gateway" | "mcp" | null>(null);
-  const [draft, setDraft] = useState("");
 
   const enabled = (key: ToolRowKey): boolean => {
     switch (key) {
       case "browser":
         return value.browser;
-      case "codeInterpreter":
-        return value.codeInterpreter;
       case "gateway":
         return value.gatewayArn !== "";
       case "mcp":
@@ -1062,37 +955,30 @@ function ToolsStep({
       case "browser":
         onChange({ ...value, browser: !value.browser });
         return;
-      case "codeInterpreter":
-        onChange({ ...value, codeInterpreter: !value.codeInterpreter });
-        return;
       case "gateway":
         if (value.gatewayArn !== "") onChange({ ...value, gatewayArn: "" });
-        else {
-          setDraft("");
-          setEditing("gateway");
-        }
+        else setEditing("gateway");
         return;
       case "mcp":
         if (value.mcpUrl !== "") onChange({ ...value, mcpUrl: "" });
-        else {
-          setDraft("");
-          setEditing("mcp");
-        }
+        else setEditing("mcp");
         return;
     }
   };
 
+  const editedRow = TOOL_ROWS.find((row) => row.key === editing);
+
   useInput((input, key) => {
-    if (editing) {
-      // The TextInput owns text editing; this handler only closes the edit.
+    if (editing && editedRow?.field) {
+      // The field's TextInput owns text editing; this handler only closes it.
+      const valueKey = editedRow.field.valueKey;
       if (key.escape) {
+        onChange({ ...value, [valueKey]: "" });
         setEditing(null);
         return;
       }
       if (key.return) {
-        const committed = draft.trim();
-        if (editing === "gateway") onChange({ ...value, gatewayArn: committed });
-        else onChange({ ...value, mcpUrl: committed });
+        onChange({ ...value, [valueKey]: value[valueKey].trim() });
         setEditing(null);
       }
       return;
@@ -1118,57 +1004,44 @@ function ToolsStep({
     }
   });
 
-  const editedRow = TOOL_ROWS.find((row) => row.key === editing);
+  const options: FormCheckboxOption[] = TOOL_ROWS.map((row) => ({
+    label: row.label,
+    checked: enabled(row.key),
+    // A configured tool shows its value in place of the description.
+    description:
+      row.key === "gateway" && value.gatewayArn !== ""
+        ? value.gatewayArn
+        : row.key === "mcp" && value.mcpUrl !== ""
+          ? value.mcpUrl
+          : row.description,
+  }));
 
   return (
-    <Box flexDirection="column">
-      <Question text="which tools should the agent be able to use?" />
-      {TOOL_ROWS.map((row, i) => {
-        const isCursor = i === cursor && !editing;
-        const isOn = enabled(row.key);
-        const detail =
-          row.key === "gateway" && value.gatewayArn !== ""
-            ? value.gatewayArn
-            : row.key === "mcp" && value.mcpUrl !== ""
-              ? value.mcpUrl
-              : row.description;
-        return (
-          <Box key={row.key}>
-            <Text color={isCursor ? theme.colors.focus : theme.colors.muted}>
-              {isCursor ? "❯ " : "  "}
-            </Text>
-            <Text color={isOn ? theme.colors.success : theme.colors.muted}>
-              {isOn ? "[✓] " : "[ ] "}
-            </Text>
-            <Text bold={isCursor} color={isCursor ? theme.colors.focus : theme.colors.text}>
-              {row.label.padEnd(18)}
-            </Text>
-            <Text color={isOn ? theme.colors.text : theme.colors.muted}>{detail}</Text>
-          </Box>
-        );
-      })}
-      {editing && editedRow && (
-        <TextInput
-          label={editedRow.input}
-          value={draft}
-          onChange={setDraft}
-          placeholder={
-            editing === "gateway" ? "arn:aws:bedrock-agentcore:…:gateway/…" : "https://…"
-          }
+    <Box flexDirection="column" paddingX={1}>
+      <FormCheckboxMultiSelect
+        name="choose tools"
+        helpText="which tools should the agent be able to use?"
+        options={options}
+        cursorIndex={editing ? -1 : cursor}
+      />
+      {editing && editedRow?.field && (
+        <FormTextInput
+          name={editedRow.field.name}
+          helpText={editedRow.field.helpText}
+          placeholder={editedRow.field.placeholder}
+          errorText=""
+          value={value[editedRow.field.valueKey]}
+          onChange={(next) => onChange({ ...value, [editedRow.field!.valueKey]: next })}
         />
       )}
       {editing && (
-        <Text color={theme.colors.muted}>
-          {"  enter saves · esc cancels · empty disables the tool"}
-        </Text>
+        <Text color={theme.colors.muted}>enter saves · esc or empty disables the tool</Text>
       )}
     </Box>
   );
 }
 
 // ─── step: prompt ─────────────────────────────────────────────────────────────
-
-const PROMPT_PREVIEW_LINES = 10;
 
 function PromptStep({
   value,
@@ -1181,9 +1054,10 @@ function PromptStep({
   onNext: () => void;
   onBack: () => void;
 }) {
-  // A tiny multiline editor: append-only typing/pasting plus backspace. Pasted
-  // chunks arrive as one input string whose \r become newlines, so multi-line
-  // paste just works; enter inserts a newline; ctrl+d moves on.
+  // The FormTextArea owns text editing (typing, paste, backspace, newlines);
+  // this handler owns the flow: esc goes back, ctrl+d continues, and enter
+  // continues while the prompt is still empty (with content, enter is the
+  // textarea's newline).
   useInput((input, key) => {
     if (key.escape) {
       onBack();
@@ -1193,247 +1067,27 @@ function PromptStep({
       onNext();
       return;
     }
-    if (key.return) {
-      onChange(value + "\n");
-      return;
-    }
-    if (key.backspace || key.delete) {
-      onChange(value.slice(0, -1));
-      return;
-    }
-    if (key.ctrl || key.meta) return;
-    if (input !== "") {
-      onChange(value + input.replace(/\r/g, "\n"));
-    }
+    if (key.return && value === "") onNext();
   });
 
-  const lines = value === "" ? [] : value.split("\n");
-  const hidden = Math.max(0, lines.length - PROMPT_PREVIEW_LINES);
-  const visible = lines.slice(hidden);
-
   return (
-    <Box flexDirection="column">
-      <Question text="type or paste the agent's instructions · empty skips" />
-      {hidden > 0 && <Text color={theme.colors.muted}>│ … (+{hidden} earlier lines)</Text>}
-      {visible.length === 0 ? (
-        <Text color={theme.colors.muted}>
-          │ You are a helpful assistant…<Text inverse> </Text>
-        </Text>
-      ) : (
-        visible.map((line, i) => (
-          <Text key={i}>
-            <Text color={theme.colors.border}>│ </Text>
-            {line}
-            {i === visible.length - 1 ? <Text inverse> </Text> : null}
-          </Text>
-        ))
-      )}
+    <Box flexDirection="column" paddingX={1}>
+      <FormTextArea
+        name="system prompt"
+        helpText="type or paste the agent's instructions · empty continues"
+        placeholder="You are a helpful assistant…"
+        value={value}
+        onChange={onChange}
+      />
       {value !== "" && (
-        <Text color={theme.colors.muted}>{`  ${value.length} chars · ctrl+d continues`}</Text>
-      )}
-    </Box>
-  );
-}
-
-// ─── step: advanced ───────────────────────────────────────────────────────────
-
-type AdvancedFieldKey = keyof HarnessFormValues["advanced"];
-
-interface AdvancedField {
-  key: AdvancedFieldKey;
-  label: string;
-  placeholder: string;
-  numeric?: boolean;
-  vpcOnly?: boolean;
-}
-
-const ADVANCED_FIELDS: AdvancedField[] = [
-  { key: "executionRoleArn", label: "execution role", placeholder: "arn:aws:iam::…:role/…" },
-  { key: "networkMode", label: "network mode", placeholder: "" },
-  { key: "subnets", label: "subnets", placeholder: "subnet-…,subnet-…", vpcOnly: true },
-  {
-    key: "securityGroups",
-    label: "security groups",
-    placeholder: "sg-…,sg-…",
-    vpcOnly: true,
-  },
-  { key: "environmentVariables", label: "environment vars", placeholder: "KEY=value,OTHER=value" },
-  { key: "maxIterations", label: "max iterations", placeholder: "e.g. 50", numeric: true },
-  { key: "maxTokens", label: "max tokens", placeholder: "e.g. 64000", numeric: true },
-  { key: "timeoutSeconds", label: "timeout seconds", placeholder: "e.g. 900", numeric: true },
-];
-
-function AdvancedStep({
-  mode,
-  value,
-  onChange,
-  onNext,
-  onBack,
-}: {
-  mode: "create" | "update";
-  value: HarnessFormValues["advanced"];
-  onChange: (value: HarnessFormValues["advanced"]) => void;
-  onNext: () => void;
-  onBack: () => void;
-}) {
-  const [configuring, setConfiguring] = useState(false);
-  const [choice, setChoice] = useState(0);
-  const [cursor, setCursor] = useState(0);
-  const [editing, setEditing] = useState<AdvancedFieldKey | null>(null);
-  const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const fields = ADVANCED_FIELDS.filter((field) => !field.vpcOnly || value.networkMode === "VPC");
-  // rows = fields plus the trailing "Done" row.
-  const rowCount = fields.length + 1;
-
-  useInput((input, key) => {
-    if (!configuring) {
-      if (key.escape) {
-        onBack();
-        return;
-      }
-      if (key.upArrow || key.downArrow) {
-        setChoice((c) => (c === 0 ? 1 : 0));
-        return;
-      }
-      if (key.return) {
-        if (choice === 0) onNext();
-        else setConfiguring(true);
-      }
-      return;
-    }
-
-    if (editing) {
-      if (key.escape) {
-        setEditing(null);
-        setError(null);
-        return;
-      }
-      if (key.return) {
-        const field = ADVANCED_FIELDS.find((f) => f.key === editing)!;
-        const committed = draft.trim();
-        if (field.numeric && committed !== "" && !/^\d+$/.test(committed)) {
-          setError("enter a whole number, or leave empty to unset");
-          return;
-        }
-        onChange({ ...value, [editing]: committed });
-        setEditing(null);
-        setError(null);
-      }
-      return;
-    }
-
-    if (key.escape) {
-      setConfiguring(false);
-      return;
-    }
-    if (key.upArrow) {
-      setCursor((c) => Math.max(0, c - 1));
-      return;
-    }
-    if (key.downArrow) {
-      setCursor((c) => Math.min(rowCount - 1, c + 1));
-      return;
-    }
-    if (key.return || input === " ") {
-      if (cursor === fields.length) {
-        if (key.return) onNext();
-        return;
-      }
-      const field = fields[cursor]!;
-      if (field.key === "networkMode") {
-        onChange({ ...value, networkMode: value.networkMode === "PUBLIC" ? "VPC" : "PUBLIC" });
-        return;
-      }
-      if (key.return) {
-        setDraft(value[field.key]);
-        setEditing(field.key);
-      }
-    }
-  });
-
-  if (!configuring) {
-    return (
-      <Box flexDirection="column">
-        <FormRadioGroup
-          name="advanced options"
-          helpText="configure advanced options?"
-          options={[
-            {
-              label: "no — use the defaults",
-              description: "most harnesses run fine on them (recommended)",
-            },
-            {
-              label: "yes — configure",
-              description: "networking, execution role, limits, env vars",
-            },
-          ]}
-          selectedIndex={choice}
-        />
-      </Box>
-    );
-  }
-
-  const display = (field: AdvancedField): string => {
-    if (field.key === "networkMode") return value.networkMode;
-    const raw = value[field.key];
-    if (raw !== "") return raw;
-    if (field.key === "executionRoleArn") {
-      return mode === "create" ? "(create a default role)" : "(keep current role)";
-    }
-    return "—";
-  };
-
-  const editedField = ADVANCED_FIELDS.find((field) => field.key === editing);
-
-  return (
-    <Box flexDirection="column">
-      <Question text="enter edits a field · network mode toggles" />
-      {fields.map((field, i) => {
-        const isCursor = i === cursor && !editing;
-        const raw = field.key === "networkMode" ? value.networkMode : value[field.key];
-        return (
-          <Box key={field.key}>
-            <Text color={isCursor ? theme.colors.focus : theme.colors.muted}>
-              {isCursor ? "❯ " : "  "}
-            </Text>
-            <Text bold={isCursor} color={isCursor ? theme.colors.focus : theme.colors.text}>
-              {field.label.padEnd(20)}
-            </Text>
-            <Text color={raw !== "" ? theme.colors.text : theme.colors.muted}>
-              {display(field)}
-            </Text>
-          </Box>
-        );
-      })}
-      <Box>
-        <Text
-          color={cursor === fields.length && !editing ? theme.colors.focus : theme.colors.muted}
+        <Box
+          borderStyle="single"
+          borderColor={theme.colors.border}
+          borderLeft={false}
+          borderRight={false}
+          borderBottom={false}
         >
-          {cursor === fields.length && !editing ? "❯ " : "  "}
-        </Text>
-        <Text
-          bold={cursor === fields.length && !editing}
-          color={cursor === fields.length && !editing ? theme.colors.focus : theme.colors.text}
-        >
-          done — continue
-        </Text>
-      </Box>
-      {editing && editedField && (
-        <Box flexDirection="column">
-          <TextInput
-            label={editedField.label}
-            value={draft}
-            onChange={(next) => {
-              setDraft(next);
-              setError(null);
-            }}
-            placeholder={editedField.placeholder}
-          />
-          <Text color={error ? theme.colors.error : theme.colors.muted}>
-            {"  " + (error ?? "enter saves · esc cancels · empty resets to the default")}
-          </Text>
+          <Text color={theme.colors.muted}>{`${value.length} chars · ctrl+d continues`}</Text>
         </Box>
       )}
     </Box>
@@ -1453,6 +1107,8 @@ function ReviewStep({
   onSubmit: () => void;
   onBack: () => void;
 }) {
+  const { columns } = useWindowSize();
+
   useInput((_input, key) => {
     if (key.escape) {
       onBack();
@@ -1462,14 +1118,14 @@ function ReviewStep({
   });
 
   return (
-    <Box flexDirection="column">
-      <Question
-        text={
-          mode === "create"
-            ? "this request will be sent to CreateHarness"
-            : "only the changed fields are sent to UpdateHarness"
-        }
-      />
+    <Box flexDirection="column" paddingX={1}>
+      <Text color={theme.colors.text}>
+        {mode === "create"
+          ? "this request will be sent to CreateHarness"
+          : "only the changed fields are sent to UpdateHarness"}
+      </Text>
+      {/* The step body is inset by paddingX on both sides. */}
+      <Divider width={columns - 2} />
       <ScrollView>
         <CodeBlock
           language="json"
@@ -1488,6 +1144,7 @@ function SuccessPanel({
   mode,
   harnessId,
   version,
+  arn,
   status,
   onContinue,
 }: {
@@ -1495,6 +1152,7 @@ function SuccessPanel({
   harnessId: string;
   version?: string;
   status?: string;
+  arn?: string;
   onContinue: () => void;
 }) {
   useInput((_input, key) => {
@@ -1502,21 +1160,31 @@ function SuccessPanel({
   });
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" paddingX={1}>
       <Text color={theme.colors.success} bold>
         ✔ harness {mode === "create" ? "created" : "updated"}
-      </Text>
-      <Text>
-        {"  "}
-        {harnessId}
-        {version ? ` · v${version}` : ""}
-        {status ? ` · ${status}` : ""}
       </Text>
       <Text color={theme.colors.muted}>
         {mode === "create"
           ? "  provisioning continues in the background · enter opens the harness"
           : "  the new version is deploying · enter opens the harness"}
       </Text>
+      <Box
+        borderStyle="single"
+        borderColor={theme.colors.border}
+        borderLeft={false}
+        borderRight={false}
+        borderBottom={false}
+      >
+        <KeyValueTable
+          items={{
+            id: harnessId,
+            status: status ?? "",
+            version: version?.toString() ?? "0",
+            arn: arn ?? "",
+          }}
+        />
+      </Box>
     </Box>
   );
 }

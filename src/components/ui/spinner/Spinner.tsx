@@ -33,7 +33,7 @@ export const Spinner: React.FC<SpinnerProps> = ({
   return (
     <Box>
       <Text color={theme.colors.primary}>{frames[frame]}</Text>
-      {label ? <Text> {label}</Text> : null}
+      {label ? <Text color={theme.colors.text}> {label}</Text> : null}
     </Box>
   );
 };

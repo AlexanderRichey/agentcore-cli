@@ -116,8 +116,6 @@ describe("harness update wizard", () => {
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write(" Now v2.");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to UpdateHarness");
     await r.press("return");
 
@@ -146,8 +144,6 @@ describe("harness update wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to UpdateHarness");
     await r.press("return");
 
@@ -174,14 +170,15 @@ describe("harness update wizard", () => {
     expect(r.lastFrame()).toContain("You are v1.");
     await r.write(" Now v2."); // append to the existing prompt
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return"); // skip advanced
     await waitForText(r.lastFrame, "sent to UpdateHarness");
     expect(r.lastFrame()).toContain("only the changed fields are sent");
     await r.press("return"); // update
 
     await waitForText(r.lastFrame, "harness updated");
-    expect(r.lastFrame()).toContain("MyHarness-abc123 · v2 · UPDATING");
+    const frame = r.lastFrame()!;
+    expect(frame).toMatch(/id\s+MyHarness-abc123/);
+    expect(frame).toMatch(/status\s+UPDATING/);
+    expect(frame).toMatch(/version\s+2/);
 
     const call = core.harness.calls.find((c) => c.method === "updateHarness")!;
     expect(call.args[0]).toEqual({
@@ -206,8 +203,6 @@ describe("harness update wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to UpdateHarness");
     await r.press("return");
 
@@ -234,8 +229,6 @@ describe("harness update wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to UpdateHarness");
     await r.press("return");
 

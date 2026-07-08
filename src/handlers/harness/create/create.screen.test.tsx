@@ -11,12 +11,16 @@ import {
 afterEach(cleanupScreens);
 
 // Behavior tests for the create-harness wizard: name → model → memory → tools
-// → prompt → advanced → review → submit. Key input drives the whole flow;
+// → prompt → review → submit. Key input drives the whole flow;
 // assertions check both what the user sees and the exact request Core receives.
 
 const DEFAULT_MODEL = {
   bedrockModelConfig: { modelId: "us.anthropic.claude-sonnet-4-6" },
 };
+
+// The browser tool is enabled by default in the wizard, so an untouched tools
+// step still sends it.
+const BROWSER_TOOL = { type: "agentcore_browser", config: { agentCoreBrowser: {} } };
 
 function coreForCreate(): TestCoreClient {
   const core = new TestCoreClient();
@@ -32,7 +36,7 @@ function coreForCreate(): TestCoreClient {
 }
 
 describe("harness create wizard", () => {
-  test("walks name → model → memory → tools → prompt → advanced → review and creates", async () => {
+  test("walks name → model → memory → tools → prompt → review and creates", async () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
@@ -56,11 +60,9 @@ describe("harness create wizard", () => {
     expect(r.lastFrame()).toContain("● managed");
     await r.press("return");
 
-    // Step: tools — enable Browser, then set a Gateway ARN.
+    // Step: tools — browser is enabled by default; add a Gateway ARN.
     await waitForText(r.lastFrame, "which tools should the agent be able to use?");
-    await r.write(" "); // toggle browser on
-    await waitForText(r.lastFrame, "[✓] browser");
-    await r.press("down"); // code interpreter
+    expect(r.lastFrame()).toContain("[✓] browser");
     await r.press("down"); // gateway
     await r.write(" "); // opens the arn input
     await waitForText(r.lastFrame, "gateway arn");
@@ -75,10 +77,6 @@ describe("harness create wizard", () => {
     await r.press("return"); // newline
     await r.write("Be brief.");
     await r.write("\x04"); // ctrl+d continues
-
-    // Step: advanced — skip (recommended) is preselected.
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
 
     // Step: review — the request is shown as JSON.
     await waitForText(r.lastFrame, "sent to CreateHarness");
@@ -137,8 +135,6 @@ describe("harness create wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
@@ -153,6 +149,7 @@ describe("harness create wizard", () => {
         },
       },
       memory: { managedMemoryConfiguration: {} },
+      tools: [BROWSER_TOOL],
     });
     r.unmount();
   });
@@ -186,8 +183,6 @@ describe("harness create wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
@@ -202,6 +197,7 @@ describe("harness create wizard", () => {
         },
       },
       memory: { managedMemoryConfiguration: {} },
+      tools: [BROWSER_TOOL],
     });
     r.unmount();
   });
@@ -232,8 +228,6 @@ describe("harness create wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
@@ -243,6 +237,7 @@ describe("harness create wizard", () => {
       harnessName: "my_agent",
       model: { liteLlmModelConfig: { modelId: "anthropic/claude-3-sonnet" } },
       memory: { managedMemoryConfiguration: {} },
+      tools: [BROWSER_TOOL],
     });
     r.unmount();
   });
@@ -265,9 +260,7 @@ describe("harness create wizard", () => {
     await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
-    await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
+    await r.press("return"); // enter on an empty prompt continues
     await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
@@ -276,6 +269,7 @@ describe("harness create wizard", () => {
     expect(call.args[0]).toEqual({
       harnessName: "my_agent",
       memory: { managedMemoryConfiguration: {} },
+      tools: [BROWSER_TOOL],
     });
     r.unmount();
   });
@@ -312,13 +306,11 @@ describe("harness create wizard", () => {
     await r.write("arn:aws:bedrock-agentcore:us-east-1:123:memory/m-1");
     await r.press("return");
 
-    // Skip through tools/prompt/advanced to review.
+    // Skip through tools/prompt to review.
     await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
@@ -331,63 +323,7 @@ describe("harness create wizard", () => {
           arn: "arn:aws:bedrock-agentcore:us-east-1:123:memory/m-1",
         },
       },
-    });
-    r.unmount();
-  });
-
-  test("advanced options set the execution role and limits", async () => {
-    const core = coreForCreate();
-    const r = renderScreen("/agentcore/harness/create", { core });
-
-    await waitForText(r.lastFrame, "the name of your harness");
-    await r.write("my_agent");
-    await r.press("return");
-    await waitForText(r.lastFrame, "choose a model");
-    await r.press("return"); // service default — no model sent
-    await waitForText(r.lastFrame, "how should the harness remember conversations?");
-    await r.press("return");
-    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
-    await r.press("return");
-    await waitForText(r.lastFrame, "type or paste the agent's instructions");
-    await r.write("\x04");
-
-    // Configure instead of skipping.
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("down");
-    await r.press("return");
-    await waitForText(r.lastFrame, "execution role");
-
-    // Edit the execution role (first field).
-    await r.press("return");
-    await waitForText(r.lastFrame, "enter saves");
-    await r.write("arn:aws:iam::123:role/Custom");
-    await r.press("return");
-    await waitForText(r.lastFrame, "arn:aws:iam::123:role/Custom");
-
-    // Move to max iterations and set it.
-    await r.press("down"); // network mode
-    await r.press("down"); // environment vars
-    await r.press("down"); // max iterations
-    await r.press("return");
-    await r.write("42");
-    await r.press("return");
-
-    // Done — continue is the last row.
-    await r.press("down"); // max tokens
-    await r.press("down"); // timeout seconds
-    await r.press("down"); // done
-    await r.press("return");
-
-    await waitForText(r.lastFrame, "sent to CreateHarness");
-    await r.press("return");
-    await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
-
-    const call = core.harness.calls.find((c) => c.method === "createHarness")!;
-    expect(call.args[0]).toEqual({
-      harnessName: "my_agent",
-      executionRoleArn: "arn:aws:iam::123:role/Custom",
-      memory: { managedMemoryConfiguration: {} },
-      maxIterations: 42,
+      tools: [BROWSER_TOOL],
     });
     r.unmount();
   });
@@ -410,8 +346,6 @@ describe("harness create wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
@@ -446,8 +380,6 @@ describe("harness create wizard", () => {
     await r.press("return");
     await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "no — use the defaults");
-    await r.press("return");
     await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
     await waitForText(r.lastFrame, "harness created");
