@@ -17,6 +17,7 @@ import { Spinner } from "./ui/spinner";
 import { CodeBlock } from "./ui/code-block";
 import { ScrollView } from "ink-scroll-view";
 import { darkTheme } from "./ui/_core.js";
+import { Divider } from "./ui/divider/Divider.js";
 
 const theme = darkTheme;
 
@@ -384,14 +385,16 @@ export function HarnessWizard({
 
   return (
     <Layout breadcrumb={breadcrumb} keyHints={keyHints}>
-      <Box flexDirection="column" paddingX={1}>
-        <Box marginBottom={1}>
+      <Box flexDirection="column">
+        <Box paddingX={1}>
           <Stepper
             steps={steps}
             currentStep={stepKey}
             completedSteps={steps.slice(0, stepIndex).map((step) => step.key)}
           />
         </Box>
+
+        <Divider />
 
         {phase.kind === "form" && (
           <WizardStep
@@ -590,23 +593,29 @@ function NameStep({
   });
 
   return (
-    <Box flexDirection="column">
-      <Question text="what should this harness be called?" />
-      <TextInput
-        value={value}
-        onChange={(next) => {
-          onChange(next);
-          setError(null);
-        }}
-        placeholder="my_agent"
-      />
-      {error ? (
-        <Text color={theme.colors.error}>{"  " + error}</Text>
-      ) : (
+    <Box flexDirection="column" paddingX={1}>
+      <Box flexDirection="column">
+        <Text color={theme.colors.text}>the name of your harness</Text>
         <Text color={theme.colors.muted}>
-          {"  letters, numbers, underscores; starts with a letter"}
+          letters, numbers, underscores; must start with a letter
         </Text>
-      )}
+      </Box>
+      <Box
+        borderStyle="single"
+        borderColor={theme.colors.border}
+        borderLeft={false}
+        borderRight={false}
+      >
+        <TextInput
+          value={value}
+          onChange={(next) => {
+            onChange(next);
+            setError(null);
+          }}
+          placeholder="my_agent"
+        />
+      </Box>
+      {error && <Text color={theme.colors.error}>{"" + error}</Text>}
     </Box>
   );
 }

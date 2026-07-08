@@ -21,9 +21,9 @@ export function createHarnessHandler(core: Core, io: AppIO): Router {
   harness.default(renderTui(core, io));
 
   // Register handlers
+  harness.handler(createCreateHarnessHandler(core));
   harness.handler(createGetHarnessHandler(core));
   harness.handler(createListHarnessHandler(core));
-  harness.handler(createCreateHarnessHandler(core));
   harness.handler(createUpdateHarnessHandler(core));
   harness.handler(createDeleteHarnessHandler(core));
   harness.handler(createInvokeHarnessHandler(core, io));
