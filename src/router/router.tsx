@@ -5,7 +5,7 @@ import { applyGlobalFlags, formatParameterDetails, parseFlags, toOption } from "
 import { parseArguments, toCommanderArgument } from "./args";
 
 import { Command } from "commander";
-import type { Logger } from "../common";
+import type { Logger } from "../logging";
 
 // CommandKey exposes the Commander Command for the executing leaf via context.
 export const CommandKey: ContextKey<Command> = contextKey<Command>("commander.command");

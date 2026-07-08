@@ -5,7 +5,7 @@ import { createConfigHandler } from "./config/";
 import { renderTui } from "../tui";
 import { withRegion, withJsonRenderer, withLogging } from "../middleware";
 import type { AppIO, Core } from "./types.tsx";
-import type { Logger } from "../common";
+import type { Logger } from "../logging";
 
 export interface RootHandlerConfig {
   io: AppIO;

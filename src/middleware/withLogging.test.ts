@@ -4,7 +4,7 @@ import { withLogging } from "./withLogging";
 import { createFileLogger } from "../logging/file-logger";
 import { LOG_LEVEL } from "../logging/types";
 import { waitFor } from "../testing";
-import type { Logger } from "../common";
+import type { Logger } from "../logging";
 import { join } from "node:path";
 import { mkdtemp, rm, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

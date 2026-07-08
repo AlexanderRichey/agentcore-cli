@@ -1,4 +1,4 @@
-import type { Logger } from "../common";
+import type { Logger } from "../logging";
 import type { Middleware } from "../router";
 import { LoggerKey, PathKey } from "../router";
 

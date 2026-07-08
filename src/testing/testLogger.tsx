@@ -1,4 +1,4 @@
-import type { Logger, LogArgs } from "../common";
+import type { Logger, LogArgs } from "../logging";
 import type { LogLevelName } from "../logging/types";
 
 export interface LogEntry {
