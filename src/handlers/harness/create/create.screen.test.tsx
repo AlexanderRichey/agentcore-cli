@@ -37,25 +37,25 @@ describe("harness create wizard", () => {
     const r = renderScreen("/agentcore/harness/create", { core });
 
     // Step: name.
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
     await r.write("my_agent");
     await r.press("return");
 
     // Step: model — Claude Sonnet 4.6 is preselected; keep it.
-    await waitForText(r.lastFrame, "Which model should the agent use?");
-    expect(r.lastFrame()).toContain("● Claude Sonnet 4.6");
+    await waitForText(r.lastFrame, "which model should the agent use?");
+    expect(r.lastFrame()).toContain("● claude sonnet 4.6");
     expect(r.lastFrame()).toContain("us.anthropic.claude-sonnet-4-6 (recommended)");
     await r.press("return");
 
     // Step: memory — managed is preselected; keep it.
-    await waitForText(r.lastFrame, "How should the harness remember conversations?");
-    expect(r.lastFrame()).toContain("● Managed memory");
+    await waitForText(r.lastFrame, "how should the harness remember conversations?");
+    expect(r.lastFrame()).toContain("● managed");
     await r.press("return");
 
     // Step: tools — enable Browser, then set a Gateway ARN.
-    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.write(" "); // toggle browser on
-    await waitForText(r.lastFrame, "[✓] Browser");
+    await waitForText(r.lastFrame, "[✓] browser");
     await r.press("down"); // code interpreter
     await r.press("down"); // gateway
     await r.write(" "); // opens the arn input
@@ -66,22 +66,22 @@ describe("harness create wizard", () => {
     await r.press("return"); // continue
 
     // Step: prompt — type a prompt with a newline, then ctrl+d.
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("You are helpful.");
     await r.press("return"); // newline
     await r.write("Be brief.");
     await r.write("\x04"); // ctrl+d continues
 
     // Step: advanced — skip (recommended) is preselected.
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
 
     // Step: review — the request is shown as JSON.
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
     expect(r.lastFrame()).toContain('"harnessName"');
     await r.press("return"); // create
 
-    await waitForText(r.lastFrame, "Harness created");
+    await waitForText(r.lastFrame, "harness created");
     expect(r.lastFrame()).toContain("my_agent-Xyz12345");
 
     const call = core.harness.calls.find((c) => c.method === "createHarness")!;
@@ -113,25 +113,25 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
     await r.write("my_agent");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await waitForText(r.lastFrame, "which model should the agent use?");
     await r.press("down"); // Sonnet 5
     await r.press("down"); // Opus 4.8
-    await waitForText(r.lastFrame, "● Claude Opus 4.8");
+    await waitForText(r.lastFrame, "● claude opus 4.8");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
@@ -148,30 +148,30 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
     await r.write("my_agent");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await waitForText(r.lastFrame, "which model should the agent use?");
     await r.press("down"); // Sonnet 5
     await r.press("down"); // Opus 4.8
     await r.press("down"); // Haiku 4.5
     await r.press("down"); // Other
-    await waitForText(r.lastFrame, "● Other");
+    await waitForText(r.lastFrame, "● other");
     await r.press("return"); // empty → error
-    await waitForText(r.lastFrame, "Enter a Bedrock model or inference profile ID.");
+    await waitForText(r.lastFrame, "enter a bedrock model or inference profile id");
     await r.write("eu.anthropic.claude-sonnet-4-6");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
@@ -188,28 +188,28 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
     await r.write("my_agent");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await waitForText(r.lastFrame, "which model should the agent use?");
     await r.press("down"); // Sonnet 5
     await r.press("down"); // Opus 4.8
     await r.press("down"); // Haiku 4.5
     await r.press("down"); // Other
     await r.press("down"); // Service default
-    await waitForText(r.lastFrame, "● Service default");
+    await waitForText(r.lastFrame, "● service default");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
@@ -224,10 +224,10 @@ describe("harness create wizard", () => {
   test("rejects an invalid name and stays on the name step", async () => {
     const r = renderScreen("/agentcore/harness/create", { core: coreForCreate() });
 
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
     await r.write("9bad name");
     await r.press("return");
-    await waitForText(r.lastFrame, "Must start with a letter");
+    await waitForText(r.lastFrame, "must start with a letter");
     r.unmount();
   });
 
@@ -235,28 +235,28 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
     await r.write("my_agent");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await waitForText(r.lastFrame, "which model should the agent use?");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("down"); // bring your own
-    await waitForText(r.lastFrame, "● Bring your own");
+    await waitForText(r.lastFrame, "● bring your own");
     await r.press("return"); // no arn yet → error
-    await waitForText(r.lastFrame, "Enter the ARN");
+    await waitForText(r.lastFrame, "enter the arn");
     await r.write("arn:aws:bedrock-agentcore:us-east-1:123:memory/m-1");
     await r.press("return");
 
     // Skip through tools/prompt/advanced to review.
-    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
@@ -277,27 +277,27 @@ describe("harness create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
     await r.write("my_agent");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await waitForText(r.lastFrame, "which model should the agent use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
 
     // Configure instead of skipping.
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("down");
     await r.press("return");
     await waitForText(r.lastFrame, "execution role");
 
     // Edit the execution role (first field).
     await r.press("return");
-    await waitForText(r.lastFrame, "enter to save");
+    await waitForText(r.lastFrame, "enter saves");
     await r.write("arn:aws:iam::123:role/Custom");
     await r.press("return");
     await waitForText(r.lastFrame, "arn:aws:iam::123:role/Custom");
@@ -316,7 +316,7 @@ describe("harness create wizard", () => {
     await r.press("down"); // done
     await r.press("return");
 
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
     await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
 
@@ -338,25 +338,25 @@ describe("harness create wizard", () => {
     };
     const r = renderScreen("/agentcore/harness/create", { core });
 
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
     await r.write("my_agent");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await waitForText(r.lastFrame, "which model should the agent use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
 
     await waitForText(r.lastFrame, "name already exists");
     await r.press("escape");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
     r.unmount();
   });
 
@@ -374,29 +374,29 @@ describe("harness create wizard", () => {
     const r = renderScreen("/agentcore/harness/create", { core });
 
     // Fastest path through the wizard: defaults everywhere.
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
     await r.write("my_agent");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await waitForText(r.lastFrame, "which model should the agent use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "How should the harness remember conversations?");
+    await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which tools should the agent be able to use?");
+    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
     await r.press("return");
-    await waitForText(r.lastFrame, "Harness created");
+    await waitForText(r.lastFrame, "harness created");
     await r.press("return"); // on to the hub
     await waitForText(r.lastFrame, "arn:aws:iam::123:role/MyRole");
 
     // Esc from the hub: the finished wizard must not come back.
     await r.press("escape");
     await waitForText(r.lastFrame, "manage agentcore harnesses");
-    expect(r.lastFrame()).not.toContain("What should this harness be called?");
+    expect(r.lastFrame()).not.toContain("what should this harness be called?");
     r.unmount();
   });
 
@@ -410,7 +410,7 @@ describe("harness create wizard", () => {
     await r.press("down"); // create
     await waitForText(r.lastFrame, "❯ create");
     await r.press("return");
-    await waitForText(r.lastFrame, "What should this harness be called?");
+    await waitForText(r.lastFrame, "what should this harness be called?");
 
     await r.press("escape");
     await waitForText(r.lastFrame, "manage agentcore harnesses");

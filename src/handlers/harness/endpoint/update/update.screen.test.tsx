@@ -79,7 +79,7 @@ describe("harness endpoint update wizard", () => {
     await waitForText(r.lastFrame, "prod");
     expect(r.lastFrame()).toContain("choose an endpoint to update");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which harness version should this endpoint serve?");
+    await waitForText(r.lastFrame, "which harness version should this endpoint serve?");
     r.unmount();
   });
 
@@ -95,9 +95,9 @@ describe("harness endpoint update wizard", () => {
     await waitForText(r.lastFrame, "● version 2");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to UpdateHarnessEndpoint");
     await r.press("return");
-    await waitForText(r.lastFrame, "Endpoint updated");
+    await waitForText(r.lastFrame, "endpoint updated");
 
     const call = core.harness.calls.find((c) => c.method === "updateHarnessEndpoint")!;
     expect(call.args[0]).toEqual({
@@ -114,7 +114,7 @@ describe("harness endpoint update wizard", () => {
 
     await waitForText(r.lastFrame, "● version 1");
     await r.press("return"); // keep version
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to UpdateHarnessEndpoint");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "updateHarnessEndpoint"));

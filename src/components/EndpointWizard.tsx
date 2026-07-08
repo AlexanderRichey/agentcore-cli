@@ -63,9 +63,9 @@ export function EndpointWizard({
 
   const steps: Step[] = useMemo(() => {
     const all: Step[] = [
-      { key: "name", title: "Name" },
-      { key: "version", title: "Version" },
-      { key: "review", title: "Review" },
+      { key: "name", title: "name" },
+      { key: "version", title: "version" },
+      { key: "review", title: "review" },
     ];
     return mode === "create" ? all : all.filter((step) => step.key !== "name");
   }, [mode]);
@@ -160,9 +160,7 @@ export function EndpointWizard({
         )}
 
         {phase.kind === "submitting" && (
-          <Box marginTop={1}>
-            <Spinner label={mode === "create" ? "Creating endpoint…" : "Updating endpoint…"} />
-          </Box>
+          <Spinner label={mode === "create" ? "creating endpoint…" : "updating endpoint…"} />
         )}
         {phase.kind === "success" && (
           <SuccessPanel
@@ -204,13 +202,10 @@ function hintsFor(
   return [{ key: "enter", label: "continue" }, ...base];
 }
 
-function StepHeading({ title, hint }: { title: string; hint: string }) {
-  return (
-    <Box flexDirection="column" marginBottom={1}>
-      <Text bold>{title}</Text>
-      <Text color={theme.colors.muted}>{hint}</Text>
-    </Box>
-  );
+// Question is the one-line prompt under the stepper — the stepper already
+// names the step, so the body opens with the question itself.
+function Question({ text }: { text: string }) {
+  return <Text color={theme.colors.muted}>{text}</Text>;
 }
 
 function NameStep({
@@ -233,13 +228,13 @@ function NameStep({
     }
     if (key.return) {
       if (NAME_PATTERN.test(value)) onNext();
-      else setError("Must start with a letter; letters, numbers, and underscores only.");
+      else setError("must start with a letter; letters, numbers, and underscores only");
     }
   });
 
   return (
     <Box flexDirection="column">
-      <StepHeading title="Name" hint="What should this endpoint be called?" />
+      <Question text="what should this endpoint be called?" />
       <TextInput
         value={value}
         onChange={(next) => {
@@ -248,15 +243,13 @@ function NameStep({
         }}
         placeholder="production"
       />
-      <Box marginTop={1}>
-        {error ? (
-          <Text color={theme.colors.error}>{error}</Text>
-        ) : (
-          <Text color={theme.colors.muted}>
-            Starts with a letter; letters, numbers, and underscores only.
-          </Text>
-        )}
-      </Box>
+      {error ? (
+        <Text color={theme.colors.error}>{"  " + error}</Text>
+      ) : (
+        <Text color={theme.colors.muted}>
+          {"  letters, numbers, underscores; starts with a letter"}
+        </Text>
+      )}
     </Box>
   );
 }
@@ -292,14 +285,14 @@ function VersionStep({
       .map((v) => ({
         value: v.harnessVersion ?? "",
         label: `version ${v.harnessVersion}`,
-        detail: `${v.status}  ·  updated ${v.updatedAt?.toISOString().slice(0, 10) ?? ""}`,
+        detail: `${v.status} · updated ${v.updatedAt?.toISOString().slice(0, 10) ?? ""}`,
       }))
       .sort((a, b) => Number(b.value) - Number(a.value));
     // Create mode offers "latest": omitting targetVersion tracks the newest
     // version at creation time.
     return mode === "create"
       ? [
-          { value: "", label: "latest", detail: "point at the most recent version (default)" },
+          { value: "", label: "latest", detail: "track the most recent version (default)" },
           ...listed,
         ]
       : listed;
@@ -329,33 +322,28 @@ function VersionStep({
 
   return (
     <Box flexDirection="column">
-      <StepHeading
-        title="Target version"
-        hint="Which harness version should this endpoint serve?"
-      />
+      <Question text="which harness version should this endpoint serve?" />
       {versions.isPending ? (
-        <Spinner label="Loading versions…" />
+        <Spinner label="loading versions…" />
       ) : versions.isError ? (
-        <Text color={theme.colors.error}>Error: {(versions.error as Error).message}</Text>
+        <Text color={theme.colors.error}>✗ {(versions.error as Error).message}</Text>
       ) : options.length === 0 ? (
-        <Text color={theme.colors.muted}>This harness has no versions.</Text>
+        <Text color={theme.colors.muted}>this harness has no versions</Text>
       ) : (
-        <Box flexDirection="column">
-          {options.map((option, i) => {
-            const selected = i === index;
-            return (
-              <Box key={option.value === "" ? "(latest)" : option.value}>
-                <Text color={selected ? theme.colors.focus : theme.colors.muted}>
-                  {selected ? "● " : "○ "}
-                </Text>
-                <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
-                  {option.label.padEnd(14)}
-                </Text>
-                <Text color={theme.colors.muted}>{option.detail}</Text>
-              </Box>
-            );
-          })}
-        </Box>
+        options.map((option, i) => {
+          const selected = i === index;
+          return (
+            <Box key={option.value === "" ? "(latest)" : option.value}>
+              <Text color={selected ? theme.colors.focus : theme.colors.muted}>
+                {selected ? "● " : "○ "}
+              </Text>
+              <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
+                {option.label.padEnd(12)}
+              </Text>
+              <Text color={theme.colors.muted}>{option.detail}</Text>
+            </Box>
+          );
+        })
       )}
     </Box>
   );
@@ -380,20 +368,16 @@ function ReviewStep({
     if (key.return) onSubmit();
   });
 
+  const api = verb === "create" ? "CreateHarnessEndpoint" : "UpdateHarnessEndpoint";
   return (
     <Box flexDirection="column">
-      <StepHeading title="Review" hint={`This request will be sent to ${verb}-endpoint.`} />
+      <Question text={`this request will be sent to ${api}`} />
       <CodeBlock
         language="json"
         showLineNumbers={false}
         showBorder={false}
         code={JSON.stringify(request, null, 2)}
       />
-      <Box marginTop={1}>
-        <Text color={theme.colors.muted}>
-          press <Text color={theme.colors.focus}>enter</Text> to {verb} the endpoint
-        </Text>
-      </Box>
     </Box>
   );
 }
@@ -416,33 +400,17 @@ function SuccessPanel({
   });
 
   return (
-    <Box flexDirection="column" marginTop={1}>
+    <Box flexDirection="column">
       <Text color={theme.colors.success} bold>
-        ✔ Endpoint {verb}d
+        ✔ endpoint {verb}d
       </Text>
-      <Box flexDirection="column" marginTop={1} marginLeft={2}>
-        <Text>
-          <Text color={theme.colors.muted}>{"name     "}</Text>
-          {endpointName}
-        </Text>
-        {targetVersion && (
-          <Text>
-            <Text color={theme.colors.muted}>{"target   "}</Text>
-            version {targetVersion}
-          </Text>
-        )}
-        {status && (
-          <Text>
-            <Text color={theme.colors.muted}>{"status   "}</Text>
-            {status}
-          </Text>
-        )}
-      </Box>
-      <Box marginTop={1}>
-        <Text color={theme.colors.muted}>
-          press <Text color={theme.colors.focus}>enter</Text> to view the endpoint
-        </Text>
-      </Box>
+      <Text>
+        {"  "}
+        {endpointName}
+        {targetVersion ? ` → v${targetVersion}` : ""}
+        {status ? ` · ${status}` : ""}
+      </Text>
+      <Text color={theme.colors.muted}>{"  enter opens the endpoint"}</Text>
     </Box>
   );
 }
@@ -453,11 +421,9 @@ function ErrorPanel({ message, onBack }: { message: string; onBack: () => void }
   });
 
   return (
-    <Box flexDirection="column" marginTop={1}>
+    <Box flexDirection="column">
       <Text color={theme.colors.error}>✗ {message}</Text>
-      <Box marginTop={1}>
-        <Text color={theme.colors.muted}>press esc to go back and adjust</Text>
-      </Box>
+      <Text color={theme.colors.muted}>{"  esc returns to the form"}</Text>
     </Box>
   );
 }

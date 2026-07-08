@@ -67,7 +67,7 @@ describe("harness endpoint create wizard", () => {
     await waitForText(r.lastFrame, "MyHarness");
     expect(r.lastFrame()).toContain("choose a harness to create an endpoint for");
     await r.press("return");
-    await waitForText(r.lastFrame, "What should this endpoint be called?");
+    await waitForText(r.lastFrame, "what should this endpoint be called?");
     r.unmount();
   });
 
@@ -75,12 +75,12 @@ describe("harness endpoint create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/endpoint/create/MyHarness-abc123", { core });
 
-    await waitForText(r.lastFrame, "What should this endpoint be called?");
+    await waitForText(r.lastFrame, "what should this endpoint be called?");
     await r.write("prod");
     await r.press("return");
 
     // Versions listed newest first after the "latest" default.
-    await waitForText(r.lastFrame, "Which harness version should this endpoint serve?");
+    await waitForText(r.lastFrame, "which harness version should this endpoint serve?");
     expect(r.lastFrame()).toContain("● latest");
     expect(r.lastFrame()).toContain("version 2");
     expect(r.lastFrame()).toContain("version 1");
@@ -88,11 +88,11 @@ describe("harness endpoint create wizard", () => {
     await waitForText(r.lastFrame, "● version 2");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarnessEndpoint");
     expect(r.lastFrame()).toContain('"endpointName"');
     await r.press("return");
 
-    await waitForText(r.lastFrame, "Endpoint created");
+    await waitForText(r.lastFrame, "endpoint created");
     const call = core.harness.calls.find((c) => c.method === "createHarnessEndpoint")!;
     expect(call.args[0]).toEqual({
       harnessId: "MyHarness-abc123",
@@ -121,12 +121,12 @@ describe("harness endpoint create wizard", () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/endpoint/create/MyHarness-abc123", { core });
 
-    await waitForText(r.lastFrame, "What should this endpoint be called?");
+    await waitForText(r.lastFrame, "what should this endpoint be called?");
     await r.write("prod");
     await r.press("return");
     await waitForText(r.lastFrame, "● latest");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to CreateHarnessEndpoint");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "createHarnessEndpoint"));

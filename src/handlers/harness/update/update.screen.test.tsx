@@ -71,7 +71,7 @@ describe("harness update wizard", () => {
     await waitForText(r.lastFrame, "MyHarness");
     expect(r.lastFrame()).toContain("choose a harness to update");
     await r.press("return");
-    await waitForText(r.lastFrame, "Which model should the agent use?");
+    await waitForText(r.lastFrame, "which model should the agent use?");
     r.unmount();
   });
 
@@ -81,17 +81,17 @@ describe("harness update wizard", () => {
 
     // The harness has no bedrock model configured, so keep-current is
     // preselected; enter leaves the model untouched.
-    await waitForText(r.lastFrame, "● Keep current model");
+    await waitForText(r.lastFrame, "● keep current");
     // The name step is absent from the stepper.
     expect(r.lastFrame()).not.toContain("Name");
     await r.press("return");
 
     // Managed memory is the current config and is preselected.
-    await waitForText(r.lastFrame, "● Managed memory");
+    await waitForText(r.lastFrame, "● managed");
     await r.press("return");
 
     // Tools reflect the current config: browser on.
-    await waitForText(r.lastFrame, "[✓] Browser");
+    await waitForText(r.lastFrame, "[✓] browser");
     r.unmount();
   });
 
@@ -105,18 +105,18 @@ describe("harness update wizard", () => {
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
     // The harness's model is one of the presets, so it is preselected.
-    await waitForText(r.lastFrame, "● Claude Opus 4.8");
+    await waitForText(r.lastFrame, "● claude opus 4.8");
     await r.press("return"); // model unchanged
-    await waitForText(r.lastFrame, "● Managed memory");
+    await waitForText(r.lastFrame, "● managed");
     await r.press("return");
-    await waitForText(r.lastFrame, "[✓] Browser");
+    await waitForText(r.lastFrame, "[✓] browser");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write(" Now v2.");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to UpdateHarness");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "updateHarness"));
@@ -132,20 +132,20 @@ describe("harness update wizard", () => {
     const core = coreForUpdate();
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
-    await waitForText(r.lastFrame, "● Keep current model");
+    await waitForText(r.lastFrame, "● keep current");
     await r.press("up"); // Other
     await r.press("up"); // Haiku 4.5
-    await waitForText(r.lastFrame, "● Claude Haiku 4.5");
+    await waitForText(r.lastFrame, "● claude haiku 4.5");
     await r.press("return");
-    await waitForText(r.lastFrame, "● Managed memory");
+    await waitForText(r.lastFrame, "● managed");
     await r.press("return");
-    await waitForText(r.lastFrame, "[✓] Browser");
+    await waitForText(r.lastFrame, "[✓] browser");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to UpdateHarness");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "updateHarness"));
@@ -161,24 +161,24 @@ describe("harness update wizard", () => {
     const core = coreForUpdate();
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
-    await waitForText(r.lastFrame, "● Keep current model");
+    await waitForText(r.lastFrame, "● keep current");
     await r.press("return"); // model unchanged
-    await waitForText(r.lastFrame, "● Managed memory");
+    await waitForText(r.lastFrame, "● managed");
     await r.press("return"); // memory unchanged
-    await waitForText(r.lastFrame, "[✓] Browser");
+    await waitForText(r.lastFrame, "[✓] browser");
     await r.press("return"); // tools unchanged
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     expect(r.lastFrame()).toContain("You are v1.");
     await r.write(" Now v2."); // append to the existing prompt
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return"); // skip advanced
-    await waitForText(r.lastFrame, "Review");
-    expect(r.lastFrame()).toContain("Only the changed fields are sent");
+    await waitForText(r.lastFrame, "sent to UpdateHarness");
+    expect(r.lastFrame()).toContain("only the changed fields are sent");
     await r.press("return"); // update
 
-    await waitForText(r.lastFrame, "Harness updated");
-    expect(r.lastFrame()).toContain("version");
+    await waitForText(r.lastFrame, "harness updated");
+    expect(r.lastFrame()).toContain("MyHarness-abc123 · v2 · UPDATING");
 
     const call = core.harness.calls.find((c) => c.method === "updateHarness")!;
     expect(call.args[0]).toEqual({
@@ -192,20 +192,20 @@ describe("harness update wizard", () => {
     const core = coreForUpdate();
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
-    await waitForText(r.lastFrame, "● Keep current model");
+    await waitForText(r.lastFrame, "● keep current");
     await r.press("return"); // model unchanged
-    await waitForText(r.lastFrame, "● Managed memory");
+    await waitForText(r.lastFrame, "● managed");
     await r.press("down"); // byo
     await r.press("down"); // disabled
-    await waitForText(r.lastFrame, "● Disable memory");
+    await waitForText(r.lastFrame, "● disabled");
     await r.press("return");
-    await waitForText(r.lastFrame, "[✓] Browser");
+    await waitForText(r.lastFrame, "[✓] browser");
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to UpdateHarness");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "updateHarness"));
@@ -221,19 +221,19 @@ describe("harness update wizard", () => {
     const core = coreForUpdate();
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
-    await waitForText(r.lastFrame, "● Keep current model");
+    await waitForText(r.lastFrame, "● keep current");
     await r.press("return"); // model unchanged
-    await waitForText(r.lastFrame, "● Managed memory");
+    await waitForText(r.lastFrame, "● managed");
     await r.press("return");
-    await waitForText(r.lastFrame, "[✓] Browser");
+    await waitForText(r.lastFrame, "[✓] browser");
     await r.write(" "); // toggle browser off
-    await waitFor(() => (r.lastFrame() ?? "").includes("[ ] Browser"));
+    await waitFor(() => (r.lastFrame() ?? "").includes("[ ] browser"));
     await r.press("return");
-    await waitForText(r.lastFrame, "System prompt");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
     await r.write("\x04");
-    await waitForText(r.lastFrame, "Skip — use the defaults (recommended)");
+    await waitForText(r.lastFrame, "no — use the defaults");
     await r.press("return");
-    await waitForText(r.lastFrame, "Review");
+    await waitForText(r.lastFrame, "sent to UpdateHarness");
     await r.press("return");
 
     await waitFor(() => core.harness.calls.some((c) => c.method === "updateHarness"));

@@ -93,7 +93,7 @@ export const Stepper: React.FC<StepperProps> = ({
                 {step.title}
                 {step.optional ? " (opt)" : ""}
               </Text>
-              {i < steps.length - 1 && <Text color={connectorColor}>{"  ──  "}</Text>}
+              {i < steps.length - 1 && <Text color={connectorColor}>{" ── "}</Text>}
             </React.Fragment>
           );
         })}

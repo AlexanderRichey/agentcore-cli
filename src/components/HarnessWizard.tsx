@@ -314,13 +314,13 @@ export function HarnessWizard({
 
   const steps: Step[] = useMemo(() => {
     const all: Step[] = [
-      { key: "name", title: "Name" },
-      { key: "model", title: "Model" },
-      { key: "memory", title: "Memory" },
-      { key: "tools", title: "Tools" },
-      { key: "prompt", title: "Prompt" },
-      { key: "advanced", title: "Advanced", optional: true },
-      { key: "review", title: "Review" },
+      { key: "name", title: "name" },
+      { key: "model", title: "model" },
+      { key: "memory", title: "memory" },
+      { key: "tools", title: "tools" },
+      { key: "prompt", title: "prompt" },
+      { key: "advanced", title: "advanced" },
+      { key: "review", title: "review" },
     ];
     return mode === "create" ? all : all.filter((step) => step.key !== "name");
   }, [mode]);
@@ -406,20 +406,17 @@ export function HarnessWizard({
           />
         )}
         {phase.kind === "submitting" && (
-          <Box marginTop={1}>
-            <Spinner
-              label={
-                mode === "create"
-                  ? "Creating harness… (provisioning a default execution role can take a moment)"
-                  : "Updating harness…"
-              }
-            />
-          </Box>
+          <Spinner
+            label={
+              mode === "create"
+                ? "creating harness… provisioning the execution role can take a moment"
+                : "updating harness…"
+            }
+          />
         )}
         {phase.kind === "success" && (
           <SuccessPanel
             mode={mode}
-            name={values.name || harnessId || ""}
             harnessId={phase.harnessId}
             version={phase.version}
             status={phase.status}
@@ -561,13 +558,11 @@ function WizardStep({
 
 // ─── step: name ───────────────────────────────────────────────────────────────
 
-function StepHeading({ title, hint }: { title: string; hint: string }) {
-  return (
-    <Box flexDirection="column" marginBottom={1}>
-      <Text bold>{title}</Text>
-      <Text color={theme.colors.muted}>{hint}</Text>
-    </Box>
-  );
+// Question is the one-line prompt under the stepper. The stepper already names
+// the step, so the body opens with the question itself and lets the
+// interactive rows below carry the visual weight.
+function Question({ text }: { text: string }) {
+  return <Text color={theme.colors.muted}>{text}</Text>;
 }
 
 function NameStep({
@@ -590,13 +585,13 @@ function NameStep({
     }
     if (key.return) {
       if (NAME_PATTERN.test(value)) onNext();
-      else setError("Must start with a letter; letters, numbers, and underscores only.");
+      else setError("must start with a letter; letters, numbers, and underscores only");
     }
   });
 
   return (
     <Box flexDirection="column">
-      <StepHeading title="Name" hint="What should this harness be called?" />
+      <Question text="what should this harness be called?" />
       <TextInput
         value={value}
         onChange={(next) => {
@@ -605,15 +600,13 @@ function NameStep({
         }}
         placeholder="my_agent"
       />
-      <Box marginTop={1}>
-        {error ? (
-          <Text color={theme.colors.error}>{error}</Text>
-        ) : (
-          <Text color={theme.colors.muted}>
-            Starts with a letter; letters, numbers, and underscores only.
-          </Text>
-        )}
-      </Box>
+      {error ? (
+        <Text color={theme.colors.error}>{"  " + error}</Text>
+      ) : (
+        <Text color={theme.colors.muted}>
+          {"  letters, numbers, underscores; starts with a letter"}
+        </Text>
+      )}
     </Box>
   );
 }
@@ -621,10 +614,10 @@ function NameStep({
 // ─── step: model ──────────────────────────────────────────────────────────────
 
 const MODEL_PRESETS: { id: string; label: string }[] = [
-  { id: DEFAULT_MODEL_ID, label: "Claude Sonnet 4.6" },
-  { id: "us.anthropic.claude-sonnet-5", label: "Claude Sonnet 5" },
-  { id: "us.anthropic.claude-opus-4-8", label: "Claude Opus 4.8" },
-  { id: "us.anthropic.claude-haiku-4-5-20251001-v1:0", label: "Claude Haiku 4.5" },
+  { id: DEFAULT_MODEL_ID, label: "claude sonnet 4.6" },
+  { id: "us.anthropic.claude-sonnet-5", label: "claude sonnet 5" },
+  { id: "us.anthropic.claude-opus-4-8", label: "claude opus 4.8" },
+  { id: "us.anthropic.claude-haiku-4-5-20251001-v1:0", label: "claude haiku 4.5" },
 ];
 
 function ModelStep({
@@ -678,7 +671,7 @@ function ModelStep({
       if (cursor === customIndex) {
         const committed = draft.trim();
         if (committed === "") {
-          setError("Enter a Bedrock model or inference profile ID.");
+          setError("enter a bedrock model or inference profile id");
           return;
         }
         onChange({ modelId: committed });
@@ -695,49 +688,41 @@ function ModelStep({
       label: preset.label,
       description: i === 0 ? `${preset.id} (recommended)` : preset.id,
     })),
-    { label: "Other", description: "enter any Bedrock model or inference profile ID" },
+    { label: "other", description: "enter any bedrock model or inference profile id" },
     mode === "create"
-      ? { label: "Service default", description: "let the service choose the model" }
-      : { label: "Keep current model", description: "leave the model configuration untouched" },
+      ? { label: "service default", description: "let the service choose the model" }
+      : { label: "keep current", description: "leave the model configuration untouched" },
   ];
 
   return (
     <Box flexDirection="column">
-      <StepHeading title="Model" hint="Which model should the agent use?" />
-      <Box flexDirection="column">
-        {rows.map((row, i) => {
-          const selected = i === cursor;
-          return (
-            <Box key={row.label}>
-              <Text color={selected ? theme.colors.focus : theme.colors.muted}>
-                {selected ? "● " : "○ "}
-              </Text>
-              <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
-                {row.label.padEnd(20)}
-              </Text>
-              <Text color={theme.colors.muted}>{row.description}</Text>
-            </Box>
-          );
-        })}
-      </Box>
+      <Question text="which model should the agent use?" />
+      {rows.map((row, i) => {
+        const selected = i === cursor;
+        return (
+          <Box key={row.label}>
+            <Text color={selected ? theme.colors.focus : theme.colors.muted}>
+              {selected ? "● " : "○ "}
+            </Text>
+            <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
+              {row.label.padEnd(19)}
+            </Text>
+            <Text color={theme.colors.muted}>{row.description}</Text>
+          </Box>
+        );
+      })}
       {cursor === customIndex && (
-        <Box marginTop={1}>
-          <TextInput
-            label="model id"
-            value={draft}
-            onChange={(next) => {
-              setDraft(next);
-              setError(null);
-            }}
-            placeholder="e.g. us.anthropic.claude-opus-4-5-20251101-v1:0"
-          />
-        </Box>
+        <TextInput
+          label="model id"
+          value={draft}
+          onChange={(next) => {
+            setDraft(next);
+            setError(null);
+          }}
+          placeholder="e.g. us.anthropic.claude-opus-4-5-20251101-v1:0"
+        />
       )}
-      {error && (
-        <Box marginTop={1}>
-          <Text color={theme.colors.error}>{error}</Text>
-        </Box>
-      )}
+      {error && <Text color={theme.colors.error}>{"  " + error}</Text>}
     </Box>
   );
 }
@@ -747,15 +732,15 @@ function ModelStep({
 const MEMORY_OPTIONS: { kind: MemoryKind; label: string; description: string }[] = [
   {
     kind: "managed",
-    label: "Managed memory",
-    description: "AgentCore creates and manages memory for you (recommended)",
+    label: "managed",
+    description: "agentcore creates and manages memory for you (recommended)",
   },
   {
     kind: "byo",
-    label: "Bring your own",
-    description: "use an existing AgentCore Memory resource",
+    label: "bring your own",
+    description: "use an existing agentcore memory resource",
   },
-  { kind: "disabled", label: "Disable memory", description: "no memory across sessions" },
+  { kind: "disabled", label: "disabled", description: "no memory across sessions" },
 ];
 
 function MemoryStep({
@@ -791,7 +776,7 @@ function MemoryStep({
     }
     if (key.return) {
       if (value.kind === "byo" && value.arn.trim() === "") {
-        setError("Enter the ARN of your AgentCore Memory resource.");
+        setError("enter the arn of your agentcore memory resource");
         return;
       }
       onNext();
@@ -800,41 +785,33 @@ function MemoryStep({
 
   return (
     <Box flexDirection="column">
-      <StepHeading title="Memory" hint="How should the harness remember conversations?" />
-      <Box flexDirection="column">
-        {MEMORY_OPTIONS.map((option, i) => {
-          const selected = i === index;
-          return (
-            <Box key={option.kind}>
-              <Text color={selected ? theme.colors.focus : theme.colors.muted}>
-                {selected ? "● " : "○ "}
-              </Text>
-              <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
-                {option.label.padEnd(18)}
-              </Text>
-              <Text color={theme.colors.muted}>{option.description}</Text>
-            </Box>
-          );
-        })}
-      </Box>
+      <Question text="how should the harness remember conversations?" />
+      {MEMORY_OPTIONS.map((option, i) => {
+        const selected = i === index;
+        return (
+          <Box key={option.kind}>
+            <Text color={selected ? theme.colors.focus : theme.colors.muted}>
+              {selected ? "● " : "○ "}
+            </Text>
+            <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
+              {option.label.padEnd(16)}
+            </Text>
+            <Text color={theme.colors.muted}>{option.description}</Text>
+          </Box>
+        );
+      })}
       {value.kind === "byo" && (
-        <Box marginTop={1}>
-          <TextInput
-            label="memory arn"
-            value={value.arn}
-            onChange={(arn) => {
-              onChange({ ...value, arn });
-              setError(null);
-            }}
-            placeholder="arn:aws:bedrock-agentcore:…:memory/…"
-          />
-        </Box>
+        <TextInput
+          label="memory arn"
+          value={value.arn}
+          onChange={(arn) => {
+            onChange({ ...value, arn });
+            setError(null);
+          }}
+          placeholder="arn:aws:bedrock-agentcore:…:memory/…"
+        />
       )}
-      {error && (
-        <Box marginTop={1}>
-          <Text color={theme.colors.error}>{error}</Text>
-        </Box>
-      )}
+      {error && <Text color={theme.colors.error}>{"  " + error}</Text>}
     </Box>
   );
 }
@@ -844,22 +821,22 @@ function MemoryStep({
 type ToolRowKey = "browser" | "codeInterpreter" | "gateway" | "mcp";
 
 const TOOL_ROWS: { key: ToolRowKey; label: string; description: string; input?: string }[] = [
-  { key: "browser", label: "Browser", description: "browse the web (AgentCore Browser)" },
+  { key: "browser", label: "browser", description: "browse the web with agentcore browser" },
   {
     key: "codeInterpreter",
-    label: "Code Interpreter",
-    description: "run code in a sandbox (AgentCore Code Interpreter)",
+    label: "code interpreter",
+    description: "run code in a sandbox",
   },
   {
     key: "gateway",
-    label: "Gateway",
-    description: "call tools through an AgentCore Gateway",
+    label: "gateway",
+    description: "call tools through an agentcore gateway",
     input: "gateway arn",
   },
   {
     key: "mcp",
-    label: "MCP server",
-    description: "connect to a remote MCP server",
+    label: "mcp server",
+    description: "connect to a remote mcp server",
     input: "server url",
   },
 ];
@@ -957,49 +934,45 @@ function ToolsStep({
 
   return (
     <Box flexDirection="column">
-      <StepHeading title="Tools" hint="Which tools should the agent be able to use?" />
-      <Box flexDirection="column">
-        {TOOL_ROWS.map((row, i) => {
-          const isCursor = i === cursor && !editing;
-          const isOn = enabled(row.key);
-          const detail =
-            row.key === "gateway" && value.gatewayArn !== ""
-              ? value.gatewayArn
-              : row.key === "mcp" && value.mcpUrl !== ""
-                ? value.mcpUrl
-                : row.description;
-          return (
-            <Box key={row.key}>
-              <Text color={isCursor ? theme.colors.focus : theme.colors.muted}>
-                {isCursor ? "❯ " : "  "}
-              </Text>
-              <Text color={isOn ? theme.colors.success : theme.colors.muted}>
-                {isOn ? "[✓] " : "[ ] "}
-              </Text>
-              <Text bold={isCursor} color={isCursor ? theme.colors.focus : theme.colors.text}>
-                {row.label.padEnd(18)}
-              </Text>
-              <Text color={isOn ? theme.colors.text : theme.colors.muted}>{detail}</Text>
-            </Box>
-          );
-        })}
-      </Box>
+      <Question text="which tools should the agent be able to use?" />
+      {TOOL_ROWS.map((row, i) => {
+        const isCursor = i === cursor && !editing;
+        const isOn = enabled(row.key);
+        const detail =
+          row.key === "gateway" && value.gatewayArn !== ""
+            ? value.gatewayArn
+            : row.key === "mcp" && value.mcpUrl !== ""
+              ? value.mcpUrl
+              : row.description;
+        return (
+          <Box key={row.key}>
+            <Text color={isCursor ? theme.colors.focus : theme.colors.muted}>
+              {isCursor ? "❯ " : "  "}
+            </Text>
+            <Text color={isOn ? theme.colors.success : theme.colors.muted}>
+              {isOn ? "[✓] " : "[ ] "}
+            </Text>
+            <Text bold={isCursor} color={isCursor ? theme.colors.focus : theme.colors.text}>
+              {row.label.padEnd(18)}
+            </Text>
+            <Text color={isOn ? theme.colors.text : theme.colors.muted}>{detail}</Text>
+          </Box>
+        );
+      })}
       {editing && editedRow && (
-        <Box marginTop={1}>
-          <TextInput
-            label={editedRow.input}
-            value={draft}
-            onChange={setDraft}
-            placeholder={
-              editing === "gateway" ? "arn:aws:bedrock-agentcore:…:gateway/…" : "https://…"
-            }
-          />
-        </Box>
+        <TextInput
+          label={editedRow.input}
+          value={draft}
+          onChange={setDraft}
+          placeholder={
+            editing === "gateway" ? "arn:aws:bedrock-agentcore:…:gateway/…" : "https://…"
+          }
+        />
       )}
       {editing && (
-        <Box>
-          <Text color={theme.colors.muted}>enter to save · esc to cancel · empty disables</Text>
-        </Box>
+        <Text color={theme.colors.muted}>
+          {"  enter saves · esc cancels · empty disables the tool"}
+        </Text>
       )}
     </Box>
   );
@@ -1052,35 +1025,24 @@ function PromptStep({
 
   return (
     <Box flexDirection="column">
-      <StepHeading
-        title="System prompt"
-        hint="Type or paste the agent's instructions. Leave empty to skip."
-      />
-      <Box
-        borderStyle="round"
-        borderColor={theme.colors.border}
-        paddingX={1}
-        flexDirection="column"
-      >
-        {hidden > 0 && <Text color={theme.colors.muted}>… (+{hidden} earlier lines)</Text>}
-        {visible.length === 0 ? (
-          <Text color={theme.colors.muted}>
-            You are a helpful assistant…<Text inverse> </Text>
-          </Text>
-        ) : (
-          visible.map((line, i) => (
-            <Text key={i}>
-              {line}
-              {i === visible.length - 1 ? <Text inverse> </Text> : null}
-            </Text>
-          ))
-        )}
-      </Box>
-      <Box marginTop={1}>
+      <Question text="type or paste the agent's instructions · empty skips" />
+      {hidden > 0 && <Text color={theme.colors.muted}>│ … (+{hidden} earlier lines)</Text>}
+      {visible.length === 0 ? (
         <Text color={theme.colors.muted}>
-          {value === "" ? "ctrl+d to skip" : `${value.length} characters · ctrl+d to continue`}
+          │ You are a helpful assistant…<Text inverse> </Text>
         </Text>
-      </Box>
+      ) : (
+        visible.map((line, i) => (
+          <Text key={i}>
+            <Text color={theme.colors.border}>│ </Text>
+            {line}
+            {i === visible.length - 1 ? <Text inverse> </Text> : null}
+          </Text>
+        ))
+      )}
+      {value !== "" && (
+        <Text color={theme.colors.muted}>{`  ${value.length} chars · ctrl+d continues`}</Text>
+      )}
     </Box>
   );
 }
@@ -1164,7 +1126,7 @@ function AdvancedStep({
         const field = ADVANCED_FIELDS.find((f) => f.key === editing)!;
         const committed = draft.trim();
         if (field.numeric && committed !== "" && !/^\d+$/.test(committed)) {
-          setError("Enter a whole number (or leave empty to unset).");
+          setError("enter a whole number, or leave empty to unset");
           return;
         }
         onChange({ ...value, [editing]: committed });
@@ -1206,32 +1168,24 @@ function AdvancedStep({
   if (!configuring) {
     return (
       <Box flexDirection="column">
-        <StepHeading
-          title="Advanced options"
-          hint="VPC networking, model override, limits, environment variables."
-        />
-        <Box flexDirection="column">
-          <Box>
-            <Text color={choice === 0 ? theme.colors.focus : theme.colors.muted}>
-              {choice === 0 ? "❯ " : "  "}
-            </Text>
-            <Text bold={choice === 0} color={choice === 0 ? theme.colors.focus : theme.colors.text}>
-              Skip — use the defaults (recommended)
-            </Text>
-          </Box>
-          <Box>
-            <Text color={choice === 1 ? theme.colors.focus : theme.colors.muted}>
-              {choice === 1 ? "❯ " : "  "}
-            </Text>
-            <Text bold={choice === 1} color={choice === 1 ? theme.colors.focus : theme.colors.text}>
-              Configure advanced options
-            </Text>
-          </Box>
-        </Box>
-        <Box marginTop={1}>
-          <Text color={theme.colors.muted}>
-            Most harnesses run fine on the defaults; everything here can be changed later.
+        <Question text="configure advanced options?" />
+        <Box>
+          <Text color={choice === 0 ? theme.colors.focus : theme.colors.muted}>
+            {choice === 0 ? "● " : "○ "}
           </Text>
+          <Text bold={choice === 0} color={choice === 0 ? theme.colors.focus : theme.colors.text}>
+            {"no — use the defaults".padEnd(23)}
+          </Text>
+          <Text color={theme.colors.muted}>most harnesses run fine on them (recommended)</Text>
+        </Box>
+        <Box>
+          <Text color={choice === 1 ? theme.colors.focus : theme.colors.muted}>
+            {choice === 1 ? "● " : "○ "}
+          </Text>
+          <Text bold={choice === 1} color={choice === 1 ? theme.colors.focus : theme.colors.text}>
+            {"yes — configure".padEnd(23)}
+          </Text>
+          <Text color={theme.colors.muted}>networking, execution role, limits, env vars</Text>
         </Box>
       </Box>
     );
@@ -1251,41 +1205,39 @@ function AdvancedStep({
 
   return (
     <Box flexDirection="column">
-      <StepHeading title="Advanced options" hint="Enter edits a field; network mode toggles." />
-      <Box flexDirection="column">
-        {fields.map((field, i) => {
-          const isCursor = i === cursor && !editing;
-          const raw = field.key === "networkMode" ? value.networkMode : value[field.key];
-          return (
-            <Box key={field.key}>
-              <Text color={isCursor ? theme.colors.focus : theme.colors.muted}>
-                {isCursor ? "❯ " : "  "}
-              </Text>
-              <Text bold={isCursor} color={isCursor ? theme.colors.focus : theme.colors.text}>
-                {field.label.padEnd(20)}
-              </Text>
-              <Text color={raw !== "" ? theme.colors.text : theme.colors.muted}>
-                {display(field)}
-              </Text>
-            </Box>
-          );
-        })}
-        <Box marginTop={1}>
-          <Text
-            color={cursor === fields.length && !editing ? theme.colors.focus : theme.colors.muted}
-          >
-            {cursor === fields.length && !editing ? "❯ " : "  "}
-          </Text>
-          <Text
-            bold={cursor === fields.length && !editing}
-            color={cursor === fields.length && !editing ? theme.colors.focus : theme.colors.text}
-          >
-            Done — continue
-          </Text>
-        </Box>
+      <Question text="enter edits a field · network mode toggles" />
+      {fields.map((field, i) => {
+        const isCursor = i === cursor && !editing;
+        const raw = field.key === "networkMode" ? value.networkMode : value[field.key];
+        return (
+          <Box key={field.key}>
+            <Text color={isCursor ? theme.colors.focus : theme.colors.muted}>
+              {isCursor ? "❯ " : "  "}
+            </Text>
+            <Text bold={isCursor} color={isCursor ? theme.colors.focus : theme.colors.text}>
+              {field.label.padEnd(20)}
+            </Text>
+            <Text color={raw !== "" ? theme.colors.text : theme.colors.muted}>
+              {display(field)}
+            </Text>
+          </Box>
+        );
+      })}
+      <Box>
+        <Text
+          color={cursor === fields.length && !editing ? theme.colors.focus : theme.colors.muted}
+        >
+          {cursor === fields.length && !editing ? "❯ " : "  "}
+        </Text>
+        <Text
+          bold={cursor === fields.length && !editing}
+          color={cursor === fields.length && !editing ? theme.colors.focus : theme.colors.text}
+        >
+          done — continue
+        </Text>
       </Box>
       {editing && editedField && (
-        <Box marginTop={1} flexDirection="column">
+        <Box flexDirection="column">
           <TextInput
             label={editedField.label}
             value={draft}
@@ -1296,7 +1248,7 @@ function AdvancedStep({
             placeholder={editedField.placeholder}
           />
           <Text color={error ? theme.colors.error : theme.colors.muted}>
-            {error ?? "enter to save · esc to cancel · empty resets to default"}
+            {"  " + (error ?? "enter saves · esc cancels · empty resets to the default")}
           </Text>
         </Box>
       )}
@@ -1327,12 +1279,11 @@ function ReviewStep({
 
   return (
     <Box flexDirection="column">
-      <StepHeading
-        title="Review"
-        hint={
+      <Question
+        text={
           mode === "create"
-            ? "This request will be sent to CreateHarness."
-            : "Only the changed fields are sent to UpdateHarness."
+            ? "this request will be sent to CreateHarness"
+            : "only the changed fields are sent to UpdateHarness"
         }
       />
       <ScrollView>
@@ -1343,11 +1294,6 @@ function ReviewStep({
           code={JSON.stringify(request, null, 2)}
         />
       </ScrollView>
-      <Box marginTop={1}>
-        <Text color={theme.colors.muted}>
-          press <Text color={theme.colors.focus}>enter</Text> to {mode} the harness
-        </Text>
-      </Box>
     </Box>
   );
 }
@@ -1356,14 +1302,12 @@ function ReviewStep({
 
 function SuccessPanel({
   mode,
-  name,
   harnessId,
   version,
   status,
   onContinue,
 }: {
   mode: "create" | "update";
-  name: string;
   harnessId: string;
   version?: string;
   status?: string;
@@ -1374,38 +1318,21 @@ function SuccessPanel({
   });
 
   return (
-    <Box flexDirection="column" marginTop={1}>
+    <Box flexDirection="column">
       <Text color={theme.colors.success} bold>
-        ✔ Harness {mode === "create" ? "created" : "updated"}
+        ✔ harness {mode === "create" ? "created" : "updated"}
       </Text>
-      <Box flexDirection="column" marginTop={1} marginLeft={2}>
-        <Text>
-          <Text color={theme.colors.muted}>{"name     "}</Text>
-          {name}
-        </Text>
-        <Text>
-          <Text color={theme.colors.muted}>{"id       "}</Text>
-          {harnessId}
-        </Text>
-        {version && (
-          <Text>
-            <Text color={theme.colors.muted}>{"version  "}</Text>
-            {version}
-          </Text>
-        )}
-        {status && (
-          <Text>
-            <Text color={theme.colors.muted}>{"status   "}</Text>
-            {status}
-          </Text>
-        )}
-      </Box>
-      <Box marginTop={1}>
-        <Text color={theme.colors.muted}>
-          Provisioning finishes in the background — press{" "}
-          <Text color={theme.colors.focus}>enter</Text> to open the harness.
-        </Text>
-      </Box>
+      <Text>
+        {"  "}
+        {harnessId}
+        {version ? ` · v${version}` : ""}
+        {status ? ` · ${status}` : ""}
+      </Text>
+      <Text color={theme.colors.muted}>
+        {mode === "create"
+          ? "  provisioning continues in the background · enter opens the harness"
+          : "  the new version is deploying · enter opens the harness"}
+      </Text>
     </Box>
   );
 }
@@ -1416,11 +1343,9 @@ function ErrorPanel({ message, onBack }: { message: string; onBack: () => void }
   });
 
   return (
-    <Box flexDirection="column" marginTop={1}>
+    <Box flexDirection="column">
       <Text color={theme.colors.error}>✗ {message}</Text>
-      <Box marginTop={1}>
-        <Text color={theme.colors.muted}>press esc to go back and adjust</Text>
-      </Box>
+      <Text color={theme.colors.muted}>{"  esc returns to the form"}</Text>
     </Box>
   );
 }
