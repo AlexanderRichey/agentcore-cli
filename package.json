@@ -51,6 +51,7 @@
     "ink-scroll-view": "^0.3.7",
     "lodash": "^4.18.1",
     "react": "^19.2.7",
+    "react-devtools-core": "^7.0.1",
     "react-router": "^8.1.0",
     "zod": "^4.4.3"
   }
