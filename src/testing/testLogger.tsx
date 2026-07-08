@@ -10,10 +10,20 @@ export interface TestLogger extends Logger {
   /** All recorded log entries across every level. */
   entries: LogEntry[];
 
-  /** Returns entries logged at the given level. */
+  /**
+   * Returns entries logged at the given level.
+   *
+   * @param level - The log level to filter by.
+   */
   atLevel(level: LogLevelName): LogEntry[];
 
-  /** Returns true if any entry at `level` has a message (or object) matching `pattern`. */
+  /**
+   * Returns true if any entry at {@link level} has a message (or object)
+   * matching {@link pattern}.
+   *
+   * @param level - The log level to search within.
+   * @param pattern - A string or regex to match against log arguments.
+   */
   hasLog(level: LogLevelName, pattern: string | RegExp): boolean;
 
   /** Clears all recorded entries. */

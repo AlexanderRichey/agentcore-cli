@@ -22,7 +22,12 @@ function wrapPinoLogger(pinoLogger: pino.Logger): Logger {
   };
 }
 
-/** Creates a logger that writes structured JSON to a rotating file at debug level. */
+/**
+ * Creates a logger that writes structured JSON to a rotating file.
+ *
+ * @param config - Logger configuration (file path, rotation limits, level).
+ * @returns A {@link Logger} that writes to a rotating file via pino.
+ */
 export function createFileLogger(config: FileLoggerConfig): Logger {
   const maxSizeInMB = config.maxSizeInMB ?? 10;
   const maxFileCount = config.maxFileCount ?? 5;
