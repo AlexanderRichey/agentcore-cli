@@ -12,6 +12,7 @@ import type { ScreenProps } from "../handlers/types";
 import { coreOptsFromCtx } from "../handlers/utils";
 import { Layout } from "./Layout";
 import { FormTextInput } from "./FormTextInput";
+import { FormRadioGroup, type FormRadioOption } from "./FormRadioGroup";
 import { Stepper, type Step } from "./ui/stepper";
 import { TextInput } from "./ui/text-input";
 import { Spinner } from "./ui/spinner";
@@ -26,14 +27,19 @@ const theme = darkTheme;
 
 export type MemoryKind = "managed" | "byo" | "disabled";
 
+// ModelKind selects the provider member of the API's HarnessModelConfiguration
+// union; "default" means "don't send a model" (service default on create, keep
+// the current one on update).
+export type ModelKind = "default" | "bedrock" | "gemini" | "openai" | "litellm";
+
 // HarnessFormValues is the flat, editable shape the wizard collects. It is
 // deliberately simpler than the API request; toCreateInput / toUpdateRequest
 // translate it (and fromHarness translates back for the update flow).
 export interface HarnessFormValues {
   name: string;
-  // model.modelId is a Bedrock model/inference-profile ID; "" means "don't
-  // send a model" (service default on create, keep the current one on update).
-  model: { modelId: string };
+  // model holds the fields of every provider flattened together; only the ones
+  // the selected kind needs are shown, validated, and sent.
+  model: { kind: ModelKind; modelId: string; apiKeyArn: string; apiBase: string };
   memory: { kind: MemoryKind; arn: string };
   tools: {
     browser: boolean;
@@ -57,13 +63,10 @@ export interface HarnessFormValues {
   passthroughTools: HarnessTool[];
 }
 
-// DEFAULT_MODEL_ID is preselected when creating a harness.
-export const DEFAULT_MODEL_ID = "us.anthropic.claude-sonnet-4-6";
-
 export function emptyHarnessForm(): HarnessFormValues {
   return {
     name: "",
-    model: { modelId: DEFAULT_MODEL_ID },
+    model: { kind: "default", modelId: "", apiKeyArn: "", apiBase: "" },
     memory: { kind: "managed", arn: "" },
     tools: { browser: false, codeInterpreter: false, gatewayArn: "", mcpUrl: "" },
     systemPrompt: "",
@@ -122,7 +125,36 @@ export function fromHarness(harness: Harness): HarnessFormValues {
   values.advanced.environmentVariables = Object.entries(harness.environmentVariables ?? {})
     .map(([key, value]) => `${key}=${value}`)
     .join(",");
-  values.model.modelId = harness.model?.bedrockModelConfig?.modelId ?? "";
+  const model = harness.model;
+  if (model?.bedrockModelConfig) {
+    values.model = {
+      kind: "bedrock",
+      modelId: model.bedrockModelConfig.modelId ?? "",
+      apiKeyArn: "",
+      apiBase: "",
+    };
+  } else if (model?.geminiModelConfig) {
+    values.model = {
+      kind: "gemini",
+      modelId: model.geminiModelConfig.modelId ?? "",
+      apiKeyArn: model.geminiModelConfig.apiKeyArn ?? "",
+      apiBase: "",
+    };
+  } else if (model?.openAiModelConfig) {
+    values.model = {
+      kind: "openai",
+      modelId: model.openAiModelConfig.modelId ?? "",
+      apiKeyArn: model.openAiModelConfig.apiKeyArn ?? "",
+      apiBase: "",
+    };
+  } else if (model?.liteLlmModelConfig) {
+    values.model = {
+      kind: "litellm",
+      modelId: model.liteLlmModelConfig.modelId ?? "",
+      apiKeyArn: model.liteLlmModelConfig.apiKeyArn ?? "",
+      apiBase: model.liteLlmModelConfig.apiBase ?? "",
+    };
+  }
   values.advanced.maxIterations = harness.maxIterations?.toString() ?? "";
   values.advanced.maxTokens = harness.maxTokens?.toString() ?? "";
   values.advanced.timeoutSeconds = harness.timeoutSeconds?.toString() ?? "";
@@ -139,6 +171,30 @@ function toMemoryConfiguration(values: HarnessFormValues): HarnessMemoryConfigur
       return { agentCoreMemoryConfiguration: { arn: values.memory.arn } };
     case "disabled":
       return { disabled: {} };
+  }
+}
+
+// toModelConfiguration builds the provider member of the model union, or
+// undefined for "default" (service default on create, keep current on update).
+function toModelConfiguration(values: HarnessFormValues): CreateHarnessInput["model"] {
+  const model = values.model;
+  switch (model.kind) {
+    case "default":
+      return undefined;
+    case "bedrock":
+      return { bedrockModelConfig: { modelId: model.modelId } };
+    case "gemini":
+      return { geminiModelConfig: { modelId: model.modelId, apiKeyArn: model.apiKeyArn } };
+    case "openai":
+      return { openAiModelConfig: { modelId: model.modelId, apiKeyArn: model.apiKeyArn } };
+    case "litellm":
+      return {
+        liteLlmModelConfig: {
+          modelId: model.modelId,
+          apiKeyArn: model.apiKeyArn || undefined,
+          apiBase: model.apiBase || undefined,
+        },
+      };
   }
 }
 
@@ -215,9 +271,7 @@ export function toCreateInput(values: HarnessFormValues): CreateHarnessInput {
     systemPrompt: values.systemPrompt !== "" ? [{ text: values.systemPrompt }] : undefined,
     environment: toEnvironment(values),
     environmentVariables: Object.keys(envVars).length > 0 ? envVars : undefined,
-    model: values.model.modelId
-      ? { bedrockModelConfig: { modelId: values.model.modelId } }
-      : undefined,
+    model: toModelConfiguration(values),
     maxIterations: toNumber(values.advanced.maxIterations),
     maxTokens: toNumber(values.advanced.maxTokens),
     timeoutSeconds: toNumber(values.advanced.timeoutSeconds),
@@ -238,8 +292,9 @@ export function toUpdateRequest(
     values.memory.kind !== initial.memory.kind || values.memory.arn !== initial.memory.arn;
   if (memoryChanged) request.memory = { optionalValue: toMemoryConfiguration(values) };
 
-  if (values.model.modelId !== initial.model.modelId && values.model.modelId !== "") {
-    request.model = { bedrockModelConfig: { modelId: values.model.modelId } };
+  const modelChanged = JSON.stringify(values.model) !== JSON.stringify(initial.model);
+  if (modelChanged && values.model.kind !== "default") {
+    request.model = toModelConfiguration(values);
   }
 
   if (JSON.stringify(values.tools) !== JSON.stringify(initial.tools)) {
@@ -605,11 +660,126 @@ function NameStep({
 
 // ─── step: model ──────────────────────────────────────────────────────────────
 
-const MODEL_PRESETS: { id: string; label: string }[] = [
-  { id: DEFAULT_MODEL_ID, label: "claude sonnet 4.6" },
-  { id: "us.anthropic.claude-sonnet-5", label: "claude sonnet 5" },
-  { id: "us.anthropic.claude-opus-4-8", label: "claude opus 4.8" },
-  { id: "us.anthropic.claude-haiku-4-5-20251001-v1:0", label: "claude haiku 4.5" },
+type ModelFieldKey = "modelId" | "apiKeyArn" | "apiBase";
+
+interface ModelField {
+  key: ModelFieldKey;
+  name: string;
+  helpText: string;
+  placeholder: string;
+  // required fields block continuing while empty; optional ones are omitted
+  // from the request when left empty.
+  required: boolean;
+  requiredError: string;
+}
+
+// MODEL_PROVIDERS mirrors the API's HarnessModelConfiguration union: one row
+// per provider, plus the "default" opt-out, each declaring the fields the
+// provider needs.
+const MODEL_PROVIDERS: {
+  kind: ModelKind;
+  label: string;
+  description: string;
+  fields: ModelField[];
+}[] = [
+  {
+    kind: "default",
+    label: "service default",
+    description: "let the service choose the model (recommended)",
+    fields: [],
+  },
+  {
+    kind: "bedrock",
+    label: "bedrock",
+    description: "an amazon bedrock model",
+    fields: [
+      {
+        key: "modelId",
+        name: "model id",
+        helpText: "a bedrock model or inference profile id",
+        placeholder: "us.anthropic.claude-sonnet-4-6",
+        required: true,
+        requiredError: "enter a bedrock model or inference profile id",
+      },
+    ],
+  },
+  {
+    kind: "gemini",
+    label: "gemini",
+    description: "a google gemini model",
+    fields: [
+      {
+        key: "modelId",
+        name: "model id",
+        helpText: "the gemini model to use",
+        placeholder: "gemini-2.5-pro",
+        required: true,
+        requiredError: "enter a gemini model id",
+      },
+      {
+        key: "apiKeyArn",
+        name: "api key arn",
+        helpText: "the arn of your gemini api key in agentcore identity",
+        placeholder: "arn:aws:bedrock-agentcore:…:token-vault/…",
+        required: true,
+        requiredError: "enter the arn of your gemini api key",
+      },
+    ],
+  },
+  {
+    kind: "openai",
+    label: "openai",
+    description: "an openai model",
+    fields: [
+      {
+        key: "modelId",
+        name: "model id",
+        helpText: "the openai model to use",
+        placeholder: "gpt-5",
+        required: true,
+        requiredError: "enter an openai model id",
+      },
+      {
+        key: "apiKeyArn",
+        name: "api key arn",
+        helpText: "the arn of your openai api key in agentcore identity",
+        placeholder: "arn:aws:bedrock-agentcore:…:token-vault/…",
+        required: true,
+        requiredError: "enter the arn of your openai api key",
+      },
+    ],
+  },
+  {
+    kind: "litellm",
+    label: "litellm",
+    description: "any third-party provider via litellm",
+    fields: [
+      {
+        key: "modelId",
+        name: "model id",
+        helpText: "the litellm model identifier (provider/model)",
+        placeholder: "anthropic/claude-3-sonnet",
+        required: true,
+        requiredError: "enter a litellm model identifier",
+      },
+      {
+        key: "apiKeyArn",
+        name: "api key arn",
+        helpText: "optional · the arn of the provider api key in agentcore identity",
+        placeholder: "arn:aws:bedrock-agentcore:…:token-vault/…",
+        required: false,
+        requiredError: "",
+      },
+      {
+        key: "apiBase",
+        name: "api base url",
+        helpText: "optional · the base url of the provider's api endpoint",
+        placeholder: "https://…",
+        required: false,
+        requiredError: "",
+      },
+    ],
+  },
 ];
 
 function ModelStep({
@@ -625,96 +795,106 @@ function ModelStep({
   onNext: () => void;
   onBack: () => void;
 }) {
-  // Rows: the presets, then "Other" (free-form model ID), then the opt-out
-  // ("" — service default on create, keep the current model on update).
-  const customIndex = MODEL_PRESETS.length;
-  const noneIndex = MODEL_PRESETS.length + 1;
-  const [cursor, setCursor] = useState(() => {
-    if (value.modelId === "") return noneIndex;
-    const preset = MODEL_PRESETS.findIndex((p) => p.id === value.modelId);
-    return preset >= 0 ? preset : customIndex;
-  });
-  const [draft, setDraft] = useState(() =>
-    MODEL_PRESETS.some((p) => p.id === value.modelId) ? "" : value.modelId,
-  );
+  const index = MODEL_PROVIDERS.findIndex((provider) => provider.kind === value.kind);
+  const provider = MODEL_PROVIDERS[index]!;
+  // focusedField indexes into provider.fields while editing; null while the
+  // radio list has focus.
+  const [focusedField, setFocusedField] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useInput((_input, key) => {
+    if (focusedField === null) {
+      if (key.escape) {
+        onBack();
+        return;
+      }
+      if (key.upArrow) {
+        onChange({ ...value, kind: MODEL_PROVIDERS[Math.max(0, index - 1)]!.kind });
+        setError(null);
+        return;
+      }
+      if (key.downArrow) {
+        const next = MODEL_PROVIDERS[Math.min(MODEL_PROVIDERS.length - 1, index + 1)]!;
+        onChange({ ...value, kind: next.kind });
+        setError(null);
+        return;
+      }
+      if (key.return) {
+        if (provider.fields.length === 0) onNext();
+        else setFocusedField(0);
+      }
+      return;
+    }
+
+    // A field is focused; its TextInput owns text editing.
     if (key.escape) {
-      onBack();
+      setFocusedField(null);
+      setError(null);
       return;
     }
     if (key.upArrow) {
-      setCursor((c) => Math.max(0, c - 1));
+      setFocusedField(focusedField === 0 ? null : focusedField - 1);
       setError(null);
       return;
     }
     if (key.downArrow) {
-      setCursor((c) => Math.min(noneIndex, c + 1));
+      setFocusedField(Math.min(provider.fields.length - 1, focusedField + 1));
       setError(null);
       return;
     }
     if (key.return) {
-      if (cursor === noneIndex) {
-        onChange({ modelId: "" });
-        onNext();
+      const field = provider.fields[focusedField]!;
+      if (field.required && value[field.key].trim() === "") {
+        setError(field.requiredError);
         return;
       }
-      if (cursor === customIndex) {
-        const committed = draft.trim();
-        if (committed === "") {
-          setError("enter a bedrock model or inference profile id");
-          return;
-        }
-        onChange({ modelId: committed });
-        onNext();
+      if (focusedField < provider.fields.length - 1) {
+        setFocusedField(focusedField + 1);
         return;
       }
-      onChange({ modelId: MODEL_PRESETS[cursor]!.id });
+      // Last field: every required field must be filled before moving on.
+      const missing = provider.fields.findIndex(
+        (other) => other.required && value[other.key].trim() === "",
+      );
+      if (missing >= 0) {
+        setFocusedField(missing);
+        setError(provider.fields[missing]!.requiredError);
+        return;
+      }
       onNext();
     }
   });
 
-  const rows: { label: string; description: string }[] = [
-    ...MODEL_PRESETS.map((preset, i) => ({
-      label: preset.label,
-      description: i === 0 ? `${preset.id} (recommended)` : preset.id,
-    })),
-    { label: "other", description: "enter any bedrock model or inference profile id" },
-    mode === "create"
-      ? { label: "service default", description: "let the service choose the model" }
-      : { label: "keep current", description: "leave the model configuration untouched" },
-  ];
+  const rows: FormRadioOption[] = MODEL_PROVIDERS.map((row) =>
+    row.kind === "default" && mode === "update"
+      ? { label: "keep current", description: "leave the model configuration untouched" }
+      : { label: row.label, description: row.description },
+  );
 
   return (
-    <Box flexDirection="column">
-      <Question text="which model should the agent use?" />
-      {rows.map((row, i) => {
-        const selected = i === cursor;
-        return (
-          <Box key={row.label}>
-            <Text color={selected ? theme.colors.focus : theme.colors.muted}>
-              {selected ? "● " : "○ "}
-            </Text>
-            <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
-              {row.label.padEnd(19)}
-            </Text>
-            <Text color={theme.colors.muted}>{row.description}</Text>
-          </Box>
-        );
-      })}
-      {cursor === customIndex && (
-        <TextInput
-          label="model id"
-          value={draft}
+    <Box flexDirection="column" paddingX={1}>
+      <FormRadioGroup
+        name="choose a model"
+        helpText="the provider and model that will power the harness"
+        options={rows}
+        selectedIndex={index}
+      />
+      {provider.fields.map((field, i) => (
+        <FormTextInput
+          key={`${provider.kind}.${field.key}`}
+          name={field.name}
+          helpText={field.helpText}
+          placeholder={field.placeholder}
+          errorText=""
+          value={value[field.key]}
           onChange={(next) => {
-            setDraft(next);
+            onChange({ ...value, [field.key]: next });
             setError(null);
           }}
-          placeholder="e.g. us.anthropic.claude-opus-4-5-20251101-v1:0"
+          focused={focusedField === i}
         />
-      )}
-      {error && <Text color={theme.colors.error}>{"  " + error}</Text>}
+      ))}
+      {error && <Text color={theme.colors.error}>{error}</Text>}
     </Box>
   );
 }
@@ -777,21 +957,12 @@ function MemoryStep({
 
   return (
     <Box flexDirection="column">
-      <Question text="how should the harness remember conversations?" />
-      {MEMORY_OPTIONS.map((option, i) => {
-        const selected = i === index;
-        return (
-          <Box key={option.kind}>
-            <Text color={selected ? theme.colors.focus : theme.colors.muted}>
-              {selected ? "● " : "○ "}
-            </Text>
-            <Text bold={selected} color={selected ? theme.colors.focus : theme.colors.text}>
-              {option.label.padEnd(16)}
-            </Text>
-            <Text color={theme.colors.muted}>{option.description}</Text>
-          </Box>
-        );
-      })}
+      <FormRadioGroup
+        name="choose a memory configuration"
+        helpText="how should the harness remember conversations?"
+        options={MEMORY_OPTIONS}
+        selectedIndex={index}
+      />
       {value.kind === "byo" && (
         <TextInput
           label="memory arn"
@@ -1160,25 +1331,21 @@ function AdvancedStep({
   if (!configuring) {
     return (
       <Box flexDirection="column">
-        <Question text="configure advanced options?" />
-        <Box>
-          <Text color={choice === 0 ? theme.colors.focus : theme.colors.muted}>
-            {choice === 0 ? "● " : "○ "}
-          </Text>
-          <Text bold={choice === 0} color={choice === 0 ? theme.colors.focus : theme.colors.text}>
-            {"no — use the defaults".padEnd(23)}
-          </Text>
-          <Text color={theme.colors.muted}>most harnesses run fine on them (recommended)</Text>
-        </Box>
-        <Box>
-          <Text color={choice === 1 ? theme.colors.focus : theme.colors.muted}>
-            {choice === 1 ? "● " : "○ "}
-          </Text>
-          <Text bold={choice === 1} color={choice === 1 ? theme.colors.focus : theme.colors.text}>
-            {"yes — configure".padEnd(23)}
-          </Text>
-          <Text color={theme.colors.muted}>networking, execution role, limits, env vars</Text>
-        </Box>
+        <FormRadioGroup
+          name="advanced options"
+          helpText="configure advanced options?"
+          options={[
+            {
+              label: "no — use the defaults",
+              description: "most harnesses run fine on them (recommended)",
+            },
+            {
+              label: "yes — configure",
+              description: "networking, execution role, limits, env vars",
+            },
+          ]}
+          selectedIndex={choice}
+        />
       </Box>
     );
   }

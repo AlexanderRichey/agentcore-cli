@@ -41,10 +41,14 @@ describe("harness create wizard", () => {
     await r.write("my_agent");
     await r.press("return");
 
-    // Step: model — Claude Sonnet 4.6 is preselected; keep it.
-    await waitForText(r.lastFrame, "which model should the agent use?");
-    expect(r.lastFrame()).toContain("● claude sonnet 4.6");
-    expect(r.lastFrame()).toContain("us.anthropic.claude-sonnet-4-6 (recommended)");
+    // Step: model — service default is preselected; pick bedrock instead and
+    // enter a model id.
+    await waitForText(r.lastFrame, "choose a model");
+    expect(r.lastFrame()).toContain("● service default");
+    await r.press("down"); // bedrock
+    await waitForText(r.lastFrame, "● bedrock");
+    await r.press("return"); // focus the model id field
+    await r.write("us.anthropic.claude-sonnet-4-6");
     await r.press("return");
 
     // Step: memory — managed is preselected; keep it.
@@ -109,7 +113,7 @@ describe("harness create wizard", () => {
     r.unmount();
   });
 
-  test("picking a different preset model sends that model", async () => {
+  test("selecting gemini collects the model id and api key arn", async () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
@@ -117,10 +121,14 @@ describe("harness create wizard", () => {
     await r.write("my_agent");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "which model should the agent use?");
-    await r.press("down"); // Sonnet 5
-    await r.press("down"); // Opus 4.8
-    await waitForText(r.lastFrame, "● claude opus 4.8");
+    await waitForText(r.lastFrame, "choose a model");
+    await r.press("down"); // bedrock
+    await r.press("down"); // gemini
+    await waitForText(r.lastFrame, "● gemini");
+    await r.press("return"); // focus the model id field
+    await r.write("gemini-2.5-pro");
+    await r.press("return"); // on to the api key arn field
+    await r.write("arn:aws:bedrock-agentcore:us-east-1:123:token-vault/default/apikey/gemini");
     await r.press("return");
 
     await waitForText(r.lastFrame, "how should the harness remember conversations?");
@@ -138,13 +146,18 @@ describe("harness create wizard", () => {
     const call = core.harness.calls.find((c) => c.method === "createHarness")!;
     expect(call.args[0]).toEqual({
       harnessName: "my_agent",
-      model: { bedrockModelConfig: { modelId: "us.anthropic.claude-opus-4-8" } },
+      model: {
+        geminiModelConfig: {
+          modelId: "gemini-2.5-pro",
+          apiKeyArn: "arn:aws:bedrock-agentcore:us-east-1:123:token-vault/default/apikey/gemini",
+        },
+      },
       memory: { managedMemoryConfiguration: {} },
     });
     r.unmount();
   });
 
-  test("Other requires a model ID and sends the entered one", async () => {
+  test("openai requires the model id and api key arn and sends them", async () => {
     const core = coreForCreate();
     const r = renderScreen("/agentcore/harness/create", { core });
 
@@ -152,15 +165,19 @@ describe("harness create wizard", () => {
     await r.write("my_agent");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "which model should the agent use?");
-    await r.press("down"); // Sonnet 5
-    await r.press("down"); // Opus 4.8
-    await r.press("down"); // Haiku 4.5
-    await r.press("down"); // Other
-    await waitForText(r.lastFrame, "● other");
+    await waitForText(r.lastFrame, "choose a model");
+    await r.press("down"); // bedrock
+    await r.press("down"); // gemini
+    await r.press("down"); // openai
+    await waitForText(r.lastFrame, "● openai");
+    await r.press("return"); // focus the model id field
     await r.press("return"); // empty → error
-    await waitForText(r.lastFrame, "enter a bedrock model or inference profile id");
-    await r.write("eu.anthropic.claude-sonnet-4-6");
+    await waitForText(r.lastFrame, "enter an openai model id");
+    await r.write("gpt-5");
+    await r.press("return"); // on to the api key arn field
+    await r.press("return"); // empty → error
+    await waitForText(r.lastFrame, "enter the arn of your openai api key");
+    await r.write("arn:aws:bedrock-agentcore:us-east-1:123:token-vault/default/apikey/openai");
     await r.press("return");
 
     await waitForText(r.lastFrame, "how should the harness remember conversations?");
@@ -178,7 +195,53 @@ describe("harness create wizard", () => {
     const call = core.harness.calls.find((c) => c.method === "createHarness")!;
     expect(call.args[0]).toEqual({
       harnessName: "my_agent",
-      model: { bedrockModelConfig: { modelId: "eu.anthropic.claude-sonnet-4-6" } },
+      model: {
+        openAiModelConfig: {
+          modelId: "gpt-5",
+          apiKeyArn: "arn:aws:bedrock-agentcore:us-east-1:123:token-vault/default/apikey/openai",
+        },
+      },
+      memory: { managedMemoryConfiguration: {} },
+    });
+    r.unmount();
+  });
+
+  test("litellm omits the optional fields left empty", async () => {
+    const core = coreForCreate();
+    const r = renderScreen("/agentcore/harness/create", { core });
+
+    await waitForText(r.lastFrame, "the name of your harness");
+    await r.write("my_agent");
+    await r.press("return");
+
+    await waitForText(r.lastFrame, "choose a model");
+    await r.press("down"); // bedrock
+    await r.press("down"); // gemini
+    await r.press("down"); // openai
+    await r.press("down"); // litellm
+    await waitForText(r.lastFrame, "● litellm");
+    await r.press("return"); // focus the model id field
+    await r.write("anthropic/claude-3-sonnet");
+    await r.press("return"); // api key arn — optional, leave empty
+    await r.press("return"); // api base url — optional, leave empty
+    await r.press("return");
+
+    await waitForText(r.lastFrame, "how should the harness remember conversations?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "which tools should the agent be able to use?");
+    await r.press("return");
+    await waitForText(r.lastFrame, "type or paste the agent's instructions");
+    await r.write("\x04");
+    await waitForText(r.lastFrame, "no — use the defaults");
+    await r.press("return");
+    await waitForText(r.lastFrame, "sent to CreateHarness");
+    await r.press("return");
+
+    await waitFor(() => core.harness.calls.some((c) => c.method === "createHarness"));
+    const call = core.harness.calls.find((c) => c.method === "createHarness")!;
+    expect(call.args[0]).toEqual({
+      harnessName: "my_agent",
+      model: { liteLlmModelConfig: { modelId: "anthropic/claude-3-sonnet" } },
       memory: { managedMemoryConfiguration: {} },
     });
     r.unmount();
@@ -192,13 +255,9 @@ describe("harness create wizard", () => {
     await r.write("my_agent");
     await r.press("return");
 
-    await waitForText(r.lastFrame, "which model should the agent use?");
-    await r.press("down"); // Sonnet 5
-    await r.press("down"); // Opus 4.8
-    await r.press("down"); // Haiku 4.5
-    await r.press("down"); // Other
-    await r.press("down"); // Service default
-    await waitForText(r.lastFrame, "● service default");
+    // Service default is the first option and preselected.
+    await waitForText(r.lastFrame, "choose a model");
+    expect(r.lastFrame()).toContain("● service default");
     await r.press("return");
 
     await waitForText(r.lastFrame, "how should the harness remember conversations?");
@@ -241,8 +300,8 @@ describe("harness create wizard", () => {
     await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
-    await waitForText(r.lastFrame, "which model should the agent use?");
-    await r.press("return");
+    await waitForText(r.lastFrame, "choose a model");
+    await r.press("return"); // service default — no model sent
 
     await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("down"); // bring your own
@@ -266,7 +325,6 @@ describe("harness create wizard", () => {
     const call = core.harness.calls.find((c) => c.method === "createHarness")!;
     expect(call.args[0]).toEqual({
       harnessName: "my_agent",
-      model: DEFAULT_MODEL,
       memory: {
         agentCoreMemoryConfiguration: {
           arn: "arn:aws:bedrock-agentcore:us-east-1:123:memory/m-1",
@@ -283,8 +341,8 @@ describe("harness create wizard", () => {
     await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
-    await waitForText(r.lastFrame, "which model should the agent use?");
-    await r.press("return");
+    await waitForText(r.lastFrame, "choose a model");
+    await r.press("return"); // service default — no model sent
     await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("return");
     await waitForText(r.lastFrame, "which tools should the agent be able to use?");
@@ -327,7 +385,6 @@ describe("harness create wizard", () => {
     expect(call.args[0]).toEqual({
       harnessName: "my_agent",
       executionRoleArn: "arn:aws:iam::123:role/Custom",
-      model: DEFAULT_MODEL,
       memory: { managedMemoryConfiguration: {} },
       maxIterations: 42,
     });
@@ -344,8 +401,8 @@ describe("harness create wizard", () => {
     await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
-    await waitForText(r.lastFrame, "which model should the agent use?");
-    await r.press("return");
+    await waitForText(r.lastFrame, "choose a model");
+    await r.press("return"); // service default — no model sent
     await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("return");
     await waitForText(r.lastFrame, "which tools should the agent be able to use?");
@@ -380,8 +437,8 @@ describe("harness create wizard", () => {
     await waitForText(r.lastFrame, "the name of your harness");
     await r.write("my_agent");
     await r.press("return");
-    await waitForText(r.lastFrame, "which model should the agent use?");
-    await r.press("return");
+    await waitForText(r.lastFrame, "choose a model");
+    await r.press("return"); // service default — no model sent
     await waitForText(r.lastFrame, "how should the harness remember conversations?");
     await r.press("return");
     await waitForText(r.lastFrame, "which tools should the agent be able to use?");

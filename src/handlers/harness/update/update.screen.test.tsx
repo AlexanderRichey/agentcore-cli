@@ -71,7 +71,7 @@ describe("harness update wizard", () => {
     await waitForText(r.lastFrame, "MyHarness");
     expect(r.lastFrame()).toContain("choose a harness to update");
     await r.press("return");
-    await waitForText(r.lastFrame, "which model should the agent use?");
+    await waitForText(r.lastFrame, "choose a model");
     r.unmount();
   });
 
@@ -104,9 +104,11 @@ describe("harness update wizard", () => {
     core.harness.setGetResponse(current);
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
-    // The harness's model is one of the presets, so it is preselected.
-    await waitForText(r.lastFrame, "● claude opus 4.8");
-    await r.press("return"); // model unchanged
+    // The harness's bedrock provider is preselected with its model id prefilled.
+    await waitForText(r.lastFrame, "● bedrock");
+    expect(r.lastFrame()).toContain("us.anthropic.claude-opus-4-8");
+    await r.press("return"); // into the model id field
+    await r.press("return"); // accept it unchanged
     await waitForText(r.lastFrame, "● managed");
     await r.press("return");
     await waitForText(r.lastFrame, "[✓] browser");
@@ -133,9 +135,10 @@ describe("harness update wizard", () => {
     const r = renderScreen("/agentcore/harness/update/MyHarness-abc123", { core });
 
     await waitForText(r.lastFrame, "● keep current");
-    await r.press("up"); // Other
-    await r.press("up"); // Haiku 4.5
-    await waitForText(r.lastFrame, "● claude haiku 4.5");
+    await r.press("down"); // bedrock
+    await waitForText(r.lastFrame, "● bedrock");
+    await r.press("return"); // focus the model id field
+    await r.write("us.anthropic.claude-haiku-4-5-20251001-v1:0");
     await r.press("return");
     await waitForText(r.lastFrame, "● managed");
     await r.press("return");

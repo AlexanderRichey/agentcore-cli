@@ -12,6 +12,9 @@ export interface FormTextInputProps {
   value: string;
   onChange: (value: string) => void;
   pattern?: RegExp;
+  // focused controls whether the input captures keystrokes; when several
+  // FormTextInputs are on screen, exactly one should be focused.
+  focused?: boolean;
 }
 
 export function FormTextInput({
@@ -22,6 +25,7 @@ export function FormTextInput({
   value,
   onChange,
   pattern,
+  focused = true,
 }: FormTextInputProps) {
   return (
     <Box flexDirection="column">
@@ -29,8 +33,8 @@ export function FormTextInput({
         <Text color={theme.colors.text}>{name}</Text>
         <Text color={theme.colors.muted}>{helpText}</Text>
       </Box>
-      <Box borderStyle="round" borderColor={theme.colors.border}>
-        <TextInput value={value} onChange={onChange} placeholder={placeholder} />
+      <Box borderStyle="round" borderColor={focused ? theme.colors.focus : theme.colors.border}>
+        <TextInput value={value} onChange={onChange} placeholder={placeholder} focus={focused} />
       </Box>
       {value !== "" && pattern && !pattern.test(value) && (
         <Text color={theme.colors.error}>{errorText}</Text>
