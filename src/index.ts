@@ -50,7 +50,7 @@ process.exit(
       rootLogger.error(e instanceof Error ? e : new Error(String(e)));
       throw e;
     } finally {
-      rootLogger.flush();
+      await rootLogger.flush();
     }
   }),
 );
