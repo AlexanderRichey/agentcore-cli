@@ -38,6 +38,9 @@ function matchesPattern(args: LogArgs, pattern: string | RegExp): boolean {
   return false;
 }
 
+/**
+ * Creates an in-memory {@link Logger} that records all entries for test assertions.
+ */
 export function createTestLogger(): TestLogger {
   const entries: LogEntry[] = [];
 

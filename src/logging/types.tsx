@@ -1,3 +1,6 @@
+/**
+ * Available log levels ordered by priority. `SILENT` disables all output.
+ */
 export const LOG_LEVEL = {
   DEBUG: { name: "debug", priority: 0 },
   INFO: { name: "info", priority: 1 },
@@ -16,6 +19,7 @@ export type LogArgs = [object, string?] | [string];
 
 type LogFn = (...args: LogArgs) => void;
 
+/** App-wide structured logging contract with child-logger support and async flush. */
 export type Logger = { [K in Exclude<LogLevelName, "silent">]: LogFn } & {
   child: (bindings: LoggerBindings) => Logger;
   flush: () => Promise<void>;

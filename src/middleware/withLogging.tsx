@@ -6,6 +6,12 @@ interface WithLoggingConfig {
   logger: Logger;
 }
 
+/**
+ * Middleware that creates a child logger bound to the current command path
+ * and logs execution start, success, and failure.
+ *
+ * @param config - Contains the root {@link Logger} to derive children from.
+ */
 export function withLogging(config: WithLoggingConfig): Middleware {
   return (h) => ({
     name: () => h.name(),
