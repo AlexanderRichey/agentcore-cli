@@ -75,7 +75,7 @@ export function HarnessPicker({
       breadcrumb={breadcrumb}
       description={description}
       keyHints={[
-        { key: "↑↓/jk", label: "navigate" },
+        { key: "↑↓/kj", label: "navigate" },
         ...(paginated ? [{ key: "←→/hl", label: "page" }] : []),
         { key: "/", label: "filter" },
         { key: "enter", label: "select" },
@@ -98,10 +98,10 @@ export function HarnessPicker({
             showDivider={true}
             pageSize={paging.pageSize}
             columns={[
-              { key: "harnessName", header: "Name", width: columns - 62 },
-              { key: "updatedAt", header: "UpdatedAt", width: 30 },
-              { key: "harnessVersion", header: "Version", width: 10 },
-              { key: "status", header: "Status", width: 20 },
+              { key: "harnessName", header: "name", width: columns - 62 },
+              { key: "updatedAt", header: "updatedAt", width: 30 },
+              { key: "harnessVersion", header: "version", width: 10 },
+              { key: "status", header: "status", width: 20 },
             ]}
             data={(list.data.harnesses ?? []).map(toRow)}
             onSelect={(row) => {

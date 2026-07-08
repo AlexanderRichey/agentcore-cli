@@ -1,4 +1,4 @@
-import { Text } from "ink";
+import { Text, useWindowSize } from "ink";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import type { HarnessVersionSummary } from "@aws-sdk/client-bedrock-agentcore-control";
@@ -49,6 +49,7 @@ export function VersionPicker({
   onSelect,
 }: VersionPickerProps) {
   const opts = coreOptsFromCtx(ctx);
+  const { columns } = useWindowSize();
   const navigate = useNavigate();
   const paging = usePagedList();
 
@@ -73,7 +74,7 @@ export function VersionPicker({
       breadcrumb={breadcrumb}
       description={description}
       keyHints={[
-        { key: "↑↓/jk", label: "navigate" },
+        { key: "↑↓/kj", label: "navigate" },
         ...(paginated ? [{ key: "←→/hl", label: "page" }] : []),
         { key: "/", label: "filter" },
         { key: "enter", label: "select" },
@@ -96,10 +97,9 @@ export function VersionPicker({
             showDivider={true}
             pageSize={paging.pageSize}
             columns={[
-              { key: "harnessVersion", header: "Version", width: 10 },
-              { key: "status", header: "Status", width: 20 },
-              { key: "createdAt", header: "CreatedAt", width: 30 },
-              { key: "updatedAt", header: "UpdatedAt", width: 30 },
+              { key: "harnessVersion", header: "version", width: columns - 52 },
+              { key: "status", header: "status", width: 20 },
+              { key: "createdAt", header: "createdAt", width: 30 },
             ]}
             data={rows}
             onSelect={(row) => {

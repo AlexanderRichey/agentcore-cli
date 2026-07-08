@@ -8,6 +8,8 @@ import { Spinner } from "../../../components/ui/spinner";
 import { Layout } from "../../../components/Layout";
 import { JsonDetail } from "../../../components/JsonDetail";
 import { darkTheme } from "../../../components/ui/_core.js";
+import { KeyValueTable } from "../../../components/KeyValueTable.js";
+import { Divider } from "../../../components/ui/divider/Divider.js";
 
 const theme = darkTheme;
 
@@ -39,6 +41,11 @@ const ACTIONS: { name: string; description: string; to: (id: string) => string }
     description: "run shell commands in this harness",
     to: (id) => `/agentcore/harness/exec/${id}`,
   },
+  {
+    name: "update",
+    description: "update this harness",
+    to: (id) => `/agentcore/harness/update/${id}`,
+  },
 ];
 
 // HarnessGetScreen is the hub for a single harness: a summary overlay (name,
@@ -58,16 +65,16 @@ export function HarnessGetScreen({ ctx, core }: ScreenProps) {
 
   const [index, setIndex] = useState(0);
 
-  useInput((_input, key) => {
+  useInput((input, key) => {
     if (key.escape) {
       navigate(-1);
       return;
     }
-    if (key.upArrow) {
+    if (key.upArrow || input === "k") {
       setIndex((i) => Math.max(0, i - 1));
       return;
     }
-    if (key.downArrow) {
+    if (key.downArrow || input == "j") {
       setIndex((i) => Math.min(ACTIONS.length - 1, i + 1));
       return;
     }
@@ -83,7 +90,7 @@ export function HarnessGetScreen({ ctx, core }: ScreenProps) {
     <Layout
       breadcrumb={["agentcore", "harness", "get", harnessId ?? ""]}
       keyHints={[
-        { key: "↑↓", label: "navigate" },
+        { key: "↑↓/kj", label: "navigate" },
         { key: "enter", label: "select" },
         { key: "esc", label: "back" },
         { key: "ctl+c", label: "quit" },
@@ -94,45 +101,23 @@ export function HarnessGetScreen({ ctx, core }: ScreenProps) {
       ) : detail.isError ? (
         <Text color="red">Error: {(detail.error as Error).message}</Text>
       ) : (
-        <Box flexDirection="column" paddingX={1}>
+        <Box flexDirection="column">
           {/* Summary overlay */}
-          <Box
-            flexDirection="column"
-            borderStyle="round"
-            borderColor={theme.colors.border}
-            paddingX={1}
-            marginBottom={1}
-          >
-            <Text bold>{harness?.harnessName ?? harnessId}</Text>
-            <Text>
-              <Text color={theme.colors.muted}>{"arn     "}</Text>
-              {harness?.arn ?? "-"}
-            </Text>
-            <Text>
-              <Text color={theme.colors.muted}>{"role    "}</Text>
-              {harness?.executionRoleArn ?? "-"}
-            </Text>
-            <Text>
-              <Text color={theme.colors.muted}>{"status  "}</Text>
-              <Text
-                color={
-                  harness?.status === "READY"
-                    ? theme.colors.success
-                    : harness?.status?.endsWith("FAILED")
-                      ? theme.colors.error
-                      : theme.colors.text
-                }
-              >
-                {harness?.status ?? "-"}
-              </Text>
-              {harness?.harnessVersion ? (
-                <Text color={theme.colors.muted}>{`   version ${harness.harnessVersion}`}</Text>
-              ) : null}
-            </Text>
+          <Box flexDirection="column" paddingLeft={1}>
+            <KeyValueTable
+              items={{
+                id: harness?.harnessId ?? "",
+                status: harness?.status ?? "",
+                version: harness?.harnessVersion?.toString() ?? "0",
+                arn: harness?.arn ?? "",
+              }}
+            />
           </Box>
 
+          <Divider />
+
           {/* Action selector */}
-          <Box flexDirection="column">
+          <Box flexDirection="column" paddingLeft={1}>
             {ACTIONS.map((action, i) => {
               const isHl = i === index;
               return (

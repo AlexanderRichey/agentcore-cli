@@ -42,7 +42,7 @@ export function JsonDetail({ breadcrumb, isPending, error, data, loadingLabel }:
     <Layout
       breadcrumb={breadcrumb}
       keyHints={[
-        { key: "↑↓/jk", label: "navigate" },
+        { key: "↑↓/kj", label: "navigate" },
         { key: "esc", label: "back" },
         { key: "ctl+c", label: "quit" },
       ]}

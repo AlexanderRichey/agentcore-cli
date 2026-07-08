@@ -102,11 +102,11 @@ export function EndpointPicker({
             showDivider={true}
             pageSize={paging.pageSize}
             columns={[
-              { key: "endpointName", header: "Name", width: columns - 72 },
-              { key: "liveVersion", header: "Live", width: 8 },
-              { key: "targetVersion", header: "Target", width: 8 },
-              { key: "status", header: "Status", width: 20 },
-              { key: "updatedAt", header: "UpdatedAt", width: 30 },
+              { key: "endpointName", header: "name", width: columns - 68 },
+              { key: "liveVersion", header: "live", width: 8 },
+              { key: "targetVersion", header: "target", width: 8 },
+              { key: "status", header: "status", width: 20 },
+              { key: "updatedAt", header: "updatedAt", width: 30 },
             ]}
             data={(list.data.endpoints ?? []).map(toRow)}
             onSelect={(row) => {
