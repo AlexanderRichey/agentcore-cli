@@ -9,9 +9,21 @@ grows.
 ### The Router / Handler framework
 
 The whole CLI is expressed as a tree of **`Handler`** nodes wired together by a
-**`Router`** (`src/router/`). A `Router` is itself a mountable branch node, so
-routers nest to form the command tree (`agentcore` → `harness` → `get`). Every
-command — branch or leaf — is a `Handler`:
+**`Routers`** (`src/router/`). `Handler` is defined as follows:
+
+```typescript
+interface Handler {
+  name(): string;
+  description(): string;
+  flags(): Flag[];
+  arguments(): Argument[];
+  handle: HandleFn<any, any>;
+  children(): Handler[];
+}
+```
+
+A `Router` is mountable branch node, which also implements `Handler`. Routers nest to form 
+the command tree (`agentcore` → `harness` → `get`). Every command — branch or leaf — is a `Handler`.
 
 - **Branch nodes** (routers) host subcommands and may declare group-level
   ("global") flags and middleware that apply to everything beneath them. A
@@ -22,12 +34,35 @@ command — branch or leaf — is a `Handler`:
   their own flags/arguments (validated and coerced via zod schemas) and receive
   a typed object in `handle(ctx, flags, args)`.
 
-Cross-cutting values flow through a typed **`Context`**. Group-level flags
-(`globalFlag(...)`) double as context keys, so a flag declared high in the tree
+Cross-cutting values flow through a typed **`Context`**, which every `HandlerFn` receives as its first argument. 
+`Context` allows passing aribtrary values down the handler chain.
+
+```typescript
+export interface Context {
+  // value returns the value previously stored under `key`, or undefined if absent.
+  value<V>(key: ContextKey<V>): V | undefined;
+  // require returns the value stored under `key`, throwing if it is absent.
+  require<V>(key: ContextKey<V>): V;
+  // withValue returns a new Context that carries `key`/`value` on top of this one.
+  withValue<V>(key: ContextKey<V>, value: V): Context;
+}
+```
+
+Group-level flags (`globalFlag(...)`) double as context keys, so a flag declared high in the tree
 is read type-safely by any descendant via `ctx.value(key)` / `ctx.require(key)`.
+
 **Middleware** (`router.use(...)`) wraps handlers down the subtree in
 ancestor-first order — for example `withRegion` resolves the effective AWS
-region once at the root and pins it on the context for every command below.
+region once at the root and pins it on the context (`ctx.withValue(RegionKey, region)`) for every command below, making 
+it possible for the region value to be read in corresponding `Handler`s (`ctx.value(RegionKey)`).
+
+Middleware is defined in the standard way:
+
+```typescript
+export type Middleware = (handler: Handler) => Handler;
+```
+
+These three ideas - `Handler`, `Context`, and `Middleware` - come together to make it easy to build functionality in a consistent, maintainable, and testable way.
 
 ### Adding a new handler
 
