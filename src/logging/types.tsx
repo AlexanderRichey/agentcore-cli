@@ -18,7 +18,15 @@ export type LogArgs = [object, string?] | [string];
 type LogFn = (...args: LogArgs) => void;
 
 /** App-wide structured logging contract with child-logger support and async flush. */
-export type Logger = { [K in Exclude<LogLevel, "silent">]: LogFn } & {
+export interface Logger {
+  debug: LogFn;
+  info: LogFn;
+  warn: LogFn;
+  error: LogFn;
   child: (bindings: LoggerBindings) => Logger;
+}
+
+export interface AsyncLogger extends Logger {
+  child: (bindings: LoggerBindings) => AsyncLogger;
   flush: () => Promise<void>;
-};
+}

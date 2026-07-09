@@ -1,10 +1,9 @@
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
 import { Router, createHandler } from "../router";
 import { withLogging } from "./withLogging";
-import { createFileLogger } from "../logging/file-logger";
-import { LOG_LEVEL } from "../logging/types";
+import { createFileLogger } from "../logging/fileLogger";
+import { LOG_LEVEL, type AsyncLogger } from "../logging/types";
 import { waitFor } from "../testing";
-import type { Logger } from "../logging";
 import { join } from "node:path";
 import { mkdtemp, rm, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -26,7 +25,7 @@ function parsedLines(content: string) {
 
 describe("withLogging", () => {
   let tempDir: string;
-  let logger: Logger;
+  let logger: AsyncLogger;
 
   beforeEach(async () => {
     tempDir = await mkdtemp(join(tmpdir(), "logging-test-"));

@@ -1,5 +1,5 @@
 import pino from "pino";
-import { type Logger, type LoggerBindings, type LogLevel } from "./types";
+import { type AsyncLogger, type LoggerBindings, type LogLevel } from "./types";
 
 export interface FileLoggerConfig {
   filePath: string;
@@ -9,7 +9,7 @@ export interface FileLoggerConfig {
   logLevel: LogLevel;
 }
 
-function wrapPinoLogger(pinoLogger: pino.Logger): Logger {
+function wrapPinoLogger(pinoLogger: pino.Logger): AsyncLogger {
   return {
     debug: pinoLogger.debug.bind(pinoLogger),
     info: pinoLogger.info.bind(pinoLogger),
@@ -26,9 +26,9 @@ function wrapPinoLogger(pinoLogger: pino.Logger): Logger {
  * Creates a logger that writes structured JSON to a rotating file.
  *
  * @param config - Logger configuration (file path, rotation limits, level).
- * @returns A {@link Logger} that writes to a rotating file via pino.
+ * @returns A {@link AsyncLogger} that writes to a rotating file via pino.
  */
-export function createFileLogger(config: FileLoggerConfig): Logger {
+export function createFileLogger(config: FileLoggerConfig): AsyncLogger {
   const maxSizeInMB = config.maxSizeInMB ?? 10;
   const maxFileCount = config.maxFileCount ?? 5;
   const bindings = config.bindings ?? {};
