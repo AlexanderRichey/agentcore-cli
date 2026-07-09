@@ -26,6 +26,12 @@ process.exit(
       bindings: { cliSessionId },
     });
 
+    const io = {
+      stdin: process.stdin,
+      stdout: process.stdout,
+      stderr: process.stderr,
+    };
+
     try {
       // Wrap the SDK clients in the CoreClient the handlers consume. Passing
       // factories (rather than instances) lets CoreClient build one client per
@@ -36,18 +42,16 @@ process.exit(
       // the app's io. CoreClient exposes feature sub-clients (e.g. `.harness`), so
       // it satisfies the Core contract directly.
       const rootHandler = createRootHandler(coreClient, {
-        io: {
-          stdin: process.stdin,
-          stdout: process.stdout,
-          stderr: process.stderr,
-        },
+        io,
         logger: rootLogger,
       });
 
       // Handle the request
       await rootHandler.route(argv);
     } catch (e) {
-      rootLogger.error(e instanceof Error ? e : new Error(String(e)));
+      const error = e instanceof Error ? e : new Error(String(e));
+      io.stderr.write(`${error.name}: ${error.message}\n`);
+      rootLogger.error(error);
       throw e;
     } finally {
       await rootLogger.flush();
