@@ -27,7 +27,8 @@ export function withLogging(config: WithLoggingConfig): Middleware {
         await h.handle(ctx.withValue<Logger>(LoggerKey, logger), flags, args);
         logger.debug("command executed successfully");
       } catch (err) {
-        logger.error(err instanceof Error ? err : new Error(String(err)), "command failed");
+        const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        logger.error(message);
         throw err;
       }
     },
