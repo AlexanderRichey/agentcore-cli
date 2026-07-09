@@ -9,7 +9,7 @@ import { Root } from "../components/Root";
 import { TestCoreClient } from "./TestCoreClient";
 import { testIO } from "./testIO";
 import { tick, waitFor } from "./timing";
-import { createTestLogger } from "./testLogger";
+import { createSilentLogger } from "./logging";
 
 // TUI test harness.
 //
@@ -29,7 +29,7 @@ import { createTestLogger } from "./testLogger";
 // keeps the command menus faithful to the production command structure.
 function baseContext(core: TestCoreClient): Context {
   const rootCommand = compile(
-    createRootHandler(core, { io: testIO().io, logger: createTestLogger() }),
+    createRootHandler(core, { io: testIO().io, logger: createSilentLogger() }),
     ValueContext.EmptyContext(),
   );
 
