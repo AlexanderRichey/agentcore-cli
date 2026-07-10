@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { waitFor } from "./timing";
 
-function parsedLines(content: string) {
+function parseJSONLines(content: string) {
   return content
     .trim()
     .split("\n")
@@ -47,17 +47,20 @@ export async function assertLogsMatch(
   queries: LogQuery[],
   options?: { timeoutMs?: number },
 ): Promise<void> {
+  let lastResults: ReturnType<typeof evaluateQueries> = [];
+
   // pino-roll writes via async worker threads, so logs may not be flushed to
   // disk immediately. Poll until all query conditions are satisfied.
   try {
     await waitFor(async () => {
-      const lines = await readParsedLines(dir);
-      return lines.length > 0 && evaluateQueries(lines, queries).every((r) => r.passed);
+      const content = await readLogFile(dir);
+      if (!content.trim()) return false;
+      const lines = parseJSONLines(content);
+      lastResults = evaluateQueries(lines, queries);
+      return lastResults.every((r) => r.passed);
     }, options?.timeoutMs ?? 2000);
   } catch {
-    const lines = await readParsedLines(dir);
-    // evaluate queries one more time to see which ones failed, and report the info in the error.
-    const failures = evaluateQueries(lines, queries)
+    const failures = lastResults
       .filter((r) => !r.passed)
       .map((r) => {
         const expected =
@@ -67,11 +70,6 @@ export async function assertLogsMatch(
 
     throw new Error(`assertLogsMatch timed out. Failed queries:\n${failures.join("\n")}`);
   }
-}
-
-async function readParsedLines(dir: string): Promise<object[]> {
-  const content = await readLogFile(dir);
-  return content.trim() ? parsedLines(content) : [];
 }
 
 function evaluateQueries(lines: object[], queries: LogQuery[]) {
