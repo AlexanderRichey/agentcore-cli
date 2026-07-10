@@ -1,4 +1,4 @@
-import { createFileLogger, LOG_LEVEL, type Logger } from "../logging";
+import { type Logger } from "../logging";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { waitFor } from "./timing";
@@ -22,11 +22,20 @@ export async function readLogFile(dir: string): Promise<string> {
   return readFile(join(dir, logFile), "utf-8");
 }
 
+const noop = () => {};
+
 /**
- * Create a silent logger that does not log at any level.
+ * Create a silent logger that discards all output.
  */
 export function createSilentLogger(): Logger {
-  return createFileLogger({ logLevel: LOG_LEVEL.SILENT, filePath: "/non-existent/" });
+  const silent: Logger = {
+    debug: noop,
+    info: noop,
+    warn: noop,
+    error: noop,
+    child: () => silent,
+  };
+  return silent;
 }
 
 /** A predicate over parsed log lines with an optional exact match count. */
