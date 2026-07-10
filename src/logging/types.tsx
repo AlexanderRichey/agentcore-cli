@@ -15,7 +15,7 @@ export type LoggerBindings = Record<string, string | number | boolean | null | u
 
 type LogFn = (...messages: string[]) => void;
 
-/** App-wide structured logging contract with child-logger support and async flush. */
+/** App-wide structured logging contract with child-logger support */
 export interface Logger {
   debug: LogFn;
   info: LogFn;
@@ -24,6 +24,7 @@ export interface Logger {
   child: (bindings: LoggerBindings) => Logger;
 }
 
+/** An extension of {@link Logger} that writes logs asynchronously and requires output to be flushed */
 export interface AsyncLogger extends Logger {
   child: (bindings: LoggerBindings) => AsyncLogger;
   flush: () => Promise<void>;
