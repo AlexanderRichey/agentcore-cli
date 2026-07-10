@@ -51,7 +51,9 @@ process.exit(
     } catch (e) {
       const error = e instanceof Error ? e : new Error(String(e));
       io.stderr.write(`${error.name}: ${error.message}\n`);
-      rootLogger.error(error);
+      rootLogger
+        .child({ errorName: error.name, errorMessage: error.message, stack: error.stack ?? "" })
+        .error();
       throw e;
     } finally {
       await rootLogger.flush();

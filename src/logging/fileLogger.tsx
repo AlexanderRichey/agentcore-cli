@@ -10,11 +10,15 @@ export interface FileLoggerConfig {
 }
 
 function wrapPinoLogger(pinoLogger: pino.Logger): AsyncLogger {
+  const log =
+    (level: pino.Level) =>
+    (...args: string[]) =>
+      pinoLogger[level](args.join(" "));
   return {
-    debug: pinoLogger.debug.bind(pinoLogger),
-    info: pinoLogger.info.bind(pinoLogger),
-    warn: pinoLogger.warn.bind(pinoLogger),
-    error: pinoLogger.error.bind(pinoLogger),
+    debug: log("debug"),
+    info: log("info"),
+    warn: log("warn"),
+    error: log("error"),
     child: (bindings) => wrapPinoLogger(pinoLogger.child(bindings)),
     // we convert pino's flush method that accepts a callback into a promise to make it easier to work with.
     // Note: we also treat flush as best-effort and swallow errors

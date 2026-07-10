@@ -13,9 +13,7 @@ export type LogLevel = (typeof LOG_LEVEL)[keyof typeof LOG_LEVEL];
 
 export type LoggerBindings = Record<string, string | number | boolean | null | undefined>;
 
-export type LogArgs = [object, string?] | [string];
-
-type LogFn = (...args: LogArgs) => void;
+type LogFn = (...messages: string[]) => void;
 
 /** App-wide structured logging contract with child-logger support and async flush. */
 export interface Logger {

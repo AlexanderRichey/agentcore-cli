@@ -23,12 +23,14 @@ export function withLogging(config: WithLoggingConfig): Middleware {
       const commandPath = ctx.require(PathKey);
       const logger = config.logger.child({ commandPath });
       try {
-        logger.debug({ flags, args }, "executing command");
+        logger.child({ flags, args }).debug("executing command");
         await h.handle(ctx.withValue<Logger>(LoggerKey, logger), flags, args);
         logger.debug("command executed successfully");
       } catch (err) {
-        const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-        logger.error(message);
+        const error = err instanceof Error ? err : new Error(String(err));
+        logger
+          .child({ errorName: error.name, errorMessage: error.message, stack: error.stack ?? "" })
+          .error("command failed");
         throw err;
       }
     },

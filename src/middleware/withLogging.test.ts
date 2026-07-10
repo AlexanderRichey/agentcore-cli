@@ -58,7 +58,9 @@ describe("withLogging", () => {
       {
         filter: (l: any) =>
           l.level === "error" &&
-          l.msg === "Error: connection timeout" &&
+          l.msg === "command failed" &&
+          l.errorName === "Error" &&
+          l.errorMessage === "connection timeout" &&
           l.commandPath === "/myapp/boom",
         expectedCount: 1,
       },
